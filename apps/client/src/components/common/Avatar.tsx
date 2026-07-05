@@ -1,8 +1,11 @@
+import { Icon } from "./Icon";
+
 export type AvatarTone = "neutral" | "secondary" | "primary" | "tertiary";
 export type PresenceStatus = "online" | "idle" | "offline";
 
 interface AvatarProps {
-  initials: string;
+  initials?: string;
+  icon?: string;
   tone?: AvatarTone;
   size?: "sm" | "md";
   presence?: PresenceStatus;
@@ -27,13 +30,13 @@ const SIZE_CLASSES = {
   md: "w-8 h-8 text-[12px]",
 };
 
-export function Avatar({ initials, tone = "neutral", size = "md", presence, className = "" }: AvatarProps) {
+export function Avatar({ initials, icon, tone = "neutral", size = "md", presence, className = "" }: AvatarProps) {
   return (
     <div className={`relative flex-shrink-0 ${className}`.trim()}>
       <div
         className={`rounded-full border border-surface flex items-center justify-center font-bold ${TONE_CLASSES[tone]} ${SIZE_CLASSES[size]}`}
       >
-        {initials}
+        {icon ? <Icon name={icon} size={size === "sm" ? 14 : 18} /> : initials}
       </div>
       {presence && (
         <div

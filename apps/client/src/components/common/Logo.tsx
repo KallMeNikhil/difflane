@@ -13,10 +13,10 @@ export function Logo({ variant = "marketing" }: LogoProps) {
         </div>
         <div className="flex flex-col">
           <span className="font-headline-md text-headline-md text-primary font-bold leading-tight">
-            Difflane
+            DIFFLANE
           </span>
           <span className="font-label-sm text-label-sm text-on-surface-variant">
-            Code Review Workspace
+            Collaborative Coding
           </span>
         </div>
       </div>
@@ -25,7 +25,7 @@ export function Logo({ variant = "marketing" }: LogoProps) {
 
   return (
     <span className="font-display text-headline-md font-extrabold tracking-[0.1em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-600">
-      Difflane
+      DIFFLANE
     </span>
   );
 }

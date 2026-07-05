@@ -16,8 +16,8 @@ export default function JoinRoom() {
     <form onSubmit={handleSubmit} noValidate>
       <ModalShell
         icon="meeting_room"
-        title="Join Review Room"
-        description="Enter a room code or invitation link to join an active collaborative review session."
+        title="Join Room"
+        description="Enter a room code or invitation link to join an active collaborative session."
         onClose={handleClose}
         maxWidthClassName="max-w-[680px]"
         footer={
@@ -52,7 +52,7 @@ export default function JoinRoom() {
           <TextField
             label="Display Name"
             required
-            placeholder="e.g., Alex Rivera"
+            placeholder="e.g., Your Name"
             value={values.displayName}
             maxLength={DISPLAY_NAME_MAX_LENGTH}
             error={errors.displayName}

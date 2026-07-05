@@ -12,7 +12,7 @@ export function AppHeader({ onOpenMobileNav }: AppHeaderProps) {
           <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center flex-shrink-0">
             <Icon name="view_in_ar" filled size={18} className="text-on-primary-container" />
           </div>
-          <span className="font-headline-md text-headline-md font-bold text-on-surface">Difflane</span>
+          <span className="font-headline-md text-headline-md font-bold text-on-surface">DIFFLANE</span>
         </div>
         <IconButton icon="menu" aria-label="Open navigation menu" onClick={onOpenMobileNav} />
       </header>

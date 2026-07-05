@@ -33,7 +33,7 @@ export default function CreateRoom() {
     return (
       <ModalShell
         title="Room Created"
-        description="Your review room is ready. Share the code below to invite collaborators."
+        description="Your room is ready. Share the code below to invite collaborators."
         onClose={handleClose}
         maxWidthClassName="max-w-[560px]"
         footer={
@@ -66,8 +66,8 @@ export default function CreateRoom() {
   return (
     <form onSubmit={handleSubmit} noValidate>
       <ModalShell
-        title="Create Review Room"
-        description="Create a collaborative review workspace for your team."
+        title="Create Room"
+        description="Create a collaborative coding workspace for your team."
         onClose={handleClose}
         maxWidthClassName="max-w-[740px]"
         footer={
@@ -83,6 +83,7 @@ export default function CreateRoom() {
         }
       >
         <div className="p-lg space-y-lg">
+          {}
           <section className="space-y-md">
             <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider">
               Room Information
@@ -101,7 +102,7 @@ export default function CreateRoom() {
                 label="Description"
                 optional
                 rows={3}
-                placeholder="Briefly describe the purpose of this review session..."
+                placeholder="Briefly describe the purpose of this session..."
                 value={values.description}
                 maxLength={DESCRIPTION_MAX_LENGTH}
                 error={errors.description}
@@ -112,6 +113,7 @@ export default function CreateRoom() {
 
           <hr className="border-outline-variant/30" />
 
+          {}
           <section className="space-y-md">
             <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider">
               Workspace Settings
@@ -154,6 +156,7 @@ export default function CreateRoom() {
 
           <hr className="border-outline-variant/30" />
 
+          {}
           <section className="space-y-md">
             <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider">
               Features

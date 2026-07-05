@@ -21,7 +21,7 @@ const FEATURES: FeatureCardData[] = [
   },
   {
     icon: "chat_bubble",
-    title: "Inline Review Threads",
+    title: "Inline Discussion Threads",
     description: "Create contextual discussions attached directly to specific code sections without breaking review flow.",
   },
   {
@@ -37,7 +37,7 @@ const FEATURES: FeatureCardData[] = [
   {
     icon: "share",
     title: "Instant Room Sharing",
-    description: "Generate secure room codes or shareable links to invite collaborators into a live review session within seconds.",
+    description: "Generate secure room codes or shareable links to invite collaborators into a live session within seconds.",
   },
 ];
 
@@ -65,7 +65,7 @@ export default function Landing() {
         <div className="absolute top-[30%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-[#00174b]/60 blur-[140px] rounded-full pointer-events-none -z-10" />
 
         <h1 className="font-display text-display md:text-[64px] md:leading-[72px] font-bold tracking-tight text-on-surface max-w-4xl mb-margin drop-shadow-md">
-          Shared Code Review,
+          Real-Time Coding Workspace,
           <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
             Engineered for Real-time Flow.
@@ -80,7 +80,7 @@ export default function Landing() {
         <div className="flex flex-col sm:flex-row gap-md">
           <Link to={ROUTES.createRoom} className={getButtonClasses("primary", "lg")}>
             <Icon name="add_box" size={20} />
-            Create Review Room
+            Create Room
           </Link>
           <Link to={ROUTES.joinRoom} className={getButtonClasses("secondary", "lg")}>
             <Icon name="group" size={20} />
@@ -88,6 +88,7 @@ export default function Landing() {
           </Link>
         </div>
 
+        {}
         <div className="mt-3xl w-full max-w-[500px] rounded-xl border border-outline-variant/30 bg-[#060d20]/90 backdrop-blur-md overflow-hidden font-code text-code text-on-surface-variant text-left shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7),0_0_30px_-5px_rgba(37,99,235,0.15)] transition-transform hover:scale-[1.01] duration-500 ease-out">
           <div className="flex border-b border-outline-variant/20 px-md py-sm bg-[#060d20]/50 gap-2 items-center">
             <div className="w-2.5 h-2.5 rounded-full bg-outline-variant/60" />
@@ -102,7 +103,7 @@ export default function Landing() {
             <div className="text-outline mt-sm">Initializing collaborative session...</div>
             <div className="text-outline">Synchronizing workspace...</div>
             <div className="text-outline">Loading repository context...</div>
-            <div className="text-outline">Review environment ready.</div>
+            <div className="text-outline">Workspace ready.</div>
             <div className="text-success-mint mt-sm flex items-center gap-2">
               <Icon name="check" size={14} />
               Shared workspace initialized

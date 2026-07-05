@@ -70,16 +70,16 @@ const CONNECTED_REPOSITORIES: ConnectedRepository[] = [
 const TEAM_PRESENCE: TeamPresenceMember[] = [
   {
     id: "member-1",
-    initials: "S",
-    name: "Sarah Chen",
+    initials: "FE",
+    name: "Frontend Engineer",
     statusLabel: "In Frontend Auth",
     tone: "secondary",
     presence: "online",
   },
   {
     id: "member-2",
-    initials: "M",
-    name: "Marcus Doe",
+    initials: "BE",
+    name: "Backend Engineer",
     statusLabel: "Idle",
     tone: "tertiary",
     presence: "idle",
@@ -93,7 +93,7 @@ const RECENT_ACTIVITY: ActivityItem[] = [
     timeLabel: "10 mins ago",
     message: (
       <>
-        <span className="font-medium">Sarah Chen</span> resolved a discussion in{" "}
+        <span className="font-medium">Frontend Engineer</span> resolved a discussion in{" "}
         <span className="font-code text-[11px] text-secondary">Frontend Auth</span>.
       </>
     ),
@@ -113,7 +113,7 @@ const RECENT_ACTIVITY: ActivityItem[] = [
     timeLabel: "2 hours ago",
     message: (
       <>
-        <span className="font-medium">Marcus Doe</span> started a new review in{" "}
+        <span className="font-medium">Backend Engineer</span> started a new review in{" "}
         <span className="font-code text-[11px] text-secondary">webapp</span>.
       </>
     ),
@@ -125,7 +125,7 @@ export default function Dashboard() {
     <div className="max-w-7xl mx-auto flex flex-col gap-lg md:gap-xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-md">
         <div>
-          <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Welcome back, Alex.</h1>
+          <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Welcome back, Your Name.</h1>
           <p className="font-body-md text-body-md text-on-surface-variant">
             You have {ACTIVE_ROOMS.length} active review sessions requiring your attention.
           </p>

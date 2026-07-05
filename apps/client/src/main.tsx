@@ -15,6 +15,7 @@ createRoot(rootElement).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider>
+        {}
         <LazyMotion features={domAnimation} strict>
           <App />
         </LazyMotion>

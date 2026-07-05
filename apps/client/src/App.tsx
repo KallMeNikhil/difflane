@@ -20,10 +20,10 @@ export default function App() {
 
       <Route path={ROUTES.createRoom} element={<CreateRoom />} />
       <Route path={ROUTES.joinRoom} element={<JoinRoom />} />
+      <Route path={ROUTES.workspace} element={<Workspace />} />
 
       <Route element={<AppLayout />}>
         <Route path={ROUTES.dashboard} element={<Dashboard />} />
-        <Route path={ROUTES.workspace} element={<Workspace />} />
         <Route path={ROUTES.history} element={<History />} />
         <Route path={ROUTES.settings} element={<Settings />} />
       </Route>

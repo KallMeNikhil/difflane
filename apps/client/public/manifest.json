@@ -1,7 +1,7 @@
 {
   "name": "Difflane",
   "short_name": "Difflane",
-  "description": "Real-Time Collaborative Code Review Workspace",
+  "description": "Real-Time Collaborative Coding Workspace",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b1326",

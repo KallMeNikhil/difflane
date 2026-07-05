@@ -43,7 +43,7 @@ export function SideNav({ variant = "docked", onNavigate }: SideNavProps) {
       <div className="mt-auto pt-lg">
         <NavLink to={ROUTES.createRoom} onClick={onNavigate} className={getButtonClasses("primary", "md", "w-full")}>
           <Icon name="add" size={20} />
-          New Review
+          New Session
         </NavLink>
       </div>
     </nav>
