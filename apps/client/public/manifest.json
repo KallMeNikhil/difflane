@@ -1,0 +1,10 @@
+{
+  "name": "Difflane",
+  "short_name": "Difflane",
+  "description": "Real-Time Collaborative Code Review Workspace",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1326",
+  "theme_color": "#0b1326",
+  "icons": []
+}
