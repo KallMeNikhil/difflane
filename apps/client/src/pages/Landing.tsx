@@ -88,7 +88,7 @@ export default function Landing() {
         </div>
 
         {}
-        <div className="mt-xl translate-y-6 z-20 w-full max-w-[440px] rounded-xl border border-white/10 bg-[#0E1117] overflow-hidden font-code text-code text-gray-400 text-left shadow-2xl shadow-black/80 transition-transform hover:scale-[1.01] duration-500 ease-out">
+        <div className="mt-xl translate-y-6 z-20 max-w-[440px] rounded-xl border border-white/10 bg-[#0E1117] overflow-hidden font-code text-code text-gray-400 text-left shadow-2xl shadow-black/80 transition-transform hover:scale-[1.01] duration-500 ease-out">
           <div className="flex border-b border-white/5 px-md py-sm bg-[#161b22] gap-2 items-center">
             <div className="w-2.5 h-2.5 rounded-full bg-white/20" />
             <div className="w-2.5 h-2.5 rounded-full bg-white/20" />

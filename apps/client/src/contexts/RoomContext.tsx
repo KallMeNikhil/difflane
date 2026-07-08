@@ -70,6 +70,7 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
       .catch((error: unknown) => {
         if (!cancelled) {
           setErrorMessage(error instanceof Error ? error.message : "Unable to join the room.");
+          disconnectSocket(socket);
         }
       });
 

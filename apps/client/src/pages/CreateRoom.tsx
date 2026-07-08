@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import {
-  Button,
   Icon,
   ModalShell,
   RadioCardGroup,
@@ -22,6 +21,11 @@ import {
 } from "../constants/roomOptions";
 import { ROUTES } from "../constants/routes";
 
+const PRIMARY_BUTTON =
+  "inline-flex items-center justify-center gap-sm font-label-md text-label-md px-lg py-sm rounded-lg bg-primary-container text-white hover:brightness-110 shadow-md shadow-primary-container/20 hover:-translate-y-0.5 transition-all duration-300 ease-out disabled:opacity-50 disabled:pointer-events-none disabled:hover:translate-y-0";
+const SECONDARY_BUTTON =
+  "inline-flex items-center justify-center gap-sm font-label-md text-label-md px-lg py-sm rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 hover:text-white transition-all duration-300 ease-out";
+
 export default function CreateRoom() {
   const navigate = useNavigate();
   const { values, errors, status, roomCode, setField, setFeature, handleSubmit, reset } =
@@ -38,13 +42,17 @@ export default function CreateRoom() {
         maxWidthClassName="max-w-[560px]"
         footer={
           <div className="flex justify-end gap-md">
-            <Button variant="secondary" onClick={reset}>
+            <button type="button" className={SECONDARY_BUTTON} onClick={reset}>
               Create Another
-            </Button>
-            <Button variant="primary" onClick={() => navigate(ROUTES.workspace, { state: { roomCode } })}>
+            </button>
+            <button
+              type="button"
+              className={PRIMARY_BUTTON}
+              onClick={() => navigate(ROUTES.workspace, { state: { roomCode } })}
+            >
               <Icon name="arrow_forward" size={18} />
               Enter Workspace
-            </Button>
+            </button>
           </div>
         }
       >
@@ -52,10 +60,10 @@ export default function CreateRoom() {
           <div className="w-14 h-14 rounded-xl bg-success-mint/10 border border-success-mint/30 flex items-center justify-center">
             <Icon name="check_circle" size={28} className="text-success-mint" filled />
           </div>
-          <p className="font-body-md text-body-md text-on-surface-variant">
-            <span className="text-on-surface font-medium">{values.roomName}</span> is ready to go.
+          <p className="font-body-md text-body-md text-gray-400">
+            <span className="text-white font-medium">{values.roomName}</span> is ready to go.
           </p>
-          <div className="w-full max-w-xs bg-surface border border-outline-variant rounded-lg px-md py-lg text-center font-code text-code text-on-surface tracking-[0.5em] uppercase">
+          <div className="w-full max-w-xs bg-[#161b22] border border-white/10 rounded-lg px-md py-lg text-center font-code text-code text-white tracking-[0.5em] uppercase">
             {roomCode}
           </div>
         </div>
@@ -72,13 +80,13 @@ export default function CreateRoom() {
         maxWidthClassName="max-w-[740px]"
         footer={
           <div className="flex justify-end gap-md">
-            <Button type="button" variant="secondary" onClick={handleClose}>
+            <button type="button" className={SECONDARY_BUTTON} onClick={handleClose}>
               Cancel
-            </Button>
-            <Button type="submit" variant="primary" disabled={status === "submitting"}>
+            </button>
+            <button type="submit" className={PRIMARY_BUTTON} disabled={status === "submitting"}>
               <Icon name="add" size={18} />
               {status === "submitting" ? "Creating…" : "Create Workspace"}
-            </Button>
+            </button>
           </div>
         }
       >
@@ -111,7 +119,7 @@ export default function CreateRoom() {
             </div>
           </section>
 
-          <hr className="border-outline-variant/30" />
+          <hr className="border-white/5" />
 
           {}
           <section className="space-y-md">
@@ -154,7 +162,7 @@ export default function CreateRoom() {
             </div>
           </section>
 
-          <hr className="border-outline-variant/30" />
+          <hr className="border-white/5" />
 
           {}
           <section className="space-y-md">

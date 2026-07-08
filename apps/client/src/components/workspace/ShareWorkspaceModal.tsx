@@ -43,7 +43,6 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
       setCopiedField(field);
       window.setTimeout(() => setCopiedField(null), 1500);
     } catch {
-      // Clipboard access can be denied by the browser; copying is best-effort.
     }
   }
 

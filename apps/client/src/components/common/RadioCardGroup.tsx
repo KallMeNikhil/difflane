@@ -18,17 +18,17 @@ interface RadioCardGroupProps {
 export function RadioCardGroup({ name, legend, options, value, onChange }: RadioCardGroupProps) {
   return (
     <div>
-      <span className="block font-label-md text-label-md text-on-surface mb-sm">{legend}</span>
+      <span className="block font-label-md text-label-md text-gray-300 mb-sm">{legend}</span>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-md" role="radiogroup" aria-label={legend}>
         {options.map((option) => {
           const checked = option.value === value;
           return (
             <label
               key={option.value}
-              className={`relative flex flex-col p-md rounded-xl border cursor-pointer transition-colors group ${
+              className={`relative flex flex-col p-md rounded-xl border cursor-pointer transition-all duration-300 ease-out group ${
                 checked
-                  ? "border-primary bg-primary/5 hover:bg-primary/10"
-                  : "border-outline-variant bg-surface hover:border-outline"
+                  ? "border-primary/60 bg-primary/5 hover:bg-primary/10"
+                  : "border-white/10 bg-[#161b22] hover:border-white/20"
               }`}
             >
               <input
@@ -46,19 +46,19 @@ export function RadioCardGroup({ name, legend, options, value, onChange }: Radio
                   className={
                     checked
                       ? "text-primary"
-                      : "text-on-surface-variant group-hover:text-on-surface transition-colors"
+                      : "text-gray-400 group-hover:text-gray-200 transition-colors duration-300 ease-out"
                   }
                 />
                 <div
-                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    checked ? "border-primary" : "border-outline-variant group-hover:border-outline"
+                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors duration-300 ease-out ${
+                    checked ? "border-primary" : "border-white/20 group-hover:border-white/40"
                   }`}
                 >
                   {checked && <div className="w-2 h-2 rounded-full bg-primary" />}
                 </div>
               </div>
-              <span className="font-label-md text-label-md text-on-surface block mb-xs">{option.label}</span>
-              <span className="font-body-sm text-body-sm text-on-surface-variant">{option.description}</span>
+              <span className="font-label-md text-label-md text-gray-100 block mb-xs">{option.label}</span>
+              <span className="font-body-sm text-body-sm text-gray-400">{option.description}</span>
             </label>
           );
         })}

@@ -18,7 +18,9 @@ export function joinRoom(socket: Socket, payload: RoomJoinPayload): Promise<Room
   return new Promise((resolve, reject) => {
     if (!socket.connected) {
       socket.once("connect", () => socket.emit(SOCKET_EVENTS.ROOM_JOIN, payload, resolve));
-      socket.once("connect_error", reject);
+      socket.once("connect_error", () => {
+        reject(new Error("Unable to reach the Difflane server. Please try again in a moment."));
+      });
       return;
     }
     socket.emit(SOCKET_EVENTS.ROOM_JOIN, payload, resolve);
