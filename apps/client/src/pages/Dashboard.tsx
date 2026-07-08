@@ -103,7 +103,7 @@ const RECENT_ACTIVITY: ActivityItem[] = [
     timeLabel: "1 hour ago",
     message: (
       <>
-        <span className="font-medium">You</span> joined room{" "}
+        <span className="font-medium">You</span> joined workspace{" "}
         <span className="font-code text-[11px] text-secondary">Stripe Webhook Refactor</span>.
       </>
     ),
@@ -113,7 +113,7 @@ const RECENT_ACTIVITY: ActivityItem[] = [
     timeLabel: "2 hours ago",
     message: (
       <>
-        <span className="font-medium">Backend Engineer</span> started a new review in{" "}
+        <span className="font-medium">Backend Engineer</span> started a new workspace in{" "}
         <span className="font-code text-[11px] text-secondary">webapp</span>.
       </>
     ),
@@ -127,24 +127,24 @@ export default function Dashboard() {
         <div>
           <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Welcome back, Your Name.</h1>
           <p className="font-body-md text-body-md text-on-surface-variant">
-            You have {ACTIVE_ROOMS.length} active review sessions requiring your attention.
+            You have {ACTIVE_ROOMS.length} active workspaces requiring your attention.
           </p>
         </div>
         <div className="flex items-center gap-sm">
           <Link to={ROUTES.joinRoom} className={getButtonClasses("secondary", "md")}>
             <Icon name="meeting_room" size={18} />
-            Join Room
+            Join Workspace
           </Link>
           <Link to={ROUTES.createRoom} className={getButtonClasses("primary", "md")}>
             <Icon name="add_box" size={18} />
-            Create Room
+            Create Workspace
           </Link>
         </div>
       </div>
 
       <section className="flex flex-col gap-md">
         <h2 className="font-headline-md text-headline-md text-on-surface pb-sm border-b border-outline-variant">
-          Active Rooms
+          Active Workspaces
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
           {ACTIVE_ROOMS.map((room) => (

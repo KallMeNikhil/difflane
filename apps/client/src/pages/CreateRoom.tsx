@@ -32,8 +32,8 @@ export default function CreateRoom() {
   if (status === "success" && roomCode) {
     return (
       <ModalShell
-        title="Room Created"
-        description="Your room is ready. Share the code below to invite collaborators."
+        title="Workspace Created"
+        description="Your workspace is ready. Share the code below to invite collaborators."
         onClose={handleClose}
         maxWidthClassName="max-w-[560px]"
         footer={
@@ -41,7 +41,7 @@ export default function CreateRoom() {
             <Button variant="secondary" onClick={reset}>
               Create Another
             </Button>
-            <Button variant="primary" onClick={() => navigate(ROUTES.workspace)}>
+            <Button variant="primary" onClick={() => navigate(ROUTES.workspace, { state: { roomCode } })}>
               <Icon name="arrow_forward" size={18} />
               Enter Workspace
             </Button>
@@ -66,7 +66,7 @@ export default function CreateRoom() {
   return (
     <form onSubmit={handleSubmit} noValidate>
       <ModalShell
-        title="Create Room"
+        title="Create Workspace"
         description="Create a collaborative coding workspace for your team."
         onClose={handleClose}
         maxWidthClassName="max-w-[740px]"
@@ -77,7 +77,7 @@ export default function CreateRoom() {
             </Button>
             <Button type="submit" variant="primary" disabled={status === "submitting"}>
               <Icon name="add" size={18} />
-              {status === "submitting" ? "Creating…" : "Create Room"}
+              {status === "submitting" ? "Creating…" : "Create Workspace"}
             </Button>
           </div>
         }
@@ -86,11 +86,11 @@ export default function CreateRoom() {
           {}
           <section className="space-y-md">
             <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider">
-              Room Information
+              Workspace Information
             </h2>
             <div className="space-y-md">
               <TextField
-                label="Room Name"
+                label="Workspace Name"
                 required
                 placeholder="e.g., Q3 Core API Refactor"
                 value={values.roomName}
@@ -121,7 +121,7 @@ export default function CreateRoom() {
             <div className="space-y-lg">
               <RadioCardGroup
                 name="review_mode"
-                legend="Review Mode"
+                legend="Session Mode"
                 options={REVIEW_MODE_OPTIONS}
                 value={values.reviewMode}
                 onChange={(value) => setField("reviewMode", value as typeof values.reviewMode)}

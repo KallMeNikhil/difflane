@@ -16,8 +16,8 @@ export default function JoinRoom() {
     <form onSubmit={handleSubmit} noValidate>
       <ModalShell
         icon="meeting_room"
-        title="Join Room"
-        description="Enter a room code or invitation link to join an active collaborative session."
+        title="Join Workspace"
+        description="Enter a workspace code or invitation link to join an active collaborative session."
         onClose={handleClose}
         maxWidthClassName="max-w-[680px]"
         footer={
@@ -41,7 +41,7 @@ export default function JoinRoom() {
                 Cancel
               </Button>
               <Button type="submit" variant="primary" disabled={isJoining}>
-                {isJoining ? "Joining…" : "Join Room"}
+                {isJoining ? "Joining…" : "Join Workspace"}
                 <Icon name="login" size={18} />
               </Button>
             </div>
@@ -62,11 +62,11 @@ export default function JoinRoom() {
           <div className="space-y-md">
             <div>
               <span className="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-sm">
-                Room Code
+                Workspace Code
               </span>
               <TextField
                 id="room-code"
-                label="Room Code"
+                label="Workspace Code"
                 hideLabel
                 variant="code"
                 placeholder="AB7C2"
@@ -114,7 +114,7 @@ export default function JoinRoom() {
 
           <div>
             <span className="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-sm">
-              Recent Rooms
+              Recent Workspaces
             </span>
             <div className="bg-surface border border-outline-variant rounded-lg overflow-hidden divide-y divide-outline-variant/50">
               {MOCK_RECENT_ROOMS.map((room) => (

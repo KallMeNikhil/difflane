@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Avatar, Button, Icon, IconButton } from "../common";
-import { MOCK_SHARE_WORKSPACE_INFO, MOCK_WORKSPACE_MEMBERS } from "../../constants/mockCollaborators";
+import { useRoom } from "../../hooks/useRoom";
 import type { MemberRole } from "../../types/workspace";
 
 interface ShareWorkspaceModalProps {
@@ -21,6 +21,8 @@ const ROLE_LABELS: Record<MemberRole, string> = {
 };
 
 export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
+  const { roomCode, participants } = useRoom();
+  const inviteLink = `difflane.io/r/${roomCode}`;
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<MemberRole>("reviewer");
   const [copiedField, setCopiedField] = useState<"code" | "link" | null>(null);
@@ -41,6 +43,7 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
       setCopiedField(field);
       window.setTimeout(() => setCopiedField(null), 1500);
     } catch {
+      // Clipboard access can be denied by the browser; copying is best-effort.
     }
   }
 
@@ -50,7 +53,7 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
         <div className="flex items-start justify-between px-lg pt-lg pb-md border-b border-outline-variant/50 shrink-0">
           <div>
             <h2 className="font-headline-md text-headline-md text-on-surface mb-xs">Share Workspace</h2>
-            <p className="font-body-sm text-body-sm text-on-surface-variant">Invite collaborators to join this live review session.</p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">Invite collaborators to join this live workspace session.</p>
           </div>
           <IconButton icon="close" aria-label="Close" shape="square" onClick={onClose} />
         </div>
@@ -63,20 +66,18 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
               </div>
               <div>
                 <div className="flex items-center gap-sm">
-                  <span className="font-label-md text-label-md text-on-surface">{MOCK_SHARE_WORKSPACE_INFO.projectName}</span>
-                  {MOCK_SHARE_WORKSPACE_INFO.isLive && (
-                    <span className="bg-primary-container/20 text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                      LIVE
-                    </span>
-                  )}
+                  <span className="font-label-md text-label-md text-on-surface">Project Alpha</span>
+                  <span className="bg-primary-container/20 text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    LIVE
+                  </span>
                 </div>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">Active Review Session</span>
+                <span className="font-body-sm text-body-sm text-on-surface-variant">Active Workspace Session</span>
               </div>
             </div>
             <div className="flex items-center gap-xs text-on-surface-variant bg-surface px-3 py-1.5 rounded border border-outline-variant">
               <Icon name="group" size={18} />
-              <span className="font-label-sm text-label-sm">{MOCK_SHARE_WORKSPACE_INFO.collaboratorCount} Collaborators</span>
+              <span className="font-label-sm text-label-sm">{participants.length} Collaborators</span>
             </div>
           </div>
 
@@ -84,18 +85,18 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
             <h3 className="font-label-md text-label-md text-on-surface">Share Access</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
               <div className="flex flex-col gap-xs">
-                <label className="font-label-sm text-label-sm text-on-surface-variant">Room Code</label>
+                <label className="font-label-sm text-label-sm text-on-surface-variant">Workspace Code</label>
                 <div className="flex items-center">
                   <input
                     readOnly
                     type="text"
-                    value={MOCK_SHARE_WORKSPACE_INFO.roomCode}
+                    value={roomCode}
                     className="font-code text-code w-full bg-surface-dim border border-outline-variant rounded-l-lg py-2 px-3 text-on-surface-variant cursor-not-allowed focus:outline-none"
                   />
                   <button
                     type="button"
                     title="Copy Code"
-                    onClick={() => handleCopy("code", MOCK_SHARE_WORKSPACE_INFO.roomCode)}
+                    onClick={() => handleCopy("code", roomCode)}
                     className="bg-surface-variant border-y border-r border-outline-variant rounded-r-lg p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-bright transition-colors"
                   >
                     <Icon name={copiedField === "code" ? "check" : "content_copy"} size={20} />
@@ -108,13 +109,13 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
                   <input
                     readOnly
                     type="text"
-                    value={MOCK_SHARE_WORKSPACE_INFO.inviteLink}
+                    value={inviteLink}
                     className="font-body-sm text-body-sm w-full bg-surface-dim border border-outline-variant rounded-l-lg py-2 px-3 text-on-surface-variant cursor-not-allowed focus:outline-none truncate"
                   />
                   <button
                     type="button"
                     title="Copy Link"
-                    onClick={() => handleCopy("link", MOCK_SHARE_WORKSPACE_INFO.inviteLink)}
+                    onClick={() => handleCopy("link", inviteLink)}
                     className="bg-surface-variant border-y border-r border-outline-variant rounded-r-lg p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-bright transition-colors"
                   >
                     <Icon name={copiedField === "link" ? "check" : "content_copy"} size={20} />
@@ -166,33 +167,24 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
 
           <div className="flex flex-col gap-sm">
             <h3 className="font-label-md text-label-md text-on-surface mb-xs">Active Members</h3>
-            {MOCK_WORKSPACE_MEMBERS.map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-sm rounded hover:bg-surface-variant/30 transition-colors group">
+            {participants.map((participant) => (
+              <div key={participant.connectionId} className="flex items-center justify-between p-sm rounded hover:bg-surface-variant/30 transition-colors group">
                 <div className="flex items-center gap-md">
                   <Avatar
-                    initials={member.initials}
+                    initials={participant.initials}
                     size="md"
-                    presence={member.role === "owner" ? undefined : member.presence}
+                    presence="online"
                     className="[&>div:first-child]:bg-surface-variant [&>div:first-child]:border-outline [&>div:first-child]:text-on-surface"
                   />
                   <div className="flex flex-col">
-                    <span className="font-label-sm text-label-sm text-on-surface">{member.name}</span>
-                    <span className="font-body-sm text-body-sm text-on-surface-variant text-[12px]">{member.email}</span>
+                    <span className="font-label-sm text-label-sm text-on-surface">{participant.displayName}</span>
+                    <span className="font-body-sm text-body-sm text-on-surface-variant text-[12px]">Connected now</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-md">
-                  <span
-                    className={`font-label-sm text-label-sm px-2 py-1 rounded ${
-                      member.role === "owner" ? "text-on-surface-variant bg-surface-variant" : "text-on-surface-variant bg-surface-variant/50 border border-outline-variant"
-                    }`}
-                  >
-                    {ROLE_LABELS[member.role]}
+                  <span className="font-label-sm text-label-sm px-2 py-1 rounded text-on-surface-variant bg-surface-variant/50 border border-outline-variant">
+                    {ROLE_LABELS[participant.role]}
                   </span>
-                  {member.role !== "owner" && (
-                    <button type="button" aria-label="Member options" className="text-on-surface-variant hover:text-on-surface opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-surface-bright">
-                      <Icon name="more_vert" size={20} />
-                    </button>
-                  )}
                 </div>
               </div>
             ))}

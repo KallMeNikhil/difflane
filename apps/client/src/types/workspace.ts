@@ -1,4 +1,7 @@
 
+import type { MemberRole } from "@difflane/shared-types";
+export type { MemberRole };
+
 export type FileNodeType = "file" | "folder";
 
 export type FileStatus = "unmodified" | "modified" | "added" | "deleted";
@@ -116,8 +119,6 @@ export type DiscussionFeedItem =
   | { kind: "event"; event: ActivityEvent };
 
 export type WorkspaceTopTab = "files" | "changes" | "discussion";
-
-export type MemberRole = "owner" | "editor" | "reviewer" | "viewer";
 
 export interface WorkspaceMember {
   id: string;

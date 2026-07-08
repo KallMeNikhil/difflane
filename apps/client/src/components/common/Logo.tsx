@@ -2,9 +2,10 @@ import { Icon } from "./Icon";
 
 interface LogoProps {
   variant?: "marketing" | "app";
+  size?: "headline-md" | "body-md";
 }
 
-export function Logo({ variant = "marketing" }: LogoProps) {
+export function Logo({ variant = "marketing", size = "headline-md" }: LogoProps) {
   if (variant === "app") {
     return (
       <div className="flex items-center gap-md">
@@ -23,8 +24,10 @@ export function Logo({ variant = "marketing" }: LogoProps) {
     );
   }
 
+  const sizeClass = size === "body-md" ? "text-body-md" : "text-headline-md";
+
   return (
-    <span className="font-display text-headline-md font-extrabold tracking-[0.1em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-600">
+    <span className={`font-display ${sizeClass} font-extrabold tracking-[0.1em] uppercase text-white`}>
       DIFFLANE
     </span>
   );

@@ -1,4 +1,4 @@
-import type { EditorLanguage, FileNode } from "../types/workspace";
+import type { EditorLanguage, FileNode, OpenEditorTab } from "../types/workspace";
 
 export function toggleFolderExpanded(tree: FileNode[], folderId: string): FileNode[] {
   return tree.map((node) => {
@@ -61,4 +61,22 @@ export function buildBreadcrumbPath(tree: FileNode[], fileId: string, trail: str
 
 export function toMonacoLanguage(language: EditorLanguage): string {
   return language;
+}
+
+export function toOpenTab(tree: FileNode[], node: FileNode): OpenEditorTab {
+  const path = buildBreadcrumbPath(tree, node.id) ?? [node.name];
+  return {
+    fileId: node.id,
+    name: node.name,
+    path: path.join("/"),
+    language: node.language ?? "plaintext",
+    status: node.status ?? "unmodified",
+  };
+}
+
+export function deriveTabsFromIds(tree: FileNode[], fileIds: string[]): OpenEditorTab[] {
+  return fileIds
+    .map((fileId) => findNodeById(tree, fileId))
+    .filter((node): node is FileNode => Boolean(node))
+    .map((node) => toOpenTab(tree, node));
 }

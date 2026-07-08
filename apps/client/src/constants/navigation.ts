@@ -16,6 +16,5 @@ export const SIDE_NAV_ITEMS: NavItem[] = [
 export const MARKETING_NAV_ITEMS = [
   { label: "Features", href: "#features" },
   { label: "Workspace", href: "#workspace" },
-  { label: "How It Works", href: "#how-it-works" },
   { label: "Documentation", href: "#docs" },
 ];

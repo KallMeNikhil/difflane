@@ -14,7 +14,7 @@ export const REVIEW_MODE_OPTIONS: {
   },
   {
     value: "guided",
-    label: "Guided Review",
+    label: "Guided Walkthrough",
     description: "Structured walkthrough with predefined steps.",
     icon: "route",
   },

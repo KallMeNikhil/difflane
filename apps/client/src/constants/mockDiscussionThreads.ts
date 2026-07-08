@@ -45,7 +45,7 @@ export const MOCK_DISCUSSION_FEED: DiscussionFeedItem[] = [
     event: {
       id: "event-joined",
       actorName: "Backend Engineer",
-      description: "joined the room",
+      description: "joined the workspace",
       timestampLabel: "2 minutes ago",
     },
   },

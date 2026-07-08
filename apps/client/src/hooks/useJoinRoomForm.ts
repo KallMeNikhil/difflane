@@ -2,6 +2,7 @@ import { useCallback, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateJoinRoomForm } from "../services/RoomService";
 import { ROUTES } from "../constants/routes";
+import { useCurrentUser } from "../contexts/CurrentUserContext";
 import type { JoinRoomFormErrors, JoinRoomFormValues } from "../types/room";
 
 const INITIAL_VALUES: JoinRoomFormValues = {
@@ -12,8 +13,19 @@ const INITIAL_VALUES: JoinRoomFormValues = {
 
 export type JoinRoomStatus = "idle" | "joining";
 
+function extractRoomCode(values: JoinRoomFormValues): string {
+  const roomCode = values.roomCode.trim();
+  if (roomCode) {
+    return roomCode.toUpperCase();
+  }
+  const link = values.invitationLink.trim();
+  const segments = link.split("/").filter(Boolean);
+  return (segments[segments.length - 1] ?? "").toUpperCase();
+}
+
 export function useJoinRoomForm() {
   const navigate = useNavigate();
+  const { setDisplayName } = useCurrentUser();
   const [values, setValues] = useState<JoinRoomFormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<JoinRoomFormErrors>({});
   const [status, setStatus] = useState<JoinRoomStatus>("idle");
@@ -36,11 +48,12 @@ export function useJoinRoomForm() {
 
       setField("roomCode", code);
       setStatus("joining");
+      setDisplayName(trimmedDisplayName);
       window.setTimeout(() => {
-        navigate(ROUTES.workspace);
+        navigate(ROUTES.workspace, { state: { roomCode: code } });
       }, 400);
     },
-    [values.displayName, setField, navigate],
+    [values.displayName, setField, navigate, setDisplayName],
   );
 
   const handleSubmit = useCallback(
@@ -53,11 +66,13 @@ export function useJoinRoomForm() {
       }
 
       setStatus("joining");
+      setDisplayName(values.displayName.trim());
+      const roomCode = extractRoomCode(values);
       window.setTimeout(() => {
-        navigate(ROUTES.workspace);
+        navigate(ROUTES.workspace, { state: { roomCode } });
       }, 500);
     },
-    [values, navigate],
+    [values, navigate, setDisplayName],
   );
 
   return { values, errors, status, setField, joinWithCode, handleSubmit };

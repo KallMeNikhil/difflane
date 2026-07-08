@@ -55,7 +55,7 @@ export function ActiveRoomCard({ room, onContinue }: ActiveRoomCardProps) {
           onClick={() => onContinue?.(room.id)}
           className="w-full mt-2 py-1.5 bg-surface-variant text-on-surface border border-outline-variant rounded-lg font-label-md text-label-md group-hover:bg-primary-container group-hover:text-on-primary-container group-hover:border-primary-container transition-all"
         >
-          Continue Reviewing
+          Resume Workspace
         </button>
       </div>
     </div>

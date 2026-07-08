@@ -25,7 +25,7 @@ export function AppHeader({ onOpenMobileNav }: AppHeaderProps) {
             </span>
             <input
               type="text"
-              placeholder="Search rooms, repos..."
+              placeholder="Search workspaces, repos..."
               className="w-full bg-surface-container-low border border-outline-variant text-on-surface font-body-sm rounded-full pl-10 pr-4 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-on-surface-variant"
             />
           </div>

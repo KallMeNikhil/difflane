@@ -20,9 +20,9 @@ export function validateCreateRoomForm(values: CreateRoomFormValues): CreateRoom
 
   const trimmedName = values.roomName.trim();
   if (!trimmedName) {
-    errors.roomName = "Room name is required.";
+    errors.roomName = "Workspace name is required.";
   } else if (trimmedName.length > ROOM_NAME_MAX_LENGTH) {
-    errors.roomName = `Room name must be ${ROOM_NAME_MAX_LENGTH} characters or fewer.`;
+    errors.roomName = `Workspace name must be ${ROOM_NAME_MAX_LENGTH} characters or fewer.`;
   }
 
   if (values.description.trim().length > DESCRIPTION_MAX_LENGTH) {
@@ -64,11 +64,11 @@ export function validateJoinRoomForm(values: JoinRoomFormValues): JoinRoomFormEr
   const hasInvitationLink = trimmedInvitationLink.length > 0;
 
   if (!hasRoomCode && !hasInvitationLink) {
-    errors.form = "Enter a room code or an invitation link.";
+    errors.form = "Enter a workspace code or an invitation link.";
   } else if (hasRoomCode && !ROOM_CODE_PATTERN.test(trimmedRoomCode.toUpperCase())) {
-    errors.roomCode = "Room codes are 5-8 letters and numbers.";
+    errors.roomCode = "Workspace codes are 5-8 letters and numbers.";
   } else if (!hasRoomCode && hasInvitationLink && !INVITATION_LINK_PATTERN.test(trimmedInvitationLink)) {
-    errors.invitationLink = "Enter a valid Difflane room invitation link.";
+    errors.invitationLink = "Enter a valid Difflane workspace invitation link.";
   }
 
   return errors;

@@ -1,29 +1,99 @@
-import { useCallback, useState } from "react";
-import { appendReply, computeFeedStats, resolveThread } from "../services/DiscussionService";
-import type { DiscussionFeedItem } from "../types/workspace";
+import { useCallback, useEffect, useState } from "react";
+import type * as Y from "yjs";
+import {
+  appendReply,
+  computeFeedStats,
+  createThread,
+  deleteComment,
+  deleteThread,
+  editComment,
+  resolveThread,
+} from "../services/DiscussionService";
+import { readDiscussionFeed, subscribeDiscussionFeed, writeDiscussionFeed } from "../services/CollaborationService";
+import type { DiscussionFeedItem, DiscussionThread } from "../types/workspace";
 
-export function useDiscussionThreads(initialFeed: DiscussionFeedItem[]) {
-  const [feed, setFeed] = useState<DiscussionFeedItem[]>(initialFeed);
+export interface DiscussionAuthorIdentity {
+  name: string;
+  initials: string;
+}
 
-  const resolve = useCallback((threadId: string) => {
-    setFeed((prev) => resolveThread(prev, threadId));
-  }, []);
+const DEFAULT_AUTHOR: DiscussionAuthorIdentity = { name: "You", initials: "ME" };
 
-  const reply = useCallback((threadId: string, body: string) => {
-    if (!body.trim()) {
+export function useDiscussionThreads(
+  initialFeed: DiscussionFeedItem[],
+  doc?: Y.Doc | null,
+  author: DiscussionAuthorIdentity = DEFAULT_AUTHOR,
+) {
+  const [localFeed, setLocalFeed] = useState<DiscussionFeedItem[]>(initialFeed);
+
+  useEffect(() => {
+    if (!doc) {
       return;
     }
-    setFeed((prev) =>
-      appendReply(prev, threadId, {
-        id: `comment-${Date.now()}`,
-        authorInitials: "ME",
-        authorName: "You",
-        timestampLabel: "Just now",
-        body: body.trim(),
-        tone: "default",
-      }),
-    );
-  }, []);
+    const shared = readDiscussionFeed(doc);
+    if (shared.length === 0 && initialFeed.length > 0) {
+      writeDiscussionFeed(doc, initialFeed);
+    } else {
+      setLocalFeed(shared);
+    }
+    return subscribeDiscussionFeed(doc, setLocalFeed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc]);
 
-  return { feed, stats: computeFeedStats(feed), resolve, reply };
+  const commit = useCallback(
+    (nextFeed: DiscussionFeedItem[]) => {
+      if (doc) {
+        writeDiscussionFeed(doc, nextFeed);
+      } else {
+        setLocalFeed(nextFeed);
+      }
+    },
+    [doc],
+  );
+
+  const resolve = useCallback((threadId: string) => commit(resolveThread(localFeed, threadId)), [commit, localFeed]);
+
+  const reply = useCallback(
+    (threadId: string, body: string) => {
+      if (!body.trim()) {
+        return;
+      }
+      commit(
+        appendReply(localFeed, threadId, {
+          id: `comment-${Date.now()}`,
+          authorInitials: author.initials,
+          authorName: author.name,
+          timestampLabel: "Just now",
+          body: body.trim(),
+          tone: "default",
+        }),
+      );
+    },
+    [commit, localFeed, author],
+  );
+
+  const create = useCallback((thread: DiscussionThread) => commit(createThread(localFeed, thread)), [commit, localFeed]);
+
+  const edit = useCallback(
+    (threadId: string, commentId: string, body: string) => commit(editComment(localFeed, threadId, commentId, body)),
+    [commit, localFeed],
+  );
+
+  const remove = useCallback(
+    (threadId: string, commentId: string) => commit(deleteComment(localFeed, threadId, commentId)),
+    [commit, localFeed],
+  );
+
+  const removeThread = useCallback((threadId: string) => commit(deleteThread(localFeed, threadId)), [commit, localFeed]);
+
+  return {
+    feed: localFeed,
+    stats: computeFeedStats(localFeed),
+    resolve,
+    reply,
+    create,
+    edit,
+    remove,
+    removeThread,
+  };
 }

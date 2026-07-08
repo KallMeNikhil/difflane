@@ -1,5 +1,5 @@
 import { Avatar, Button, Icon, IconButton } from "../common";
-import { HEADER_PRESENCE_DOTS, HEADER_PRESENCE_OVERFLOW_COUNT } from "../../constants/mockCollaborators";
+import { useRoom } from "../../hooks/useRoom";
 import type { WorkspaceTopTab } from "../../types/workspace";
 
 interface WorkspaceTopNavProps {
@@ -14,7 +14,13 @@ const TABS: { id: WorkspaceTopTab; label: string }[] = [
   { id: "discussion", label: "Discussion" },
 ];
 
+const MAX_VISIBLE_PRESENCE_DOTS = 3;
+
 export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare }: WorkspaceTopNavProps) {
+  const { collaborators } = useRoom();
+  const visibleCollaborators = collaborators.slice(0, MAX_VISIBLE_PRESENCE_DOTS);
+  const overflowCount = collaborators.length - visibleCollaborators.length;
+
   return (
     <header className="flex justify-between items-center w-full px-lg h-16 bg-surface-container-lowest border-b border-outline-variant flex-shrink-0 z-50">
       <div className="flex items-center gap-md min-w-0">
@@ -24,7 +30,7 @@ export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare }: Workspa
         <div className="h-6 w-px bg-outline-variant mx-sm hidden sm:block" />
         <div className="hidden sm:flex items-center gap-sm bg-surface-container-lowest px-md py-1 rounded-full border border-outline-variant/50">
           <Icon name="meeting_room" size={16} className="text-on-surface-variant" />
-          <span className="font-code text-code text-on-surface-variant">Collaborative Room</span>
+          <span className="font-code text-code text-on-surface-variant">Collaborative Workspace</span>
         </div>
       </div>
 
@@ -46,22 +52,24 @@ export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare }: Workspa
       </nav>
 
       <div className="flex items-center gap-md ml-auto">
-        <div className="hidden lg:flex items-center -space-x-sm mr-sm">
-          {HEADER_PRESENCE_DOTS.map((presence, index) => (
-            <Avatar
-              key={`header-avatar-${index}`}
-              icon="person"
-              presence={presence}
-              tone="neutral"
-              className="[&>div:first-child]:border-2 [&>div:first-child]:border-surface-container-lowest"
-            />
-          ))}
-          {HEADER_PRESENCE_OVERFLOW_COUNT > 0 && (
-            <div className="relative w-8 h-8 rounded-full border-2 border-surface-container-lowest bg-surface-container flex items-center justify-center">
-              <span className="font-label-sm text-label-sm text-on-surface-variant">+{HEADER_PRESENCE_OVERFLOW_COUNT}</span>
-            </div>
-          )}
-        </div>
+        {visibleCollaborators.length > 0 && (
+          <div className="hidden lg:flex items-center -space-x-sm mr-sm">
+            {visibleCollaborators.map((collaborator) => (
+              <Avatar
+                key={collaborator.id}
+                initials={collaborator.initials}
+                presence={collaborator.presence}
+                tone="neutral"
+                className="[&>div:first-child]:border-2 [&>div:first-child]:border-surface-container-lowest"
+              />
+            ))}
+            {overflowCount > 0 && (
+              <div className="relative w-8 h-8 rounded-full border-2 border-surface-container-lowest bg-surface-container flex items-center justify-center">
+                <span className="font-label-sm text-label-sm text-on-surface-variant">+{overflowCount}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <IconButton icon="settings" aria-label="Settings" />
         <IconButton icon="help" aria-label="Help" />

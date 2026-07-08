@@ -46,7 +46,7 @@ export function ConnectedRepositoriesCard({
               onClick={() => onOpenRoom?.(repo.id)}
               className="ml-2 flex-shrink-0 px-2 py-1 bg-surface border border-outline-variant text-on-surface-variant rounded text-[11px] font-medium hover:text-on-surface hover:border-primary transition-colors"
             >
-              Open Room
+              Open Workspace
             </button>
           </div>
         ))}

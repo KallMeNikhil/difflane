@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { LazyMotion, domAnimation } from "framer-motion";
 import App from "./App";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { CurrentUserProvider } from "./contexts/CurrentUserContext";
 import "./styles/index.css";
 
 const rootElement = document.getElementById("root");
@@ -15,10 +16,12 @@ createRoot(rootElement).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        {}
-        <LazyMotion features={domAnimation} strict>
-          <App />
-        </LazyMotion>
+        <CurrentUserProvider>
+          {}
+          <LazyMotion features={domAnimation} strict>
+            <App />
+          </LazyMotion>
+        </CurrentUserProvider>
       </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,

@@ -18,7 +18,7 @@ export function RecentRoomsTable({ rooms, onViewAll, onSelectRoom }: RecentRooms
   return (
     <Card noPadding className="overflow-hidden flex flex-col">
       <div className="p-md border-b border-outline-variant flex justify-between items-center bg-surface-container-lowest">
-        <h2 className="font-label-md text-label-md text-on-surface text-lg font-semibold">Recent Rooms</h2>
+        <h2 className="font-label-md text-label-md text-on-surface text-lg font-semibold">Recent Workspaces</h2>
         <button type="button" onClick={onViewAll} className="text-primary font-label-md text-label-sm hover:underline">
           View All
         </button>
@@ -27,7 +27,7 @@ export function RecentRoomsTable({ rooms, onViewAll, onSelectRoom }: RecentRooms
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-container-lowest font-label-sm text-label-sm text-on-surface-variant border-b border-outline-variant">
-              <th className="px-md py-sm font-medium">Room Name</th>
+              <th className="px-md py-sm font-medium">Workspace Name</th>
               <th className="px-md py-sm font-medium">Repository</th>
               <th className="px-md py-sm font-medium">Last Opened</th>
               <th className="px-md py-sm font-medium">Status</th>
