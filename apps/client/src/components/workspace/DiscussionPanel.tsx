@@ -1,6 +1,7 @@
-import { Icon } from "../common";
+import { useState } from "react";
+import { Icon, IconButton } from "../common";
 import { DiscussionThreadCard } from "./DiscussionThreadCard";
-import type { DiscussionFeedItem } from "../../types/workspace";
+import type { DiscussionFeedItem, DiscussionThread } from "../../types/workspace";
 import type { DiscussionFeedStats } from "../../services/DiscussionService";
 
 interface DiscussionPanelProps {
@@ -8,9 +9,36 @@ interface DiscussionPanelProps {
   stats: DiscussionFeedStats;
   onResolve: (threadId: string) => void;
   onSubmitReply: (threadId: string, body: string) => void;
+  onCreateThread: (thread: DiscussionThread) => void;
 }
 
-export function DiscussionPanel({ feed, stats, onResolve, onSubmitReply }: DiscussionPanelProps) {
+export function DiscussionPanel({ feed, stats, onResolve, onSubmitReply, onCreateThread }: DiscussionPanelProps) {
+  const [isComposing, setComposing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  function handleCreate() {
+    const body = draft.trim();
+    if (!body) {
+      return;
+    }
+    onCreateThread({
+      id: `thread-${Date.now()}`,
+      status: "pending",
+      comments: [
+        {
+          id: `comment-${Date.now()}`,
+          authorInitials: "ME",
+          authorName: "You",
+          timestampLabel: "Just now",
+          body,
+          tone: "default",
+        },
+      ],
+    });
+    setDraft("");
+    setComposing(false);
+  }
+
   return (
     <aside className="w-[270px] xl:w-[320px] bg-surface-container-lowest border-l border-outline-variant hidden lg:flex flex-col h-full flex-shrink-0 z-30">
       <div className="h-12 px-md flex items-center justify-between border-b border-outline-variant/50">
@@ -18,9 +46,19 @@ export function DiscussionPanel({ feed, stats, onResolve, onSubmitReply }: Discu
           <Icon name="forum" size={20} className="text-primary" />
           Workspace Activity
         </span>
-        <button type="button" aria-label="Collapse panel" className="text-on-surface-variant hover:text-on-surface transition-colors">
-          <Icon name="close_fullscreen" size={20} />
-        </button>
+        <div className="flex items-center gap-xs">
+          <IconButton
+            icon="add_comment"
+            aria-label="New Discussion"
+            size={18}
+            shape="square"
+            onClick={() => setComposing((prev) => !prev)}
+            className="w-8 h-8"
+          />
+          <button type="button" aria-label="Collapse panel" className="text-on-surface-variant hover:text-on-surface transition-colors">
+            <Icon name="close_fullscreen" size={20} />
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 px-md py-sm border-b border-outline-variant/50 bg-surface-container/50">
@@ -30,6 +68,39 @@ export function DiscussionPanel({ feed, stats, onResolve, onSubmitReply }: Discu
         <span className="w-1 h-1 rounded-full bg-outline-variant" />
         <span className="text-[11px] text-secondary">{stats.pendingCount} Pending</span>
       </div>
+
+      {isComposing && (
+        <div className="p-md border-b border-outline-variant/50 flex flex-col gap-sm bg-surface-container/30">
+          <span className="font-label-sm text-label-sm text-on-surface-variant tracking-wider">NEW DISCUSSION</span>
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Start a new discussion..."
+            rows={3}
+            className="w-full bg-surface border border-outline-variant rounded px-sm py-1.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary resize-none"
+          />
+          <div className="flex items-center justify-end gap-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setComposing(false);
+                setDraft("");
+              }}
+              className="text-[11px] font-medium text-on-surface-variant hover:text-on-surface"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="px-3 py-1.5 rounded bg-primary text-on-primary text-[11px] font-medium hover:bg-primary-fixed-dim transition-colors"
+            >
+              Post
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-md flex flex-col gap-md">
         {feed.map((item) =>

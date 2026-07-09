@@ -34,6 +34,11 @@ export function seedFileTextIfEmpty(doc: Y.Doc, fileId: string, seedContent: str
   }
 }
 
+export function removeFileText(doc: Y.Doc, fileId: string): void {
+  const fileTexts = doc.getMap<Y.Text>(FILE_TEXTS_KEY);
+  fileTexts.delete(fileId);
+}
+
 function getWorkspaceStateMap(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap(WORKSPACE_STATE_KEY);
 }

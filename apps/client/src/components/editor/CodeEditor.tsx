@@ -23,13 +23,13 @@ const handleBeforeMount: BeforeMount = (monaco) => {
     inherit: true,
     rules: [],
     colors: {
-      "editor.background": "#0b1326",
-      "editor.foreground": "#dbe2fd",
-      "editorLineNumber.foreground": "#8d90a0",
-      "editorLineNumber.activeForeground": "#dbe2fd",
-      "editor.selectionBackground": "#2563eb40",
-      "editorCursor.foreground": "#b4c5ff",
-      "editorGutter.background": "#0b1326",
+      "editor.background": "#111318",
+      "editor.foreground": "#F3F4F6",
+      "editorLineNumber.foreground": "#7B8496",
+      "editorLineNumber.activeForeground": "#F3F4F6",
+      "editor.selectionBackground": "#4F6EF740",
+      "editorCursor.foreground": "#4F6EF7",
+      "editorGutter.background": "#111318",
     },
   });
 };

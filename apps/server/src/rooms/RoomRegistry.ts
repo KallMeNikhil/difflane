@@ -72,9 +72,6 @@ export class RoomRegistry {
     if (awarenessClientIds.length > 0) {
       removeAwarenessStates(room.awareness, awarenessClientIds, "connection-closed");
     }
-    if (room.participants.size === 0) {
-      this.rooms.delete(roomId);
-    }
   }
 
   getSnapshot(roomId: string): RoomSnapshot | undefined {

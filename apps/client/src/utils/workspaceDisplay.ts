@@ -30,6 +30,33 @@ export function getFileIcon(fileName: string): string {
   return "insert_drive_file";
 }
 
+export function getImportSourceLabel(provider: "github" | "local" | "zip"): string {
+  if (provider === "github") {
+    return "Imported from GitHub";
+  }
+  if (provider === "zip") {
+    return "Imported from a ZIP archive";
+  }
+  return "Imported from a local folder";
+}
+
+export function getRelativeTimeLabel(isoTimestamp: string): string {
+  const diffMs = Date.now() - new Date(isoTimestamp).getTime();
+  const diffMinutes = Math.round(diffMs / 60000);
+  if (diffMinutes < 1) {
+    return "just now";
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes} min ago`;
+  }
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
 const STATUS_LABELS: Record<Exclude<FileStatus, "unmodified">, string> = {
   modified: "MODIFIED",
   added: "ADDED",

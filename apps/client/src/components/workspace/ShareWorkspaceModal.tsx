@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Avatar, Button, Icon, IconButton } from "../common";
 import { useRoom } from "../../hooks/useRoom";
-import type { MemberRole } from "../../types/workspace";
+import { readRepositoryInfo, subscribeRepositoryInfo } from "../../services/WorkspaceFileSystemService";
+import { getImportSourceLabel } from "../../utils/workspaceDisplay";
+import type { MemberRole, WorkspaceRepositoryInfo } from "../../types/workspace";
 
 interface ShareWorkspaceModalProps {
   onClose: () => void;
@@ -21,11 +23,20 @@ const ROLE_LABELS: Record<MemberRole, string> = {
 };
 
 export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
-  const { roomCode, participants } = useRoom();
+  const { roomCode, participants, doc } = useRoom();
   const inviteLink = `difflane.io/r/${roomCode}`;
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<MemberRole>("reviewer");
   const [copiedField, setCopiedField] = useState<"code" | "link" | null>(null);
+  const [repositoryInfo, setRepositoryInfo] = useState<WorkspaceRepositoryInfo | null>(null);
+
+  useEffect(() => {
+    if (!doc) {
+      return;
+    }
+    setRepositoryInfo(readRepositoryInfo(doc));
+    return subscribeRepositoryInfo(doc, setRepositoryInfo);
+  }, [doc]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -43,6 +54,7 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
       setCopiedField(field);
       window.setTimeout(() => setCopiedField(null), 1500);
     } catch {
+      // Clipboard access denied; the field remains selectable for manual copy.
     }
   }
 
@@ -65,13 +77,15 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
               </div>
               <div>
                 <div className="flex items-center gap-sm">
-                  <span className="font-label-md text-label-md text-on-surface">Project Alpha</span>
+                  <span className="font-label-md text-label-md text-on-surface">{repositoryInfo?.name ?? "Project Alpha"}</span>
                   <span className="bg-primary-container/20 text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                     LIVE
                   </span>
                 </div>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">Active Workspace Session</span>
+                <span className="font-body-sm text-body-sm text-on-surface-variant">
+                  Active Workspace Session{repositoryInfo ? ` • ${getImportSourceLabel(repositoryInfo.provider)}` : ""}
+                </span>
               </div>
             </div>
             <div className="flex items-center gap-xs text-on-surface-variant bg-surface px-3 py-1.5 rounded border border-outline-variant">
