@@ -1,11 +1,16 @@
-import { PlaceholderNotice } from "../components/common";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useUserSettingsModal } from "../contexts/UserSettingsModalContext";
+import { ROUTES } from "../constants/routes";
 
 export default function Settings() {
-  return (
-    <PlaceholderNotice
-      icon="settings"
-      title="Settings"
-      description="User and workspace preferences will be configurable here in a future milestone."
-    />
-  );
+  const navigate = useNavigate();
+  const { openUserSettings } = useUserSettingsModal();
+
+  useEffect(() => {
+    openUserSettings();
+    navigate(ROUTES.dashboard, { replace: true });
+  }, [openUserSettings, navigate]);
+
+  return null;
 }

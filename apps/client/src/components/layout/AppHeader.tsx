@@ -1,10 +1,13 @@
 import { Icon, IconButton } from "../common";
+import { useUserSettingsModal } from "../../contexts/UserSettingsModalContext";
 
 interface AppHeaderProps {
   onOpenMobileNav: () => void;
 }
 
 export function AppHeader({ onOpenMobileNav }: AppHeaderProps) {
+  const { openUserSettings } = useUserSettingsModal();
+
   return (
     <>
       <header className="flex justify-between items-center px-lg h-16 w-full z-50 bg-surface border-b border-outline-variant flex-shrink-0 md:hidden">
@@ -30,10 +33,11 @@ export function AppHeader({ onOpenMobileNav }: AppHeaderProps) {
             />
           </div>
           <IconButton icon="notifications" aria-label="Notifications" />
-          <IconButton icon="settings" aria-label="Settings" />
+          <IconButton icon="settings" aria-label="Settings" onClick={openUserSettings} />
           <button
             type="button"
             aria-label="Account"
+            onClick={openUserSettings}
             className="w-8 h-8 rounded-full bg-surface-variant border border-outline-variant ml-sm overflow-hidden cursor-pointer hover:border-primary transition-colors flex items-center justify-center"
           >
             <Icon name="person" size={20} />

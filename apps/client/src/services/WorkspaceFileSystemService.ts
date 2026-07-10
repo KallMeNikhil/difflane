@@ -1,9 +1,27 @@
 import * as Y from "yjs";
-import type { WorkspaceFileSystemEntry, WorkspaceRepositoryInfo } from "@difflane/shared-types";
+import type {
+  WorkspaceCollaborationPreferences,
+  WorkspaceFileSystemEntry,
+  WorkspaceMetadata,
+  WorkspaceRepositoryInfo,
+} from "@difflane/shared-types";
 import { removeFileText, seedFileTextIfEmpty } from "./CollaborationService";
 
 const FILE_SYSTEM_KEY = "workspaceFileSystem";
 const REPOSITORY_INFO_KEY = "repositoryInfo";
+const WORKSPACE_METADATA_KEY = "workspaceMetadata";
+
+export const DEFAULT_WORKSPACE_COLLABORATION_PREFERENCES: WorkspaceCollaborationPreferences = {
+  cursorPresence: true,
+  inlineDiscussions: true,
+  sharedNavigation: false,
+};
+
+export const DEFAULT_WORKSPACE_METADATA: WorkspaceMetadata = {
+  name: "Untitled Workspace",
+  description: "",
+  collaboration: DEFAULT_WORKSPACE_COLLABORATION_PREFERENCES,
+};
 
 function getFileSystemMap(doc: Y.Doc): Y.Map<WorkspaceFileSystemEntry> {
   return doc.getMap(FILE_SYSTEM_KEY);
@@ -11,6 +29,10 @@ function getFileSystemMap(doc: Y.Doc): Y.Map<WorkspaceFileSystemEntry> {
 
 function getRepositoryInfoMap(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap(REPOSITORY_INFO_KEY);
+}
+
+function getWorkspaceMetadataMap(doc: Y.Doc): Y.Map<unknown> {
+  return doc.getMap(WORKSPACE_METADATA_KEY);
 }
 
 function generateEntryId(): string {
@@ -227,4 +249,39 @@ export function resolveCreateParentId(entries: WorkspaceFileSystemEntry[], selec
     return null;
   }
   return selected.type === "folder" ? selected.id : selected.parentId;
+}
+
+export function readWorkspaceMetadata(doc: Y.Doc): WorkspaceMetadata {
+  const map = getWorkspaceMetadataMap(doc);
+  const collaboration = map.get("collaboration") as WorkspaceCollaborationPreferences | undefined;
+  return {
+    name: (map.get("name") as string | undefined) ?? DEFAULT_WORKSPACE_METADATA.name,
+    description: (map.get("description") as string | undefined) ?? DEFAULT_WORKSPACE_METADATA.description,
+    collaboration: collaboration ?? DEFAULT_WORKSPACE_COLLABORATION_PREFERENCES,
+  };
+}
+
+export function writeWorkspaceName(doc: Y.Doc, name: string): void {
+  getWorkspaceMetadataMap(doc).set("name", name);
+}
+
+export function writeWorkspaceDescription(doc: Y.Doc, description: string): void {
+  getWorkspaceMetadataMap(doc).set("description", description);
+}
+
+export function writeWorkspaceCollaborationPreference(
+  doc: Y.Doc,
+  key: keyof WorkspaceCollaborationPreferences,
+  value: boolean,
+): void {
+  const map = getWorkspaceMetadataMap(doc);
+  const current = (map.get("collaboration") as WorkspaceCollaborationPreferences | undefined) ?? DEFAULT_WORKSPACE_COLLABORATION_PREFERENCES;
+  map.set("collaboration", { ...current, [key]: value });
+}
+
+export function subscribeWorkspaceMetadata(doc: Y.Doc, listener: (metadata: WorkspaceMetadata) => void): () => void {
+  const map = getWorkspaceMetadataMap(doc);
+  const handler = () => listener(readWorkspaceMetadata(doc));
+  map.observe(handler);
+  return () => map.unobserve(handler);
 }

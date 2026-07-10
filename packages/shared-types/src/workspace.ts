@@ -19,3 +19,15 @@ export interface WorkspaceRepositoryInfo {
   fileCount: number;
   lastSyncedAt: string;
 }
+
+export interface WorkspaceCollaborationPreferences {
+  cursorPresence: boolean;
+  inlineDiscussions: boolean;
+  sharedNavigation: boolean;
+}
+
+export interface WorkspaceMetadata {
+  name: string;
+  description: string;
+  collaboration: WorkspaceCollaborationPreferences;
+}

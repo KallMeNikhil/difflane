@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { MarketingLayout, AppLayout } from "./components/layout";
+import { UserSettingsModal } from "./components/settings";
+import { useUserSettingsModal } from "./contexts/UserSettingsModalContext";
 import { ROUTES } from "./constants/routes";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
@@ -12,24 +14,30 @@ import ErrorPage from "./pages/Error";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
+  const { isOpen, closeUserSettings } = useUserSettingsModal();
+
   return (
-    <Routes>
-      <Route element={<MarketingLayout />}>
-        <Route path={ROUTES.landing} element={<Landing />} />
-      </Route>
+    <>
+      <Routes>
+        <Route element={<MarketingLayout />}>
+          <Route path={ROUTES.landing} element={<Landing />} />
+        </Route>
 
-      <Route path={ROUTES.createRoom} element={<CreateRoom />} />
-      <Route path={ROUTES.joinRoom} element={<JoinRoom />} />
-      <Route path={ROUTES.workspace} element={<Workspace />} />
+        <Route path={ROUTES.createRoom} element={<CreateRoom />} />
+        <Route path={ROUTES.joinRoom} element={<JoinRoom />} />
+        <Route path={ROUTES.workspace} element={<Workspace />} />
 
-      <Route element={<AppLayout />}>
-        <Route path={ROUTES.dashboard} element={<Dashboard />} />
-        <Route path={ROUTES.history} element={<History />} />
-        <Route path={ROUTES.settings} element={<Settings />} />
-      </Route>
+        <Route element={<AppLayout />}>
+          <Route path={ROUTES.dashboard} element={<Dashboard />} />
+          <Route path={ROUTES.history} element={<History />} />
+          <Route path={ROUTES.settings} element={<Settings />} />
+        </Route>
 
-      <Route path="/error" element={<ErrorPage />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route path="/error" element={<ErrorPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+
+      {isOpen && <UserSettingsModal onClose={closeUserSettings} />}
+    </>
   );
 }

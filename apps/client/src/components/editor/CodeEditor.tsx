@@ -2,6 +2,7 @@ import Editor, { type BeforeMount } from "@monaco-editor/react";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { useMonacoYjsBinding } from "../../hooks/useMonacoYjsBinding";
+import { useEditorPreferences } from "../../contexts/EditorPreferencesContext";
 import type { EditorLanguage } from "../../types/workspace";
 
 interface CodeEditorProps {
@@ -32,6 +33,7 @@ const handleBeforeMount: BeforeMount = (monaco) => {
 };
 
 export function CodeEditor({ value, language, fileId, doc, awareness }: CodeEditorProps) {
+  const { preferences } = useEditorPreferences();
   const { monacoLanguage, isCollaborative, handleMount } = useMonacoYjsBinding({
     fileId,
     value,
@@ -52,9 +54,11 @@ export function CodeEditor({ value, language, fileId, doc, awareness }: CodeEdit
       height="100%"
       options={{
         fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 14,
-        lineHeight: 22,
-        minimap: { enabled: false },
+        fontSize: preferences.fontSize,
+        lineHeight: Math.round(preferences.fontSize * 1.55),
+        tabSize: preferences.tabSize,
+        wordWrap: preferences.wordWrap ? "on" : "off",
+        minimap: { enabled: preferences.minimap },
         scrollBeyondLastLine: false,
         automaticLayout: true,
         padding: { top: 16 },

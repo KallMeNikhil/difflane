@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { readStoredDisplayName, writeStoredDisplayName } from "../services/UserPreferencesService";
 
 export interface CurrentUserIdentity {
   userId: string;
@@ -28,11 +29,16 @@ function createUserId(): string {
 
 export function CurrentUserProvider({ children, initialDisplayName = "You" }: { children: ReactNode; initialDisplayName?: string }) {
   const [userId] = useState(createUserId);
-  const [displayName, setDisplayName] = useState(initialDisplayName);
+  const [displayName, setDisplayNameState] = useState(() => readStoredDisplayName() ?? initialDisplayName);
+
+  const setDisplayName = useCallback((next: string) => {
+    setDisplayNameState(next);
+    writeStoredDisplayName(next);
+  }, []);
 
   const value = useMemo<CurrentUserContextValue>(
     () => ({ userId, displayName, initials: deriveInitials(displayName), setDisplayName }),
-    [userId, displayName],
+    [userId, displayName, setDisplayName],
   );
 
   return <CurrentUserContext.Provider value={value}>{children}</CurrentUserContext.Provider>;

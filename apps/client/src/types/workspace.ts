@@ -1,6 +1,12 @@
 
-import type { MemberRole, WorkspaceFileSystemEntry, WorkspaceRepositoryInfo } from "@difflane/shared-types";
-export type { MemberRole, WorkspaceFileSystemEntry, WorkspaceRepositoryInfo };
+import type {
+  MemberRole,
+  WorkspaceCollaborationPreferences,
+  WorkspaceFileSystemEntry,
+  WorkspaceMetadata,
+  WorkspaceRepositoryInfo,
+} from "@difflane/shared-types";
+export type { MemberRole, WorkspaceFileSystemEntry, WorkspaceRepositoryInfo, WorkspaceCollaborationPreferences, WorkspaceMetadata };
 
 export type FileNodeType = "file" | "folder";
 

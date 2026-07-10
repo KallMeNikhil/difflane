@@ -5,6 +5,8 @@ import { LazyMotion, domAnimation } from "framer-motion";
 import App from "./App";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CurrentUserProvider } from "./contexts/CurrentUserContext";
+import { EditorPreferencesProvider } from "./contexts/EditorPreferencesContext";
+import { UserSettingsModalProvider } from "./contexts/UserSettingsModalContext";
 import "./styles/index.css";
 
 const rootElement = document.getElementById("root");
@@ -17,10 +19,13 @@ createRoot(rootElement).render(
     <BrowserRouter>
       <ThemeProvider>
         <CurrentUserProvider>
-          {}
-          <LazyMotion features={domAnimation} strict>
-            <App />
-          </LazyMotion>
+          <EditorPreferencesProvider>
+            <UserSettingsModalProvider>
+              <LazyMotion features={domAnimation} strict>
+                <App />
+              </LazyMotion>
+            </UserSettingsModalProvider>
+          </EditorPreferencesProvider>
         </CurrentUserProvider>
       </ThemeProvider>
     </BrowserRouter>

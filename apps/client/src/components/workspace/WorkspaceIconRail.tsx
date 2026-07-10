@@ -1,11 +1,13 @@
 import { Icon } from "../common";
 import { WORKSPACE_RAIL_BOTTOM_ITEMS, WORKSPACE_RAIL_ITEMS } from "../../constants/workspaceNav";
+import { useUserSettingsModal } from "../../contexts/UserSettingsModalContext";
 import type { WorkspaceTopTab } from "../../types/workspace";
 
 interface WorkspaceIconRailProps {
   activeTab: WorkspaceTopTab;
   onTabChange: (tab: WorkspaceTopTab) => void;
   onOpenShare: () => void;
+  onOpenSettings: () => void;
 }
 
 const RAIL_TAB_TARGET: Partial<Record<string, WorkspaceTopTab>> = {
@@ -13,7 +15,9 @@ const RAIL_TAB_TARGET: Partial<Record<string, WorkspaceTopTab>> = {
   discussions: "discussion",
 };
 
-export function WorkspaceIconRail({ activeTab, onTabChange, onOpenShare }: WorkspaceIconRailProps) {
+export function WorkspaceIconRail({ activeTab, onTabChange, onOpenShare, onOpenSettings }: WorkspaceIconRailProps) {
+  const { openUserSettings } = useUserSettingsModal();
+
   function handleItemClick(itemId: string) {
     const tabTarget = RAIL_TAB_TARGET[itemId];
     if (tabTarget) {
@@ -26,6 +30,16 @@ export function WorkspaceIconRail({ activeTab, onTabChange, onOpenShare }: Works
     }
     if (itemId === "participants") {
       onOpenShare();
+    }
+  }
+
+  function handleBottomItemClick(itemId: string) {
+    if (itemId === "settings") {
+      onOpenSettings();
+      return;
+    }
+    if (itemId === "account") {
+      openUserSettings();
     }
   }
 
@@ -62,6 +76,7 @@ export function WorkspaceIconRail({ activeTab, onTabChange, onOpenShare }: Works
             type="button"
             title={item.label}
             aria-label={item.label}
+            onClick={() => handleBottomItemClick(item.id)}
             className="w-full aspect-square rounded flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-all duration-150 ease-in-out group"
           >
             <Icon name={item.icon} size={24} />

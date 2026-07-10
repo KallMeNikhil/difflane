@@ -1,0 +1,213 @@
+import { useEffect, useState } from "react";
+import { Avatar, Icon, IconButton, Button } from "../common";
+import { useCurrentUser } from "../../contexts/CurrentUserContext";
+import { useEditorPreferences } from "../../contexts/EditorPreferencesContext";
+import type { EditorFontSize, EditorTabSize } from "../../types/settings";
+
+interface UserSettingsModalProps {
+  onClose: () => void;
+}
+
+type UserSettingsSection = "general" | "editor";
+
+const NAV_ITEMS: { id: UserSettingsSection; label: string; icon: string }[] = [
+  { id: "general", label: "General", icon: "settings" },
+  { id: "editor", label: "Editor", icon: "code" },
+];
+
+const FONT_SIZE_OPTIONS: EditorFontSize[] = [12, 14, 16, 18];
+const TAB_SIZE_OPTIONS: EditorTabSize[] = [2, 4, 8];
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-sm">
+      <div>
+        <span className="font-label-md text-label-md text-on-surface block">{label}</span>
+        <span className="text-[12px] text-on-surface-variant">{description}</span>
+      </div>
+      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+        <input
+          type="checkbox"
+          className="sr-only peer"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          aria-label={label}
+        />
+        <div className="w-10 h-6 bg-surface-variant rounded-full peer peer-checked:bg-primary transition-colors relative after:content-[''] after:absolute after:top-1 after:left-1 after:w-4 after:h-4 after:bg-on-surface-variant peer-checked:after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+      </label>
+    </div>
+  );
+}
+
+export function UserSettingsModal({ onClose }: UserSettingsModalProps) {
+  const { displayName, initials, setDisplayName } = useCurrentUser();
+  const { preferences, setFontSize, setTabSize, setWordWrap, setMinimap, setAutoSave } = useEditorPreferences();
+  const [section, setSection] = useState<UserSettingsSection>("general");
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-md bg-black/40 backdrop-blur-sm">
+      <div className="relative w-full max-w-[800px] bg-surface rounded-xl border border-outline-variant shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+        <div className="flex items-center justify-between px-lg py-md border-b border-outline-variant bg-surface-container-low shrink-0">
+          <div className="flex items-center gap-sm">
+            <Icon name="settings" />
+            <div>
+              <h2 className="font-headline-md text-headline-md text-on-surface leading-tight">Settings</h2>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">Manage your account and preferences</p>
+            </div>
+          </div>
+          <IconButton icon="close" aria-label="Close" shape="square" onClick={onClose} />
+        </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          <nav className="w-64 shrink-0 bg-surface-container-low border-r border-outline-variant p-md flex flex-col gap-xs overflow-y-auto">
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setSection(item.id)}
+                className={`flex items-center gap-sm px-md py-sm rounded-lg font-label-md text-label-md text-left transition-colors ${
+                  section === item.id
+                    ? "bg-secondary-container text-on-secondary-container font-bold"
+                    : "text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
+                }`}
+              >
+                <Icon name={item.icon} size={18} filled={section === item.id} />
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="flex-1 p-lg overflow-y-auto">
+            <div className="max-w-2xl mx-auto flex flex-col gap-lg">
+              {section === "general" && (
+                <section className="flex flex-col gap-md">
+                  <h3 className="font-headline-md text-[20px] font-semibold text-on-surface border-b border-outline-variant pb-2">
+                    Profile Information
+                  </h3>
+                  <div className="bg-surface-container-low rounded-lg p-md border border-outline-variant flex gap-md items-start">
+                    <Avatar initials={initials} size="md" className="w-16 h-16 text-[18px] [&>div:first-child]:w-16 [&>div:first-child]:h-16 [&>div:first-child]:text-[18px]" />
+                    <div className="flex-1 flex flex-col gap-sm">
+                      <div>
+                        <div className="font-headline-md text-[18px] text-on-surface font-semibold">Personal Profile</div>
+                        <div className="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                          Manage your personal information used across all Difflane Workspaces.
+                        </div>
+                      </div>
+                      <div className="max-w-sm">
+                        <label htmlFor="display-name" className="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">
+                          Display Name
+                        </label>
+                        <input
+                          id="display-name"
+                          type="text"
+                          value={displayName}
+                          onChange={(event) => setDisplayName(event.target.value)}
+                          className="w-full bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {section === "editor" && (
+                <section className="flex flex-col gap-md">
+                  <div className="border-b border-outline-variant pb-2">
+                    <h3 className="font-headline-md text-[20px] font-semibold text-on-surface">Editor Preferences</h3>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                      These preferences apply only to your editor experience across all Workspaces.
+                    </p>
+                  </div>
+                  <div className="bg-surface-container-low rounded-lg p-md border border-outline-variant flex flex-col gap-lg">
+                    <div className="grid grid-cols-2 gap-md">
+                      <div className="flex flex-col gap-xs">
+                        <label htmlFor="font-size" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+                          Font Size
+                        </label>
+                        <select
+                          id="font-size"
+                          value={preferences.fontSize}
+                          onChange={(event) => setFontSize(Number(event.target.value) as EditorFontSize)}
+                          className="bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        >
+                          {FONT_SIZE_OPTIONS.map((size) => (
+                            <option key={size} value={size}>
+                              {size}px
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-xs">
+                        <label htmlFor="tab-size" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+                          Tab Size
+                        </label>
+                        <select
+                          id="tab-size"
+                          value={preferences.tabSize}
+                          onChange={(event) => setTabSize(Number(event.target.value) as EditorTabSize)}
+                          className="bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        >
+                          {TAB_SIZE_OPTIONS.map((size) => (
+                            <option key={size} value={size}>
+                              {size}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-y-sm pt-md border-t border-outline-variant">
+                      <ToggleRow label="Word Wrap" description="Wrap long lines inside the editor." checked={preferences.wordWrap} onChange={setWordWrap} />
+                      <ToggleRow label="Show Minimap" description="Display the code minimap on the right edge." checked={preferences.minimap} onChange={setMinimap} />
+                      <ToggleRow
+                        label="Auto Save"
+                        description="Automatically write changes back to the original local Workspace when available."
+                        checked={preferences.autoSave}
+                        onChange={setAutoSave}
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-lg py-md border-t border-outline-variant bg-surface-container-lowest shrink-0">
+          <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-xs">
+            <Icon name="check_circle" size={16} />
+            Settings are automatically saved.
+          </span>
+          <div className="flex items-center gap-sm">
+            <Button type="button" variant="secondary" size="md" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="button" variant="primary" size="md" onClick={onClose}>
+              Done
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

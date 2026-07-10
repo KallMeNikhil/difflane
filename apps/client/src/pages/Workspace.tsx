@@ -14,6 +14,7 @@ import {
   WorkspaceTopNav,
 } from "../components/workspace";
 import { PlaceholderNotice } from "../components/common";
+import { WorkspaceSettingsModal } from "../components/settings";
 import ErrorPage from "./Error";
 import { useEditorTabs } from "../hooks/useEditorTabs";
 import { useFileExplorer } from "../hooks/useFileExplorer";
@@ -51,6 +52,7 @@ function WorkspaceContent() {
   const [activeTopTab, setActiveTopTab] = useState<WorkspaceTopTab>("files");
   const [isShareOpen, setShareOpen] = useState(false);
   const [isImportOpen, setImportOpen] = useState(false);
+  const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
   const repositoryInfo = useRepositoryInfo(doc);
   const [isSyncing, setSyncing] = useState(false);
@@ -164,10 +166,20 @@ function WorkspaceContent() {
 
   return (
     <div className="bg-background text-on-surface font-body-md text-body-md h-screen w-screen overflow-hidden flex flex-col">
-      <WorkspaceTopNav activeTab={activeTopTab} onTabChange={setActiveTopTab} onOpenShare={() => setShareOpen(true)} />
+      <WorkspaceTopNav
+        activeTab={activeTopTab}
+        onTabChange={setActiveTopTab}
+        onOpenShare={() => setShareOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       <main className="flex-1 flex overflow-hidden w-full relative">
-        <WorkspaceIconRail activeTab={activeTopTab} onTabChange={setActiveTopTab} onOpenShare={() => setShareOpen(true)} />
+        <WorkspaceIconRail
+          activeTab={activeTopTab}
+          onTabChange={setActiveTopTab}
+          onOpenShare={() => setShareOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
         <FileExplorerPanel
           tree={tree}
           activeFileId={activeFileId}
@@ -241,6 +253,7 @@ function WorkspaceContent() {
       <WorkspaceStatusBar />
 
       {isShareOpen && <ShareWorkspaceModal onClose={() => setShareOpen(false)} />}
+      {isSettingsOpen && <WorkspaceSettingsModal onClose={() => setSettingsOpen(false)} />}
       {isImportOpen && (
         <ImportProjectModal
           onClose={() => setImportOpen(false)}

@@ -1,11 +1,13 @@
 import { Avatar, Button, Icon, IconButton } from "../common";
 import { useRoom } from "../../hooks/useRoom";
+import { useWorkspaceMetadata } from "../../hooks/useWorkspaceMetadata";
 import type { WorkspaceTopTab } from "../../types/workspace";
 
 interface WorkspaceTopNavProps {
   activeTab: WorkspaceTopTab;
   onTabChange: (tab: WorkspaceTopTab) => void;
   onOpenShare: () => void;
+  onOpenSettings: () => void;
 }
 
 const TABS: { id: WorkspaceTopTab; label: string }[] = [
@@ -16,8 +18,9 @@ const TABS: { id: WorkspaceTopTab; label: string }[] = [
 
 const MAX_VISIBLE_PRESENCE_DOTS = 3;
 
-export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare }: WorkspaceTopNavProps) {
-  const { collaborators } = useRoom();
+export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare, onOpenSettings }: WorkspaceTopNavProps) {
+  const { collaborators, doc } = useRoom();
+  const metadata = useWorkspaceMetadata(doc);
   const visibleCollaborators = collaborators.slice(0, MAX_VISIBLE_PRESENCE_DOTS);
   const overflowCount = collaborators.length - visibleCollaborators.length;
 
@@ -28,9 +31,9 @@ export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare }: Workspa
           DIFFLANE
         </span>
         <div className="h-6 w-px bg-outline-variant mx-sm hidden sm:block" />
-        <div className="hidden sm:flex items-center gap-sm bg-surface-container-lowest px-md py-1 rounded-full border border-outline-variant/50">
-          <Icon name="meeting_room" size={16} className="text-on-surface-variant" />
-          <span className="font-code text-code text-on-surface-variant">Collaborative Workspace</span>
+        <div className="hidden sm:flex items-center gap-sm bg-surface-container-lowest px-md py-1 rounded-full border border-outline-variant/50 min-w-0">
+          <Icon name="meeting_room" size={16} className="text-on-surface-variant flex-shrink-0" />
+          <span className="font-code text-code text-on-surface-variant truncate">{metadata.name}</span>
         </div>
       </div>
 
@@ -71,7 +74,7 @@ export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare }: Workspa
           </div>
         )}
 
-        <IconButton icon="settings" aria-label="Settings" />
+        <IconButton icon="settings" aria-label="Settings" onClick={onOpenSettings} />
         <IconButton icon="help" aria-label="Help" />
 
         <Button type="button" variant="secondary" size="sm" onClick={onOpenShare} className="hidden sm:inline-flex">
