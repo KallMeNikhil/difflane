@@ -19,7 +19,7 @@ import {
   REVIEW_MODE_OPTIONS,
   VISIBILITY_OPTIONS,
 } from "../constants/roomOptions";
-import { ROUTES } from "../constants/routes";
+import { ROUTES, buildWorkspacePath } from "../constants/routes";
 
 const PRIMARY_BUTTON =
   "inline-flex items-center justify-center gap-sm font-label-md text-label-md px-lg py-sm rounded-lg bg-primary-container text-white hover:brightness-110 shadow-md shadow-primary-container/20 hover:-translate-y-0.5 transition-all duration-300 ease-out disabled:opacity-50 disabled:pointer-events-none disabled:hover:translate-y-0";
@@ -48,7 +48,7 @@ export default function CreateRoom() {
             <button
               type="button"
               className={PRIMARY_BUTTON}
-              onClick={() => navigate(ROUTES.workspace, { state: { roomCode } })}
+              onClick={() => navigate(buildWorkspacePath(roomCode))}
             >
               <Icon name="arrow_forward" size={18} />
               Enter Workspace
@@ -170,13 +170,6 @@ export default function CreateRoom() {
               Features
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-md gap-y-lg">
-              <SwitchToggle
-                icon="robot_2"
-                label="AI Review Assistant"
-                description="Auto-summarize discussions and suggest context."
-                checked={values.features.aiReviewAssistant}
-                onChange={(checked) => setFeature("aiReviewAssistant", checked)}
-              />
               <SwitchToggle
                 icon="near_me"
                 label="Cursor Presence"

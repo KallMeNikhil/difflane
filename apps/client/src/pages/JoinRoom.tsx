@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Icon, ModalShell, TextField } from "../components/common";
 import { useJoinRoomForm } from "../hooks/useJoinRoomForm";
-import { DISPLAY_NAME_MAX_LENGTH, generateMockRoomCode } from "../services/RoomService";
+import { DISPLAY_NAME_MAX_LENGTH } from "../services/RoomService";
 import { MOCK_RECENT_ROOMS } from "../constants/mockRecentRooms";
 import { ROUTES } from "../constants/routes";
 
@@ -139,7 +139,7 @@ export default function JoinRoom() {
                   <button
                     type="button"
                     className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 font-label-sm text-label-sm text-primary px-sm py-xs rounded bg-primary/10 hover:bg-primary/20 transition-all duration-300 ease-out flex items-center gap-1"
-                    onClick={() => joinWithCode(generateMockRoomCode())}
+                    onClick={() => joinWithCode(room.id)}
                     disabled={isJoining}
                   >
                     Continue

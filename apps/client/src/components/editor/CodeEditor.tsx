@@ -1,10 +1,7 @@
-import { useEffect, useRef } from "react";
-import Editor, { type BeforeMount, type OnMount } from "@monaco-editor/react";
+import Editor, { type BeforeMount } from "@monaco-editor/react";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
-import { toMonacoLanguage } from "../../services/FileTreeService";
-import { getFileText, seedFileTextIfEmpty } from "../../services/CollaborationService";
-import { bindMonacoToYText, type MonacoYjsBinding } from "../../lib/monaco/monacoBinding";
+import { useMonacoYjsBinding } from "../../hooks/useMonacoYjsBinding";
 import type { EditorLanguage } from "../../types/workspace";
 
 interface CodeEditorProps {
@@ -35,36 +32,20 @@ const handleBeforeMount: BeforeMount = (monaco) => {
 };
 
 export function CodeEditor({ value, language, fileId, doc, awareness }: CodeEditorProps) {
-  const bindingRef = useRef<MonacoYjsBinding | null>(null);
-
-  useEffect(() => {
-    return () => {
-      bindingRef.current?.destroy();
-      bindingRef.current = null;
-    };
-  }, [fileId]);
-
-  const handleMount: OnMount = (editorInstance) => {
-    if (!doc || !awareness) {
-      return;
-    }
-    const model = editorInstance.getModel();
-    if (!model) {
-      return;
-    }
-    seedFileTextIfEmpty(doc, fileId, value);
-    const yText = getFileText(doc, fileId);
-    bindingRef.current = bindMonacoToYText(yText, model, editorInstance, awareness);
-  };
-
-  const isCollaborative = Boolean(doc && awareness);
+  const { monacoLanguage, isCollaborative, handleMount } = useMonacoYjsBinding({
+    fileId,
+    value,
+    language,
+    doc,
+    awareness,
+  });
 
   return (
     <Editor
       key={`${fileId}:${isCollaborative ? "collab" : "local"}`}
       value={isCollaborative ? undefined : value}
       defaultValue={isCollaborative ? value : undefined}
-      language={toMonacoLanguage(language)}
+      language={monacoLanguage}
       theme={THEME_NAME}
       beforeMount={handleBeforeMount}
       onMount={handleMount}

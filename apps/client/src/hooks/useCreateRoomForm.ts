@@ -7,7 +7,6 @@ import type {
 } from "../types/room";
 
 const INITIAL_FEATURES: CreateRoomFeatureToggles = {
-  aiReviewAssistant: true,
   cursorPresence: true,
   inlineDiscussions: true,
   sharedNavigation: false,

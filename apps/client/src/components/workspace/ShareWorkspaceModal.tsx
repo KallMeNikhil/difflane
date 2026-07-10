@@ -1,19 +1,13 @@
 import { useEffect, useState } from "react";
 import { Avatar, Button, Icon, IconButton } from "../common";
 import { useRoom } from "../../hooks/useRoom";
-import { readRepositoryInfo, subscribeRepositoryInfo } from "../../services/WorkspaceFileSystemService";
+import { useRepositoryInfo } from "../../hooks/useRepositoryInfo";
 import { getImportSourceLabel } from "../../utils/workspaceDisplay";
-import type { MemberRole, WorkspaceRepositoryInfo } from "../../types/workspace";
+import type { MemberRole } from "../../types/workspace";
 
 interface ShareWorkspaceModalProps {
   onClose: () => void;
 }
-
-const ROLE_OPTIONS: { value: MemberRole; label: string }[] = [
-  { value: "viewer", label: "Viewer" },
-  { value: "reviewer", label: "Reviewer" },
-  { value: "editor", label: "Editor" },
-];
 
 const ROLE_LABELS: Record<MemberRole, string> = {
   owner: "Owner",
@@ -24,19 +18,8 @@ const ROLE_LABELS: Record<MemberRole, string> = {
 
 export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
   const { roomCode, participants, doc } = useRoom();
-  const inviteLink = `difflane.io/r/${roomCode}`;
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<MemberRole>("reviewer");
-  const [copiedField, setCopiedField] = useState<"code" | "link" | null>(null);
-  const [repositoryInfo, setRepositoryInfo] = useState<WorkspaceRepositoryInfo | null>(null);
-
-  useEffect(() => {
-    if (!doc) {
-      return;
-    }
-    setRepositoryInfo(readRepositoryInfo(doc));
-    return subscribeRepositoryInfo(doc, setRepositoryInfo);
-  }, [doc]);
+  const [copiedField, setCopiedField] = useState<"code" | null>(null);
+  const repositoryInfo = useRepositoryInfo(doc);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -48,7 +31,7 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  async function handleCopy(field: "code" | "link", value: string) {
+  async function handleCopy(field: "code", value: string) {
     try {
       await navigator.clipboard.writeText(value);
       setCopiedField(field);
@@ -96,7 +79,7 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
 
           <div className="flex flex-col gap-md">
             <h3 className="font-label-md text-label-md text-on-surface">Share Access</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+            <div className="max-w-sm">
               <div className="flex flex-col gap-xs">
                 <label className="font-label-sm text-label-sm text-on-surface-variant">Workspace Code</label>
                 <div className="flex items-center">
@@ -116,67 +99,10 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
                   </button>
                 </div>
               </div>
-              <div className="flex flex-col gap-xs">
-                <label className="font-label-sm text-label-sm text-on-surface-variant">Secure Invite Link</label>
-                <div className="flex items-center">
-                  <input
-                    readOnly
-                    type="text"
-                    value={inviteLink}
-                    className="font-body-sm text-body-sm w-full bg-surface-dim border border-outline-variant rounded-l-lg py-2 px-3 text-on-surface-variant cursor-not-allowed focus:outline-none truncate"
-                  />
-                  <button
-                    type="button"
-                    title="Copy Link"
-                    onClick={() => handleCopy("link", inviteLink)}
-                    className="bg-surface-variant border-y border-r border-outline-variant rounded-r-lg p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-bright transition-colors"
-                  >
-                    <Icon name={copiedField === "link" ? "check" : "content_copy"} size={20} />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <button type="button" className="font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface flex items-center gap-xs transition-colors">
-                <Icon name="refresh" size={16} />
-                Regenerate Invite Link
-              </button>
             </div>
           </div>
 
           <div className="h-px w-full bg-outline-variant/50" />
-
-          <div className="flex flex-col gap-md">
-            <h3 className="font-label-md text-label-md text-on-surface">Invite via Email</h3>
-            <div className="flex items-start gap-sm flex-col md:flex-row">
-              <div className="flex-1 w-full relative">
-                <Icon name="mail" size={20} className="absolute left-3 top-2.5 text-on-surface-variant" />
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(event) => setInviteEmail(event.target.value)}
-                  placeholder="your@email.com"
-                  className="w-full bg-surface border border-outline-variant rounded-lg py-2 pl-10 pr-3 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/50"
-                />
-              </div>
-              <div className="flex items-center gap-sm w-full md:w-auto">
-                <select
-                  value={inviteRole}
-                  onChange={(event) => setInviteRole(event.target.value as MemberRole)}
-                  className="bg-surface border border-outline-variant rounded-lg py-2 px-3 pr-8 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer w-full md:w-[120px]"
-                >
-                  {ROLE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <Button type="button" variant="primary" size="md" onClick={() => setInviteEmail("")}>
-                  Send Invitation
-                </Button>
-              </div>
-            </div>
-          </div>
 
           <div className="flex flex-col gap-sm">
             <h3 className="font-label-md text-label-md text-on-surface mb-xs">Active Members</h3>

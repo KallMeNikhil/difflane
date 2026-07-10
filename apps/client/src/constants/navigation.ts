@@ -9,8 +9,7 @@ export interface NavItem {
 export const SIDE_NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", path: ROUTES.dashboard, icon: "dashboard" },
   { label: "Activity", path: ROUTES.history, icon: "history" },
-  { label: "Repositories", path: ROUTES.workspace, icon: "source" },
-  { label: "Workspace", path: ROUTES.workspace, icon: "terminal" },
+  { label: "Workspace", path: ROUTES.workspaceRoot, icon: "terminal" },
 ];
 
 export const MARKETING_NAV_ITEMS = [

@@ -16,7 +16,6 @@ export type ProgrammingLanguage =
   | "other";
 
 export interface CreateRoomFeatureToggles {
-  aiReviewAssistant: boolean;
   cursorPresence: boolean;
   inlineDiscussions: boolean;
   sharedNavigation: boolean;

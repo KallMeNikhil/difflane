@@ -1,7 +1,7 @@
 import { useCallback, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateJoinRoomForm } from "../services/RoomService";
-import { ROUTES } from "../constants/routes";
+import { buildWorkspacePath } from "../constants/routes";
 import { useCurrentUser } from "../contexts/CurrentUserContext";
 import type { JoinRoomFormErrors, JoinRoomFormValues } from "../types/room";
 
@@ -50,7 +50,7 @@ export function useJoinRoomForm() {
       setStatus("joining");
       setDisplayName(trimmedDisplayName);
       window.setTimeout(() => {
-        navigate(ROUTES.workspace, { state: { roomCode: code } });
+        navigate(buildWorkspacePath(code));
       }, 400);
     },
     [values.displayName, setField, navigate, setDisplayName],
@@ -69,7 +69,7 @@ export function useJoinRoomForm() {
       setDisplayName(values.displayName.trim());
       const roomCode = extractRoomCode(values);
       window.setTimeout(() => {
-        navigate(ROUTES.workspace, { state: { roomCode } });
+        navigate(buildWorkspacePath(roomCode));
       }, 500);
     },
     [values, navigate, setDisplayName],

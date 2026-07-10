@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Icon, getButtonClasses } from "../components/common";
 import {
   ActiveRoomCard,
@@ -12,7 +12,7 @@ import {
   type TeamPresenceMember,
   type ActivityItem,
 } from "../components/dashboard";
-import { ROUTES } from "../constants/routes";
+import { ROUTES, buildWorkspacePath } from "../constants/routes";
 
 const ACTIVE_ROOMS: ActiveRoom[] = [
   {
@@ -121,6 +121,8 @@ const RECENT_ACTIVITY: ActivityItem[] = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   return (
     <div className="max-w-7xl mx-auto flex flex-col gap-lg md:gap-xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-md">
@@ -148,15 +150,22 @@ export default function Dashboard() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
           {ACTIVE_ROOMS.map((room) => (
-            <ActiveRoomCard key={room.id} room={room} />
+            <ActiveRoomCard key={room.id} room={room} onContinue={(roomId) => navigate(buildWorkspacePath(roomId))} />
           ))}
         </div>
       </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-md md:gap-lg items-start">
         <div className="xl:col-span-2 flex flex-col gap-md md:gap-lg">
-          <RecentRoomsTable rooms={RECENT_ROOMS} />
-          <ConnectedRepositoriesCard repositories={CONNECTED_REPOSITORIES} />
+          <RecentRoomsTable
+            rooms={RECENT_ROOMS}
+            onSelectRoom={(roomId) => navigate(buildWorkspacePath(roomId))}
+            onViewAll={() => navigate(ROUTES.history)}
+          />
+          <ConnectedRepositoriesCard
+            repositories={CONNECTED_REPOSITORIES}
+            onOpenRoom={(repositoryId) => navigate(buildWorkspacePath(repositoryId))}
+          />
         </div>
 
         <div className="xl:col-span-1 flex flex-col gap-md md:gap-lg">

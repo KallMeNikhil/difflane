@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { CodeEditor, DiffViewer, EditorTabsBar, EditorToolbar } from "../components/editor";
 import {
   ChangesFileList,
@@ -13,6 +13,8 @@ import {
   WorkspaceStatusBar,
   WorkspaceTopNav,
 } from "../components/workspace";
+import { PlaceholderNotice } from "../components/common";
+import ErrorPage from "./Error";
 import { useEditorTabs } from "../hooks/useEditorTabs";
 import { useFileExplorer } from "../hooks/useFileExplorer";
 import { useDiscussionThreads } from "../hooks/useDiscussionThreads";
@@ -25,17 +27,15 @@ import { MOCK_DISCUSSION_FEED } from "../constants/mockDiscussionThreads";
 import { MOCK_REPOSITORY_TREE, DEFAULT_ACTIVE_FILE_ID } from "../constants/mockRepository";
 import { buildBreadcrumbPath, findNodeById, flattenToSeedEntries, getChangedFiles, toOpenTab } from "../services/FileTreeService";
 import { applyImportResult, importRepository } from "../services/RepositoryService";
-import { readRepositoryInfo, subscribeRepositoryInfo } from "../services/WorkspaceFileSystemService";
+import { useRepositoryInfo } from "../hooks/useRepositoryInfo";
 import { getStatusBadgeLabel } from "../utils/workspaceDisplay";
-import type { DiffViewMode, FileNode, WorkspaceRepositoryInfo, WorkspaceTopTab } from "../types/workspace";
+import type { DiffViewMode, FileNode, WorkspaceTopTab } from "../types/workspace";
 
-interface WorkspaceLocationState {
-  roomCode?: string;
-}
+const DEFAULT_ROOM_CODE = "DEMO-ROOM";
 
 export default function Workspace() {
-  const location = useLocation();
-  const roomCode = (location.state as WorkspaceLocationState | null)?.roomCode ?? "DEMO-ROOM";
+  const { roomCode: roomCodeParam } = useParams<{ roomCode?: string }>();
+  const roomCode = roomCodeParam ? roomCodeParam.trim().toUpperCase() : DEFAULT_ROOM_CODE;
 
   return (
     <RoomProvider roomCode={roomCode}>
@@ -45,14 +45,14 @@ export default function Workspace() {
 }
 
 function WorkspaceContent() {
-  const { doc, awareness, setActiveFileId: publishActiveFileId } = useRoom();
+  const { status, errorMessage, doc, awareness, setActiveFileId: publishActiveFileId } = useRoom();
   const { displayName, initials } = useCurrentUser();
 
   const [activeTopTab, setActiveTopTab] = useState<WorkspaceTopTab>("files");
   const [isShareOpen, setShareOpen] = useState(false);
   const [isImportOpen, setImportOpen] = useState(false);
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
-  const [repositoryInfo, setRepositoryInfo] = useState<WorkspaceRepositoryInfo | null>(null);
+  const repositoryInfo = useRepositoryInfo(doc);
   const [isSyncing, setSyncing] = useState(false);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
 
@@ -92,14 +92,6 @@ function WorkspaceContent() {
   useEffect(() => {
     publishActiveFileId(activeFileId);
   }, [activeFileId, publishActiveFileId]);
-
-  useEffect(() => {
-    if (!doc) {
-      return;
-    }
-    setRepositoryInfo(readRepositoryInfo(doc));
-    return subscribeRepositoryInfo(doc, setRepositoryInfo);
-  }, [doc]);
 
   const anchorThread = useMemo(() => {
     if (!activeNode) {
@@ -149,12 +141,33 @@ function WorkspaceContent() {
     }
   }
 
+  if (status === "error") {
+    return (
+      <ErrorPage
+        title="Unable to Join Workspace"
+        description={errorMessage ?? "We couldn't connect you to this workspace. Check the workspace code and try again."}
+      />
+    );
+  }
+
+  if (status === "joining") {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-background">
+        <PlaceholderNotice
+          icon="sync"
+          title="Connecting to Workspace"
+          description="Setting up your real-time collaboration session…"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background text-on-surface font-body-md text-body-md h-screen w-screen overflow-hidden flex flex-col">
       <WorkspaceTopNav activeTab={activeTopTab} onTabChange={setActiveTopTab} onOpenShare={() => setShareOpen(true)} />
 
       <main className="flex-1 flex overflow-hidden w-full relative">
-        <WorkspaceIconRail />
+        <WorkspaceIconRail activeTab={activeTopTab} onTabChange={setActiveTopTab} onOpenShare={() => setShareOpen(true)} />
         <FileExplorerPanel
           tree={tree}
           activeFileId={activeFileId}
