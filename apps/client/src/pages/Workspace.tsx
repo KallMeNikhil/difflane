@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { CodeEditor, DiffViewer, EditorTabsBar, EditorToolbar } from "../components/editor";
 import {
   ChangesFileList,
@@ -15,21 +15,32 @@ import {
 } from "../components/workspace";
 import { PlaceholderNotice } from "../components/common";
 import { WorkspaceSettingsModal } from "../components/settings";
+import { SessionSummaryModal } from "../components/history";
 import ErrorPage from "./Error";
 import { useEditorTabs } from "../hooks/useEditorTabs";
 import { useFileExplorer } from "../hooks/useFileExplorer";
 import { useDiscussionThreads } from "../hooks/useDiscussionThreads";
 import { useRoom } from "../hooks/useRoom";
+import { useWorkspaceMetadata } from "../hooks/useWorkspaceMetadata";
 import { useCurrentUser } from "../contexts/CurrentUserContext";
 import { RoomProvider } from "../contexts/RoomContext";
 import { MOCK_FILE_CONTENTS } from "../constants/mockFileContents";
 import { MOCK_FILE_DIFFS } from "../constants/mockDiffData";
 import { MOCK_DISCUSSION_FEED } from "../constants/mockDiscussionThreads";
 import { MOCK_REPOSITORY_TREE, DEFAULT_ACTIVE_FILE_ID } from "../constants/mockRepository";
-import { buildBreadcrumbPath, findNodeById, flattenToSeedEntries, getChangedFiles, toOpenTab } from "../services/FileTreeService";
+import {
+  buildBreadcrumbPath,
+  countTreeStats,
+  findNodeById,
+  flattenToSeedEntries,
+  getChangedFiles,
+  toOpenTab,
+} from "../services/FileTreeService";
 import { applyImportResult, importRepository } from "../services/RepositoryService";
+import { buildLiveSessionRecord } from "../services/SessionHistoryService";
 import { useRepositoryInfo } from "../hooks/useRepositoryInfo";
 import { getStatusBadgeLabel } from "../utils/workspaceDisplay";
+import { ROUTES } from "../constants/routes";
 import type { DiffViewMode, FileNode, WorkspaceTopTab } from "../types/workspace";
 
 const DEFAULT_ROOM_CODE = "DEMO-ROOM";
@@ -46,13 +57,17 @@ export default function Workspace() {
 }
 
 function WorkspaceContent() {
-  const { status, errorMessage, doc, awareness, setActiveFileId: publishActiveFileId } = useRoom();
+  const { status, errorMessage, doc, awareness, roomCode, participants, setActiveFileId: publishActiveFileId } = useRoom();
   const { displayName, initials } = useCurrentUser();
+  const navigate = useNavigate();
+  const workspaceMetadata = useWorkspaceMetadata(doc);
 
   const [activeTopTab, setActiveTopTab] = useState<WorkspaceTopTab>("files");
   const [isShareOpen, setShareOpen] = useState(false);
   const [isImportOpen, setImportOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
+  const [isSessionSummaryOpen, setSessionSummaryOpen] = useState(false);
+  const [sessionStartedAt] = useState(() => new Date().toISOString());
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
   const repositoryInfo = useRepositoryInfo(doc);
   const [isSyncing, setSyncing] = useState(false);
@@ -94,6 +109,25 @@ function WorkspaceContent() {
   useEffect(() => {
     publishActiveFileId(activeFileId);
   }, [activeFileId, publishActiveFileId]);
+
+  const activeSessionRecord = useMemo(() => {
+    const { folderCount, fileCount } = countTreeStats(tree);
+    return buildLiveSessionRecord({
+      roomCode,
+      workspace: workspaceMetadata,
+      repository: repositoryInfo,
+      folderCount,
+      fileCount,
+      counts: {
+        filesReviewed: openTabs.length,
+        discussionsCreated: stats.resolvedCount + stats.pendingCount,
+        discussionsResolved: stats.resolvedCount,
+      },
+      participants,
+      startedAt: sessionStartedAt,
+      lastActivityAt: new Date().toISOString(),
+    });
+  }, [roomCode, workspaceMetadata, repositoryInfo, tree, openTabs.length, stats, participants, sessionStartedAt]);
 
   const anchorThread = useMemo(() => {
     if (!activeNode) {
@@ -171,6 +205,7 @@ function WorkspaceContent() {
         onTabChange={setActiveTopTab}
         onOpenShare={() => setShareOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSessionSummary={() => setSessionSummaryOpen(true)}
       />
 
       <main className="flex-1 flex overflow-hidden w-full relative">
@@ -179,6 +214,7 @@ function WorkspaceContent() {
           onTabChange={setActiveTopTab}
           onOpenShare={() => setShareOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenHistory={() => navigate(ROUTES.history)}
         />
         <FileExplorerPanel
           tree={tree}
@@ -254,6 +290,17 @@ function WorkspaceContent() {
 
       {isShareOpen && <ShareWorkspaceModal onClose={() => setShareOpen(false)} />}
       {isSettingsOpen && <WorkspaceSettingsModal onClose={() => setSettingsOpen(false)} />}
+      {isSessionSummaryOpen && activeSessionRecord && (
+        <SessionSummaryModal
+          record={activeSessionRecord}
+          onClose={() => setSessionSummaryOpen(false)}
+          onOpenWorkspace={() => setSessionSummaryOpen(false)}
+          onOpenHistory={() => {
+            setSessionSummaryOpen(false);
+            navigate(ROUTES.history);
+          }}
+        />
+      )}
       {isImportOpen && (
         <ImportProjectModal
           onClose={() => setImportOpen(false)}

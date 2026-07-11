@@ -1,4 +1,4 @@
-import type { EditorLanguage, FileStatus } from "../types/workspace";
+import type { EditorLanguage, FileStatus, MemberRole } from "../types/workspace";
 
 const LANGUAGE_LABELS: Record<EditorLanguage, string> = {
   typescript: "TypeScript",
@@ -68,4 +68,15 @@ export function getStatusBadgeLabel(status: FileStatus | undefined): string | un
     return undefined;
   }
   return STATUS_LABELS[status];
+}
+
+const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
+  owner: "Owner",
+  editor: "Editor",
+  reviewer: "Reviewer",
+  viewer: "Viewer",
+};
+
+export function getMemberRoleLabel(role: MemberRole): string {
+  return MEMBER_ROLE_LABELS[role];
 }

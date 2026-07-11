@@ -104,6 +104,27 @@ export function flattenFileNodes(tree: FileNode[]): FileNode[] {
   });
 }
 
+export function countTreeStats(tree: FileNode[]): { folderCount: number; fileCount: number } {
+  let folderCount = 0;
+  let fileCount = 0;
+
+  function visit(nodes: FileNode[]) {
+    for (const node of nodes) {
+      if (node.type === "folder") {
+        folderCount += 1;
+        if (node.children) {
+          visit(node.children);
+        }
+      } else {
+        fileCount += 1;
+      }
+    }
+  }
+
+  visit(tree);
+  return { folderCount, fileCount };
+}
+
 export function getChangedFiles(tree: FileNode[]): FileNode[] {
   return flattenFileNodes(tree).filter((node) => node.status && node.status !== "unmodified");
 }

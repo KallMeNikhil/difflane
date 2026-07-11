@@ -8,6 +8,7 @@ interface WorkspaceTopNavProps {
   onTabChange: (tab: WorkspaceTopTab) => void;
   onOpenShare: () => void;
   onOpenSettings: () => void;
+  onOpenSessionSummary: () => void;
 }
 
 const TABS: { id: WorkspaceTopTab; label: string }[] = [
@@ -18,7 +19,7 @@ const TABS: { id: WorkspaceTopTab; label: string }[] = [
 
 const MAX_VISIBLE_PRESENCE_DOTS = 3;
 
-export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare, onOpenSettings }: WorkspaceTopNavProps) {
+export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare, onOpenSettings, onOpenSessionSummary }: WorkspaceTopNavProps) {
   const { collaborators, doc } = useRoom();
   const metadata = useWorkspaceMetadata(doc);
   const visibleCollaborators = collaborators.slice(0, MAX_VISIBLE_PRESENCE_DOTS);
@@ -80,7 +81,7 @@ export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare, onOpenSet
         <Button type="button" variant="secondary" size="sm" onClick={onOpenShare} className="hidden sm:inline-flex">
           Share
         </Button>
-        <Button type="button" variant="primary" size="sm">
+        <Button type="button" variant="primary" size="sm" onClick={onOpenSessionSummary}>
           Session Summary
         </Button>
       </div>

@@ -2,19 +2,11 @@ import { useEffect, useState } from "react";
 import { Avatar, Button, Icon, IconButton } from "../common";
 import { useRoom } from "../../hooks/useRoom";
 import { useRepositoryInfo } from "../../hooks/useRepositoryInfo";
-import { getImportSourceLabel } from "../../utils/workspaceDisplay";
-import type { MemberRole } from "../../types/workspace";
+import { getImportSourceLabel, getMemberRoleLabel } from "../../utils/workspaceDisplay";
 
 interface ShareWorkspaceModalProps {
   onClose: () => void;
 }
-
-const ROLE_LABELS: Record<MemberRole, string> = {
-  owner: "Owner",
-  editor: "Editor",
-  reviewer: "Reviewer",
-  viewer: "Viewer",
-};
 
 export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
   const { roomCode, participants, doc } = useRoom();
@@ -122,7 +114,7 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
                 </div>
                 <div className="flex items-center gap-md">
                   <span className="font-label-sm text-label-sm px-2 py-1 rounded text-on-surface-variant bg-surface-variant/50 border border-outline-variant">
-                    {ROLE_LABELS[participant.role]}
+                    {getMemberRoleLabel(participant.role)}
                   </span>
                 </div>
               </div>
