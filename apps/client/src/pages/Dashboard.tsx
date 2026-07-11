@@ -8,11 +8,11 @@ import {
   RecentActivityCard,
   type ActiveRoom,
   type RecentRoom,
-  type ConnectedRepository,
   type TeamPresenceMember,
   type ActivityItem,
 } from "../components/dashboard";
 import { ROUTES, buildWorkspacePath } from "../constants/routes";
+import { MOCK_CONNECTED_REPOSITORIES } from "../constants/mockConnectedRepositories";
 
 const ACTIVE_ROOMS: ActiveRoom[] = [
   {
@@ -60,11 +60,6 @@ const RECENT_ROOMS: RecentRoom[] = [
     lastOpened: "3 days ago",
     status: { label: "Closed", tone: "closed" },
   },
-];
-
-const CONNECTED_REPOSITORIES: ConnectedRepository[] = [
-  { id: "repo-1", name: "core-platform", syncedLabel: "Synced just now" },
-  { id: "repo-2", name: "webapp", syncedLabel: "Synced 5m ago" },
 ];
 
 const TEAM_PRESENCE: TeamPresenceMember[] = [
@@ -163,7 +158,7 @@ export default function Dashboard() {
             onViewAll={() => navigate(ROUTES.history)}
           />
           <ConnectedRepositoriesCard
-            repositories={CONNECTED_REPOSITORIES}
+            repositories={MOCK_CONNECTED_REPOSITORIES}
             onOpenRoom={(repositoryId) => navigate(buildWorkspacePath(repositoryId))}
           />
         </div>

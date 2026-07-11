@@ -14,6 +14,7 @@ import {
   WorkspaceTopNav,
 } from "../components/workspace";
 import { PlaceholderNotice } from "../components/common";
+import { GlobalSearchModal } from "../components/search";
 import { WorkspaceSettingsModal } from "../components/settings";
 import { SessionSummaryModal } from "../components/history";
 import ErrorPage from "./Error";
@@ -22,12 +23,15 @@ import { useFileExplorer } from "../hooks/useFileExplorer";
 import { useDiscussionThreads } from "../hooks/useDiscussionThreads";
 import { useRoom } from "../hooks/useRoom";
 import { useWorkspaceMetadata } from "../hooks/useWorkspaceMetadata";
+import { useGlobalSearch } from "../hooks/useGlobalSearch";
+import { useSessionHistory } from "../hooks/useSessionHistory";
 import { useCurrentUser } from "../contexts/CurrentUserContext";
 import { RoomProvider } from "../contexts/RoomContext";
 import { MOCK_FILE_CONTENTS } from "../constants/mockFileContents";
 import { MOCK_FILE_DIFFS } from "../constants/mockDiffData";
 import { MOCK_DISCUSSION_FEED } from "../constants/mockDiscussionThreads";
 import { MOCK_REPOSITORY_TREE, DEFAULT_ACTIVE_FILE_ID } from "../constants/mockRepository";
+import { MOCK_WORKSPACE_MEMBERS } from "../constants/mockCollaborators";
 import {
   buildBreadcrumbPath,
   countTreeStats,
@@ -40,7 +44,9 @@ import { applyImportResult, importRepository } from "../services/RepositoryServi
 import { buildLiveSessionRecord } from "../services/SessionHistoryService";
 import { useRepositoryInfo } from "../hooks/useRepositoryInfo";
 import { getStatusBadgeLabel } from "../utils/workspaceDisplay";
-import { ROUTES } from "../constants/routes";
+import { ROUTES, buildWorkspacePath } from "../constants/routes";
+import type { SearchSources } from "../services/SearchService";
+import type { SearchResultItem } from "../types/search";
 import type { DiffViewMode, FileNode, WorkspaceTopTab } from "../types/workspace";
 
 const DEFAULT_ROOM_CODE = "DEMO-ROOM";
@@ -61,6 +67,7 @@ function WorkspaceContent() {
   const { displayName, initials } = useCurrentUser();
   const navigate = useNavigate();
   const workspaceMetadata = useWorkspaceMetadata(doc);
+  const { records: sessionRecords } = useSessionHistory();
 
   const [activeTopTab, setActiveTopTab] = useState<WorkspaceTopTab>("files");
   const [isShareOpen, setShareOpen] = useState(false);
@@ -101,6 +108,41 @@ function WorkspaceContent() {
 
   const authorIdentity = useMemo(() => ({ name: displayName, initials }), [displayName, initials]);
   const { feed, stats, resolve, reply, create } = useDiscussionThreads(MOCK_DISCUSSION_FEED, doc, authorIdentity);
+
+  const searchSources: SearchSources = useMemo(
+    () => ({
+      fileTree: tree,
+      openTabs,
+      sessions: sessionRecords,
+      repositories: repositoryInfo ? [{ id: repositoryInfo.name, name: repositoryInfo.name, detail: `${repositoryInfo.branch} • Imported` }] : [],
+      collaborators:
+        participants.length > 0
+          ? participants.map((participant) => ({
+              id: participant.userId,
+              name: participant.displayName,
+              role: participant.role,
+            }))
+          : MOCK_WORKSPACE_MEMBERS.map((member) => ({
+              id: member.id,
+              name: member.name,
+              role: member.role,
+            })),
+    }),
+    [tree, openTabs, sessionRecords, repositoryInfo, participants],
+  );
+  const search = useGlobalSearch(searchSources);
+
+  function handleSelectSearchResult(item: SearchResultItem) {
+    if (item.fileId) {
+      const node = findNodeById(tree, item.fileId);
+      if (node) {
+        handleSelectFile(node);
+      }
+    } else if (item.roomCode && item.category === "sessions") {
+      navigate(buildWorkspacePath(item.roomCode));
+    }
+    search.close();
+  }
 
   const activeNode = findNodeById(tree, activeFileId);
   const breadcrumbPath = activeNode ? buildBreadcrumbPath(tree, activeNode.id) ?? [activeNode.name] : [];
@@ -215,6 +257,7 @@ function WorkspaceContent() {
           onOpenShare={() => setShareOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenHistory={() => navigate(ROUTES.history)}
+          onOpenSearch={search.open}
         />
         <FileExplorerPanel
           tree={tree}
@@ -305,6 +348,19 @@ function WorkspaceContent() {
         <ImportProjectModal
           onClose={() => setImportOpen(false)}
           onOpenWorkspace={() => setNotice({ message: "Workspace initialized successfully", tone: "success" })}
+        />
+      )}
+      {search.isOpen && (
+        <GlobalSearchModal
+          query={search.query}
+          onQueryChange={search.setQuery}
+          filter={search.filter}
+          onFilterChange={search.setFilter}
+          availableCategories={search.filters}
+          groupedResults={search.groupedResults}
+          resultCount={search.results.length}
+          onSelectResult={handleSelectSearchResult}
+          onClose={search.close}
         />
       )}
     </div>

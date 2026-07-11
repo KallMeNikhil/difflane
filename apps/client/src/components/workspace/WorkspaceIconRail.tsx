@@ -9,6 +9,7 @@ interface WorkspaceIconRailProps {
   onOpenShare: () => void;
   onOpenSettings: () => void;
   onOpenHistory: () => void;
+  onOpenSearch: () => void;
 }
 
 const RAIL_TAB_TARGET: Partial<Record<string, WorkspaceTopTab>> = {
@@ -16,7 +17,14 @@ const RAIL_TAB_TARGET: Partial<Record<string, WorkspaceTopTab>> = {
   discussions: "discussion",
 };
 
-export function WorkspaceIconRail({ activeTab, onTabChange, onOpenShare, onOpenSettings, onOpenHistory }: WorkspaceIconRailProps) {
+export function WorkspaceIconRail({
+  activeTab,
+  onTabChange,
+  onOpenShare,
+  onOpenSettings,
+  onOpenHistory,
+  onOpenSearch,
+}: WorkspaceIconRailProps) {
   const { openUserSettings } = useUserSettingsModal();
 
   function handleItemClick(itemId: string) {
@@ -35,6 +43,10 @@ export function WorkspaceIconRail({ activeTab, onTabChange, onOpenShare, onOpenS
     }
     if (itemId === "activity") {
       onOpenHistory();
+      return;
+    }
+    if (itemId === "search") {
+      onOpenSearch();
     }
   }
 
