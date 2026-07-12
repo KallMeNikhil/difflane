@@ -1,6 +1,6 @@
 import { Icon } from "../common";
 import { WORKSPACE_RAIL_BOTTOM_ITEMS, WORKSPACE_RAIL_ITEMS } from "../../constants/workspaceNav";
-import { useUserSettingsModal } from "../../contexts/UserSettingsModalContext";
+import { useUserSettingsModal } from "../../hooks/useUserSettingsModal";
 import type { WorkspaceTopTab } from "../../types/workspace";
 
 interface WorkspaceIconRailProps {

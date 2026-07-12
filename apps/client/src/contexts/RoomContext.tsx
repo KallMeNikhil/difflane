@@ -1,30 +1,12 @@
-import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Socket } from "socket.io-client";
-import { Awareness } from "y-protocols/awareness";
-import type * as Y from "yjs";
 import type { RoomParticipant } from "@difflane/shared-types";
 import { connectSocket, disconnectSocket, joinRoom, leaveRoom, onParticipantJoined, onParticipantLeft } from "../services/SocketService";
 import { useYjsDoc } from "../hooks/useYjsDoc";
 import { usePresence } from "../hooks/usePresence";
-import { useCurrentUser } from "./CurrentUserContext";
-import type { Collaborator } from "../types/workspace";
-import type { RejoinResult, YjsSocketProviderStatus } from "../lib/yjs/YjsSocketProvider";
-
-export type RoomConnectionStatus = "joining" | "ready" | "error";
-
-export interface RoomContextValue {
-  status: RoomConnectionStatus;
-  errorMessage: string | null;
-  roomCode: string;
-  connectionStatus: YjsSocketProviderStatus | null;
-  participants: RoomParticipant[];
-  collaborators: Collaborator[];
-  doc: Y.Doc | null;
-  awareness: Awareness | null;
-  setActiveFileId: (fileId: string | null) => void;
-}
-
-export const RoomContext = createContext<RoomContextValue | undefined>(undefined);
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import type { RejoinResult } from "../lib/yjs/YjsSocketProvider";
+import { RoomContext, type RoomContextValue } from "../hooks/useRoom";
 
 interface JoinedConnection {
   socket: Socket;

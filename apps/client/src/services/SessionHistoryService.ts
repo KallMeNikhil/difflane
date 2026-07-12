@@ -215,10 +215,6 @@ const SESSION_RECORDS: SessionRecord[] = [
   },
 ];
 
-export interface SessionHistoryResult {
-  records: SessionRecord[];
-}
-
 export async function fetchSessionRecords(): Promise<SessionRecord[]> {
   return Promise.resolve(SESSION_RECORDS.map((record) => ({ ...record })));
 }

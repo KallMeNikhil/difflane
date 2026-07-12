@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Avatar, Icon, IconButton, Button } from "../common";
-import { useCurrentUser } from "../../contexts/CurrentUserContext";
-import { useEditorPreferences } from "../../contexts/EditorPreferencesContext";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
+import { useEditorPreferences } from "../../hooks/useEditorPreferences";
 import type { EditorFontSize, EditorTabSize } from "../../types/settings";
 
 interface UserSettingsModalProps {

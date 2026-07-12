@@ -9,6 +9,8 @@ interface WorkspaceTopNavProps {
   onOpenShare: () => void;
   onOpenSettings: () => void;
   onOpenSessionSummary: () => void;
+  onExportWorkspace: () => void;
+  isExporting: boolean;
 }
 
 const TABS: { id: WorkspaceTopTab; label: string }[] = [
@@ -19,7 +21,15 @@ const TABS: { id: WorkspaceTopTab; label: string }[] = [
 
 const MAX_VISIBLE_PRESENCE_DOTS = 3;
 
-export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare, onOpenSettings, onOpenSessionSummary }: WorkspaceTopNavProps) {
+export function WorkspaceTopNav({
+  activeTab,
+  onTabChange,
+  onOpenShare,
+  onOpenSettings,
+  onOpenSessionSummary,
+  onExportWorkspace,
+  isExporting,
+}: WorkspaceTopNavProps) {
   const { collaborators, doc } = useRoom();
   const metadata = useWorkspaceMetadata(doc);
   const visibleCollaborators = collaborators.slice(0, MAX_VISIBLE_PRESENCE_DOTS);
@@ -78,6 +88,13 @@ export function WorkspaceTopNav({ activeTab, onTabChange, onOpenShare, onOpenSet
         <IconButton icon="settings" aria-label="Settings" onClick={onOpenSettings} />
         <IconButton icon="help" aria-label="Help" />
 
+        <IconButton
+          icon={isExporting ? "sync" : "download"}
+          aria-label="Export Workspace"
+          onClick={onExportWorkspace}
+          disabled={isExporting}
+          className="hidden sm:inline-flex"
+        />
         <Button type="button" variant="secondary" size="sm" onClick={onOpenShare} className="hidden sm:inline-flex">
           Share
         </Button>

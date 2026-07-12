@@ -49,7 +49,7 @@ export type JoinRoomFormErrors = Partial<
   Record<"displayName" | "roomCode" | "invitationLink" | "form", string>
 >;
 
-export interface RecentRoom {
+export interface QuickJoinRoom {
   id: string;
   name: string;
   hostName: string;

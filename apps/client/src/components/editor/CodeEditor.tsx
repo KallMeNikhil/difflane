@@ -2,7 +2,7 @@ import Editor, { type BeforeMount } from "@monaco-editor/react";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { useMonacoYjsBinding } from "../../hooks/useMonacoYjsBinding";
-import { useEditorPreferences } from "../../contexts/EditorPreferencesContext";
+import { useEditorPreferences } from "../../hooks/useEditorPreferences";
 import type { EditorLanguage } from "../../types/workspace";
 
 interface CodeEditorProps {

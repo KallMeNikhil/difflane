@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { CurrentUserProvider } from "./contexts/CurrentUserContext";
 import { EditorPreferencesProvider } from "./contexts/EditorPreferencesContext";
 import { UserSettingsModalProvider } from "./contexts/UserSettingsModalContext";
+import { NotificationsProvider } from "./contexts/NotificationsContext";
 import "./styles/index.css";
 
 const rootElement = document.getElementById("root");
@@ -21,9 +22,11 @@ createRoot(rootElement).render(
         <CurrentUserProvider>
           <EditorPreferencesProvider>
             <UserSettingsModalProvider>
-              <LazyMotion features={domAnimation} strict>
-                <App />
-              </LazyMotion>
+              <NotificationsProvider>
+                <LazyMotion features={domAnimation} strict>
+                  <App />
+                </LazyMotion>
+              </NotificationsProvider>
             </UserSettingsModalProvider>
           </EditorPreferencesProvider>
         </CurrentUserProvider>

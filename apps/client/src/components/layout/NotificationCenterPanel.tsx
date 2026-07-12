@@ -46,7 +46,7 @@ export function NotificationCenterPanel({
 
   function handleAction(record: NotificationRecord, action: NotificationAction) {
     onMarkAsRead(record.id);
-    if ((action.kind === "openDiscussion" || action.kind === "openExplorer" || action.kind === "openWorkspace") && record.roomCode) {
+    if ((action.kind === "openDiscussion" || action.kind === "openExplorer" || action.kind === "openWorkspace" || action.kind === "accept") && record.roomCode) {
       navigate(buildWorkspacePath(record.roomCode));
       onClose();
     }

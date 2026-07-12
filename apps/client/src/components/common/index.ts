@@ -1,5 +1,7 @@
-export { Button, getButtonClasses } from "./Button";
-export type { ButtonProps, ButtonVariant, ButtonSize } from "./Button";
+export { Button } from "./Button";
+export type { ButtonProps } from "./Button";
+export { getButtonClasses } from "./buttonStyles";
+export type { ButtonVariant, ButtonSize } from "./buttonStyles";
 export { IconButton } from "./IconButton";
 export type { IconButtonProps } from "./IconButton";
 export { Icon } from "./Icon";

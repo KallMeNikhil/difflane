@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon, IconButton } from "../common";
-import { useUserSettingsModal } from "../../contexts/UserSettingsModalContext";
+import { useUserSettingsModal } from "../../hooks/useUserSettingsModal";
 import { useNotifications } from "../../hooks/useNotifications";
 import { NotificationCenterPanel } from "./NotificationCenterPanel";
 

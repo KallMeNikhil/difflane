@@ -1,7 +1,8 @@
 import { Icon } from "./Icon";
+import type { PresenceStatus } from "../../types/workspace";
 
+export type { PresenceStatus };
 export type AvatarTone = "neutral" | "secondary" | "primary" | "tertiary";
-export type PresenceStatus = "online" | "idle" | "offline";
 
 interface AvatarProps {
   initials?: string;

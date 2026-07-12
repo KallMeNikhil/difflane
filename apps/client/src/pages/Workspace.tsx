@@ -25,7 +25,8 @@ import { useRoom } from "../hooks/useRoom";
 import { useWorkspaceMetadata } from "../hooks/useWorkspaceMetadata";
 import { useGlobalSearch } from "../hooks/useGlobalSearch";
 import { useSessionHistory } from "../hooks/useSessionHistory";
-import { useCurrentUser } from "../contexts/CurrentUserContext";
+import { useNotifications } from "../hooks/useNotifications";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { RoomProvider } from "../contexts/RoomContext";
 import { MOCK_FILE_CONTENTS } from "../constants/mockFileContents";
 import { MOCK_FILE_DIFFS } from "../constants/mockDiffData";
@@ -41,6 +42,8 @@ import {
   toOpenTab,
 } from "../services/FileTreeService";
 import { applyImportResult, importRepository } from "../services/RepositoryService";
+import { collectExportableFiles } from "../services/WorkspaceFileSystemService";
+import { buildWorkspaceZipBlob, downloadBlob, slugifyWorkspaceName } from "../lib/zip/zipExport";
 import { buildLiveSessionRecord } from "../services/SessionHistoryService";
 import { useRepositoryInfo } from "../hooks/useRepositoryInfo";
 import { getStatusBadgeLabel } from "../utils/workspaceDisplay";
@@ -68,6 +71,7 @@ function WorkspaceContent() {
   const navigate = useNavigate();
   const workspaceMetadata = useWorkspaceMetadata(doc);
   const { records: sessionRecords } = useSessionHistory();
+  const { addNotification } = useNotifications();
 
   const [activeTopTab, setActiveTopTab] = useState<WorkspaceTopTab>("files");
   const [isShareOpen, setShareOpen] = useState(false);
@@ -78,6 +82,7 @@ function WorkspaceContent() {
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
   const repositoryInfo = useRepositoryInfo(doc);
   const [isSyncing, setSyncing] = useState(false);
+  const [isExporting, setExporting] = useState(false);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
 
   const seed = useMemo(() => flattenToSeedEntries(MOCK_REPOSITORY_TREE), []);
@@ -203,6 +208,23 @@ function WorkspaceContent() {
     removedIds.forEach((removedId) => closeTab(removedId));
   }
 
+  function handleResolveThread(threadId: string) {
+    const match = feed.find((item) => item.kind === "thread" && item.thread.id === threadId);
+    const fileName = match?.kind === "thread" ? match.thread.anchor?.fileName : undefined;
+    resolve(threadId);
+    addNotification({
+      category: "discussions",
+      icon: "task_alt",
+      tone: "success",
+      actorName: displayName,
+      actorInitials: initials,
+      message: `${displayName} resolved a discussion${fileName ? ` in ${fileName}` : ""}`,
+      targetLabel: fileName ?? workspaceMetadata.name,
+      roomCode,
+      actions: [{ id: "open", label: "Open Discussion", kind: "openDiscussion", emphasis: "secondary" }],
+    });
+  }
+
   async function handleSync() {
     if (!repositoryInfo || repositoryInfo.provider !== "github" || !doc || isSyncing) {
       return;
@@ -212,10 +234,50 @@ function WorkspaceContent() {
       const result = await importRepository(repositoryInfo.owner, repositoryInfo.name, repositoryInfo.branch);
       applyImportResult(doc, result);
       setNotice({ message: "Repository synced successfully", tone: "success" });
+      addNotification({
+        category: "workspace",
+        icon: "sync",
+        tone: "success",
+        message: `${repositoryInfo.owner}/${repositoryInfo.name} synced successfully`,
+        targetLabel: workspaceMetadata.name,
+        roomCode,
+        actions: [{ id: "open", label: "Open Workspace", kind: "openWorkspace", emphasis: "secondary" }],
+      });
     } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "Sync failed", tone: "error" });
+      const failureMessage = error instanceof Error ? error.message : "Sync failed";
+      setNotice({ message: failureMessage, tone: "error" });
+      addNotification({
+        category: "workspace",
+        icon: "sync_problem",
+        tone: "warning",
+        message: `${repositoryInfo.owner}/${repositoryInfo.name} failed to sync: ${failureMessage}`,
+        targetLabel: workspaceMetadata.name,
+        roomCode,
+        actions: [],
+      });
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleExportWorkspace() {
+    if (!doc || isExporting) {
+      return;
+    }
+    if (tree.length === 0) {
+      setNotice({ message: "There are no files to export yet", tone: "error" });
+      return;
+    }
+    setExporting(true);
+    try {
+      const files = collectExportableFiles(doc, tree);
+      const blob = await buildWorkspaceZipBlob(files);
+      downloadBlob(blob, `${slugifyWorkspaceName(workspaceMetadata.name)}.zip`);
+      setNotice({ message: "Workspace exported successfully", tone: "success" });
+    } catch (error) {
+      setNotice({ message: error instanceof Error ? error.message : "Export failed", tone: "error" });
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -248,6 +310,8 @@ function WorkspaceContent() {
         onOpenShare={() => setShareOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenSessionSummary={() => setSessionSummaryOpen(true)}
+        onExportWorkspace={handleExportWorkspace}
+        isExporting={isExporting}
       />
 
       <main className="flex-1 flex overflow-hidden w-full relative">
@@ -323,10 +387,10 @@ function WorkspaceContent() {
             <ChangesFileList changedFiles={getChangedFiles(tree)} diffsByFileId={MOCK_FILE_DIFFS} onSelectFile={handleSelectFile} />
           )}
 
-          {activeTopTab === "discussion" && <DiscussionFullView feed={feed} onResolve={resolve} onSubmitReply={reply} />}
+          {activeTopTab === "discussion" && <DiscussionFullView feed={feed} onResolve={handleResolveThread} onSubmitReply={reply} />}
         </section>
 
-        <DiscussionPanel feed={feed} stats={stats} onResolve={resolve} onSubmitReply={reply} onCreateThread={create} />
+        <DiscussionPanel feed={feed} stats={stats} onResolve={handleResolveThread} onSubmitReply={reply} onCreateThread={create} />
       </main>
 
       <WorkspaceStatusBar />
@@ -347,7 +411,20 @@ function WorkspaceContent() {
       {isImportOpen && (
         <ImportProjectModal
           onClose={() => setImportOpen(false)}
-          onOpenWorkspace={() => setNotice({ message: "Workspace initialized successfully", tone: "success" })}
+          onOpenWorkspace={() => {
+            setNotice({ message: "Workspace initialized successfully", tone: "success" });
+            addNotification({
+              category: "workspace",
+              icon: "folder_zip",
+              tone: "success",
+              message: repositoryInfo
+                ? `${repositoryInfo.owner}/${repositoryInfo.name} imported into ${workspaceMetadata.name}`
+                : `${workspaceMetadata.name} was initialized`,
+              targetLabel: workspaceMetadata.name,
+              roomCode,
+              actions: [{ id: "open", label: "Open Workspace", kind: "openWorkspace", emphasis: "secondary" }],
+            });
+          }}
         />
       )}
       {search.isOpen && (

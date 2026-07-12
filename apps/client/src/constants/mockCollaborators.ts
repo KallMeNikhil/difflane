@@ -1,7 +1,4 @@
-import type { PresenceStatus, ShareWorkspaceInfo, WorkspaceMember } from "../types/workspace";
-
-export const HEADER_PRESENCE_DOTS: PresenceStatus[] = ["online", "online", "idle"];
-export const HEADER_PRESENCE_OVERFLOW_COUNT = 2;
+import type { WorkspaceMember } from "../types/workspace";
 
 export const MOCK_WORKSPACE_MEMBERS: WorkspaceMember[] = [
   {
@@ -29,11 +26,3 @@ export const MOCK_WORKSPACE_MEMBERS: WorkspaceMember[] = [
     presence: "offline",
   },
 ];
-
-export const MOCK_SHARE_WORKSPACE_INFO: ShareWorkspaceInfo = {
-  projectName: "Sample Project",
-  isLive: true,
-  roomCode: "ROOM-XXXX",
-  inviteLink: "difflane.io/r/ROOM-XXXX",
-  collaboratorCount: 3,
-};

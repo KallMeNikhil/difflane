@@ -89,6 +89,41 @@ const NOTIFICATION_RECORDS: NotificationRecord[] = [
   },
 ];
 
+export interface NotificationInput {
+  category: NotificationRecord["category"];
+  icon: string;
+  tone: NotificationRecord["tone"];
+  message: string;
+  targetLabel?: string;
+  roomCode?: string;
+  actorName?: string;
+  actorInitials?: string;
+  actions?: NotificationRecord["actions"];
+}
+
+function generateNotificationId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? `notification-${crypto.randomUUID()}`
+    : `notification-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function createNotificationRecord(input: NotificationInput): NotificationRecord {
+  return {
+    id: generateNotificationId(),
+    category: input.category,
+    icon: input.icon,
+    tone: input.tone,
+    actorInitials: input.actorInitials,
+    actorName: input.actorName,
+    message: input.message,
+    targetLabel: input.targetLabel,
+    roomCode: input.roomCode,
+    createdAt: new Date().toISOString(),
+    isRead: false,
+    actions: input.actions ?? [],
+  };
+}
+
 export async function fetchNotifications(): Promise<NotificationRecord[]> {
   return Promise.resolve(NOTIFICATION_RECORDS.map((record) => ({ ...record })));
 }

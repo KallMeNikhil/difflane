@@ -50,5 +50,3 @@ export const MOCK_DISCUSSION_FEED: DiscussionFeedItem[] = [
     },
   },
 ];
-
-export const DISCUSSION_STATUS_BAR_TYPING_LABEL = "Team Member typing...";

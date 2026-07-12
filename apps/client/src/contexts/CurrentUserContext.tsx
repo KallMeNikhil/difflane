@@ -1,17 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { readStoredDisplayName, writeStoredDisplayName } from "../services/UserPreferencesService";
-
-export interface CurrentUserIdentity {
-  userId: string;
-  displayName: string;
-  initials: string;
-}
-
-interface CurrentUserContextValue extends CurrentUserIdentity {
-  setDisplayName: (displayName: string) => void;
-}
-
-const CurrentUserContext = createContext<CurrentUserContextValue | undefined>(undefined);
+import { CurrentUserContext, type CurrentUserContextValue } from "../hooks/useCurrentUser";
 
 function deriveInitials(displayName: string): string {
   const trimmed = displayName.trim();
@@ -42,12 +31,4 @@ export function CurrentUserProvider({ children, initialDisplayName = "You" }: { 
   );
 
   return <CurrentUserContext.Provider value={value}>{children}</CurrentUserContext.Provider>;
-}
-
-export function useCurrentUser(): CurrentUserContextValue {
-  const context = useContext(CurrentUserContext);
-  if (!context) {
-    throw new Error("useCurrentUser must be used within a CurrentUserProvider");
-  }
-  return context;
 }

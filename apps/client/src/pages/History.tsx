@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { IconButton, PlaceholderNotice } from "../components/common";
 import { SessionHistoryCard, SessionHistoryToolbar, SessionInfoPanel, SessionSummaryModal } from "../components/history";
 import { useSessionHistory } from "../hooks/useSessionHistory";
+import { getSessionRecordById } from "../services/SessionHistoryService";
 import { buildWorkspacePath } from "../constants/routes";
 import type { SessionRecord } from "../types/session";
 
@@ -23,7 +24,7 @@ export default function History() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleRecords]);
 
-  const selectedRecord = visibleRecords.find((record) => record.id === selectedId) ?? null;
+  const selectedRecord = selectedId ? getSessionRecordById(visibleRecords, selectedId) ?? null : null;
 
   function openWorkspace(record: SessionRecord) {
     navigate(buildWorkspacePath(record.roomCode));

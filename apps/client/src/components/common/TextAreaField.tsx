@@ -15,20 +15,20 @@ export const TextAreaField = forwardRef<HTMLTextAreaElement, TextAreaFieldProps>
 
     return (
       <div className="flex flex-col gap-sm">
-        <label htmlFor={fieldId} className="font-label-md text-label-md text-gray-300">
+        <label htmlFor={fieldId} className="font-label-md text-label-md text-on-surface-variant">
           {label}
           {required && <span className="text-error"> *</span>}
-          {optional && <span className="text-gray-500 font-normal ml-xs">(Optional)</span>}
+          {optional && <span className="text-on-surface-variant font-normal ml-xs">(Optional)</span>}
         </label>
         <textarea
           ref={ref}
           id={fieldId}
           aria-invalid={Boolean(error)}
           aria-describedby={describedBy}
-          className={`w-full bg-[#161b22] border rounded-lg px-md py-sm font-body-md text-gray-100 placeholder:text-gray-600 outline-none resize-none transition-colors duration-300 ease-out focus:ring-1 ${
+          className={`w-full bg-surface-container-high border rounded-lg px-md py-sm font-body-md text-on-surface placeholder:text-on-surface-variant outline-none resize-none transition-colors duration-300 ease-out focus:ring-1 ${
             error
               ? "border-error focus:border-error focus:ring-error"
-              : "border-white/10 focus:border-primary focus:ring-primary/40"
+              : "border-outline-variant focus:border-primary focus:ring-primary/40"
           } ${className}`.trim()}
           {...rest}
         />
@@ -37,7 +37,7 @@ export const TextAreaField = forwardRef<HTMLTextAreaElement, TextAreaFieldProps>
             {error}
           </p>
         ) : hint ? (
-          <p id={`${fieldId}-hint`} className="font-body-sm text-body-sm text-gray-500">
+          <p id={`${fieldId}-hint`} className="font-body-sm text-body-sm text-on-surface-variant">
             {hint}
           </p>
         ) : null}

@@ -5,7 +5,24 @@ import type {
   WorkspaceMetadata,
   WorkspaceRepositoryInfo,
 } from "@difflane/shared-types";
-import { removeFileText, seedFileTextIfEmpty } from "./CollaborationService";
+import type { FileNode } from "../types/workspace";
+import { removeFileText, seedFileTextIfEmpty, getFileText } from "./CollaborationService";
+import { buildBreadcrumbPath, flattenFileNodes } from "./FileTreeService";
+
+export interface ExportableFile {
+  path: string;
+  content: string;
+}
+
+export function collectExportableFiles(doc: Y.Doc, tree: FileNode[]): ExportableFile[] {
+  return flattenFileNodes(tree).map((node) => {
+    const pathParts = buildBreadcrumbPath(tree, node.id) ?? [node.name];
+    return {
+      path: pathParts.join("/"),
+      content: getFileText(doc, node.id).toString(),
+    };
+  });
+}
 
 const FILE_SYSTEM_KEY = "workspaceFileSystem";
 const REPOSITORY_INFO_KEY = "repositoryInfo";

@@ -2,7 +2,7 @@ import { useCallback, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateJoinRoomForm } from "../services/RoomService";
 import { buildWorkspacePath } from "../constants/routes";
-import { useCurrentUser } from "../contexts/CurrentUserContext";
+import { useCurrentUser } from "./useCurrentUser";
 import type { JoinRoomFormErrors, JoinRoomFormValues } from "../types/room";
 
 const INITIAL_VALUES: JoinRoomFormValues = {

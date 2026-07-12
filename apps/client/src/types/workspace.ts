@@ -134,11 +134,3 @@ export interface WorkspaceMember {
   role: MemberRole;
   presence: PresenceStatus;
 }
-
-export interface ShareWorkspaceInfo {
-  projectName: string;
-  isLive: boolean;
-  roomCode: string;
-  inviteLink: string;
-  collaboratorCount: number;
-}

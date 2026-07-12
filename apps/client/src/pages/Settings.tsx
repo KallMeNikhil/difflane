@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUserSettingsModal } from "../contexts/UserSettingsModalContext";
+import { useUserSettingsModal } from "../hooks/useUserSettingsModal";
 import { ROUTES } from "../constants/routes";
 
 export default function Settings() {

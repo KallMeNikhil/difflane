@@ -7,6 +7,7 @@ import {
   SwitchToggle,
   TextAreaField,
   TextField,
+  getButtonClasses,
 } from "../components/common";
 import { useCreateRoomForm } from "../hooks/useCreateRoomForm";
 import {
@@ -21,10 +22,8 @@ import {
 } from "../constants/roomOptions";
 import { ROUTES, buildWorkspacePath } from "../constants/routes";
 
-const PRIMARY_BUTTON =
-  "inline-flex items-center justify-center gap-sm font-label-md text-label-md px-lg py-sm rounded-lg bg-primary-container text-white hover:brightness-110 shadow-md shadow-primary-container/20 hover:-translate-y-0.5 transition-all duration-300 ease-out disabled:opacity-50 disabled:pointer-events-none disabled:hover:translate-y-0";
-const SECONDARY_BUTTON =
-  "inline-flex items-center justify-center gap-sm font-label-md text-label-md px-lg py-sm rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 hover:text-white transition-all duration-300 ease-out";
+const PRIMARY_BUTTON = getButtonClasses("primary", "md");
+const SECONDARY_BUTTON = getButtonClasses("secondary", "md");
 
 export default function CreateRoom() {
   const navigate = useNavigate();
@@ -60,10 +59,10 @@ export default function CreateRoom() {
           <div className="w-14 h-14 rounded-xl bg-success-mint/10 border border-success-mint/30 flex items-center justify-center">
             <Icon name="check_circle" size={28} className="text-success-mint" filled />
           </div>
-          <p className="font-body-md text-body-md text-gray-400">
-            <span className="text-white font-medium">{values.roomName}</span> is ready to go.
+          <p className="font-body-md text-body-md text-on-surface-variant">
+            <span className="text-on-surface font-medium">{values.roomName}</span> is ready to go.
           </p>
-          <div className="w-full max-w-xs bg-[#161b22] border border-white/10 rounded-lg px-md py-lg text-center font-code text-code text-white tracking-[0.5em] uppercase">
+          <div className="w-full max-w-xs bg-surface-container-high border border-outline-variant rounded-lg px-md py-lg text-center font-code text-code text-on-surface tracking-[0.5em] uppercase">
             {roomCode}
           </div>
         </div>
@@ -119,7 +118,7 @@ export default function CreateRoom() {
             </div>
           </section>
 
-          <hr className="border-white/5" />
+          <hr className="border-outline-variant" />
 
           {}
           <section className="space-y-md">
@@ -162,7 +161,7 @@ export default function CreateRoom() {
             </div>
           </section>
 
-          <hr className="border-white/5" />
+          <hr className="border-outline-variant" />
 
           {}
           <section className="space-y-md">

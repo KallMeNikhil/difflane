@@ -21,7 +21,6 @@ export function createSocketConnection(): Socket {
   const serverUrl = resolveServerUrl();
 
   if (!serverUrl && import.meta.env.PROD) {
-    // eslint-disable-next-line no-console
     console.warn(
       "[difflane] VITE_SERVER_URL is not configured. Set it in your Vercel project's " +
         "Environment Variables to the deployed backend URL once it is available.",

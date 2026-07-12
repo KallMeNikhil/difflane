@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 import { Logo, Icon, getButtonClasses } from "../common";
 import { SIDE_NAV_ITEMS } from "../../constants/navigation";
 import { ROUTES } from "../../constants/routes";
-import { useUserSettingsModal } from "../../contexts/UserSettingsModalContext";
+import { useUserSettingsModal } from "../../hooks/useUserSettingsModal";
 
 interface SideNavProps {
   variant?: "docked" | "drawer";

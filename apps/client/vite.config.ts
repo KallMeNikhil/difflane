@@ -6,4 +6,15 @@ export default defineConfig({
   server: {
     port: 7777,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "editor-engine": ["@monaco-editor/react", "monaco-editor", "yjs", "y-monaco"],
+          socket: ["socket.io-client"],
+          zip: ["jszip"],
+        },
+      },
+    },
+  },
 });
