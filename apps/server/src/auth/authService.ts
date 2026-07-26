@@ -1,6 +1,6 @@
 import type { AuthUserProfile, OAuthProvider } from "@difflane/shared-types";
 import { identityStore } from "../db/index.js";
-import type { UserRecord } from "../db/models.js";
+import type { RefreshSessionRecord, UserRecord } from "../db/models.js";
 import { AuthError } from "./AuthError.js";
 import { validatePasswordPolicy } from "./passwordPolicy.js";
 import { hashPassword, verifyPassword } from "./passwordService.js";
@@ -108,18 +108,59 @@ export async function login(email: string, password: string): Promise<AuthSessio
   return issueSession(user);
 }
 
+const REFRESH_GRACE_PERIOD_MS = 10_000;
+const MAX_REFRESH_CHAIN_HOPS = 5;
+
+async function rotateRefreshSession(session: RefreshSessionRecord, user: UserRecord): Promise<AuthSessionResult> {
+  const claims: AccessTokenClaims = { sub: user.id, email: user.email, username: user.username };
+  const { token: accessToken, expiresAt: accessTokenExpiresAt } = signAccessToken(claims);
+  const refreshToken = createRefreshTokenValue();
+  await identityStore.replaceRefreshSession(session.id, hashRefreshToken(refreshToken), refreshTokenExpiry());
+  return { user, accessToken, accessTokenExpiresAt, refreshToken };
+}
+
+function isWithinGracePeriod(revokedAt: Date | null): boolean {
+  return revokedAt !== null && Date.now() - revokedAt.getTime() <= REFRESH_GRACE_PERIOD_MS;
+}
+
+async function resolveConcurrentRefresh(session: RefreshSessionRecord): Promise<AuthSessionResult> {
+  let current = session;
+  let hops = 0;
+
+  while (isWithinGracePeriod(current.revokedAt) && current.replacedByHash && hops < MAX_REFRESH_CHAIN_HOPS) {
+    const next = await identityStore.findRefreshSessionByHash(current.replacedByHash);
+    if (!next) {
+      break;
+    }
+    if (!next.revokedAt && next.expiresAt.getTime() >= Date.now()) {
+      const user = await identityStore.findUserById(next.userId);
+      if (!user) {
+        break;
+      }
+      return rotateRefreshSession(next, user);
+    }
+    current = next;
+    hops += 1;
+  }
+
+  await identityStore.revokeRefreshSessionsForUser(session.userId);
+  throw new AuthError("invalid_token", "Session is no longer valid. Please sign in again.", 401);
+}
+
 export async function refreshSession(refreshTokenValue: string): Promise<AuthSessionResult> {
   const tokenHash = hashRefreshToken(refreshTokenValue);
   const session = await identityStore.findRefreshSessionByHash(tokenHash);
-  if (!session || session.revokedAt || session.expiresAt.getTime() < Date.now()) {
+  if (!session || session.expiresAt.getTime() < Date.now()) {
     throw new AuthError("expired_token", "Your session has expired. Please sign in again.", 401);
+  }
+  if (session.revokedAt) {
+    return resolveConcurrentRefresh(session);
   }
   const user = await identityStore.findUserById(session.userId);
   if (!user) {
     throw new AuthError("invalid_token", "Session is no longer valid.", 401);
   }
-  await identityStore.revokeRefreshSession(session.id);
-  return issueSession(user);
+  return rotateRefreshSession(session, user);
 }
 
 export async function logout(refreshTokenValue: string | undefined): Promise<void> {

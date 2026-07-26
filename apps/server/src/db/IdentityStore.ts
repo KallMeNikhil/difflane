@@ -33,6 +33,7 @@ export interface IdentityStore {
   findRefreshSessionByHash(tokenHash: string): Promise<RefreshSessionRecord | null>;
   revokeRefreshSessionsForUser(userId: string): Promise<void>;
   revokeRefreshSession(id: string): Promise<void>;
+  replaceRefreshSession(sessionId: string, newTokenHash: string, newExpiresAt: Date): Promise<RefreshSessionRecord>;
 
   createPasswordResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<PasswordResetTokenRecord>;
   findPasswordResetTokenByHash(tokenHash: string): Promise<PasswordResetTokenRecord | null>;

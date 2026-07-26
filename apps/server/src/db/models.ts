@@ -26,6 +26,7 @@ export interface RefreshSessionRecord {
   createdAt: Date;
   expiresAt: Date;
   revokedAt: Date | null;
+  replacedByHash: string | null;
 }
 
 export interface PasswordResetTokenRecord {

@@ -64,6 +64,7 @@ function toRefreshSessionRecord(session: {
   createdAt: Date;
   expiresAt: Date;
   revokedAt: Date | null;
+  replacedByHash: string | null;
 }): RefreshSessionRecord {
   return {
     id: session.id,
@@ -72,6 +73,7 @@ function toRefreshSessionRecord(session: {
     createdAt: session.createdAt,
     expiresAt: session.expiresAt,
     revokedAt: session.revokedAt,
+    replacedByHash: session.replacedByHash,
   };
 }
 
@@ -212,6 +214,19 @@ export function createPrismaIdentityStore(): IdentityStore {
     },
     async revokeRefreshSession(id) {
       await prisma.refreshSession.updateMany({ where: { id }, data: { revokedAt: new Date() } });
+    },
+    async replaceRefreshSession(sessionId, newTokenHash, newExpiresAt) {
+      const existing = await prisma.refreshSession.findUniqueOrThrow({ where: { id: sessionId } });
+      const [, created] = await prisma.$transaction([
+        prisma.refreshSession.update({
+          where: { id: sessionId },
+          data: { revokedAt: new Date(), replacedByHash: newTokenHash },
+        }),
+        prisma.refreshSession.create({
+          data: { userId: existing.userId, tokenHash: newTokenHash, expiresAt: newExpiresAt },
+        }),
+      ]);
+      return toRefreshSessionRecord(created);
     },
 
     async createPasswordResetToken(userId, tokenHash, expiresAt) {
