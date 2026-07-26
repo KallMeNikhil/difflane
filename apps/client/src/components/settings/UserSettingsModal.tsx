@@ -2,16 +2,19 @@ import { useEffect, useState } from "react";
 import { Avatar, Icon, IconButton, Button } from "../common";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { useEditorPreferences } from "../../hooks/useEditorPreferences";
+import { useAuthModal } from "../../hooks/useAuthModal";
+import { changePassword, deleteAccount, validatePassword } from "../../services/AuthService";
 import type { EditorFontSize, EditorTabSize } from "../../types/settings";
 
 interface UserSettingsModalProps {
   onClose: () => void;
 }
 
-type UserSettingsSection = "general" | "editor";
+type UserSettingsSection = "general" | "account" | "editor";
 
 const NAV_ITEMS: { id: UserSettingsSection; label: string; icon: string }[] = [
   { id: "general", label: "General", icon: "settings" },
+  { id: "account", label: "Account", icon: "shield_person" },
   { id: "editor", label: "Editor", icon: "code" },
 ];
 
@@ -50,9 +53,53 @@ function ToggleRow({
 }
 
 export function UserSettingsModal({ onClose }: UserSettingsModalProps) {
-  const { displayName, initials, setDisplayName } = useCurrentUser();
+  const { displayName, initials, setDisplayName, isAuthenticated, user, updateAccountProfile, logout } = useCurrentUser();
   const { preferences, setFontSize, setTabSize, setWordWrap, setMinimap, setAutoSave } = useEditorPreferences();
+  const { openGuestUpgrade } = useAuthModal();
   const [section, setSection] = useState<UserSettingsSection>("general");
+  const [username, setUsername] = useState(user?.username ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [accountMessage, setAccountMessage] = useState<string | null>(null);
+  const [accountError, setAccountError] = useState<string | null>(null);
+
+  async function handleUsernameSave() {
+    setAccountError(null);
+    setAccountMessage(null);
+    try {
+      await updateAccountProfile({ username });
+      setAccountMessage("Username updated.");
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : "Unable to update username.");
+    }
+  }
+
+  async function handlePasswordChange() {
+    setAccountError(null);
+    setAccountMessage(null);
+    const issues = validatePassword(newPassword);
+    if (issues.length > 0) {
+      setAccountError(`Password needs: ${issues.join(", ")}.`);
+      return;
+    }
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setAccountMessage("Password updated.");
+    } catch (error) {
+      setAccountError(error instanceof Error ? error.message : "Unable to update password.");
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!window.confirm("Delete your account permanently? This cannot be undone.")) {
+      return;
+    }
+    await deleteAccount();
+    await logout();
+    onClose();
+  }
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -127,6 +174,96 @@ export function UserSettingsModal({ onClose }: UserSettingsModalProps) {
                       </div>
                     </div>
                   </div>
+                </section>
+              )}
+
+              {section === "account" && (
+                <section className="flex flex-col gap-md">
+                  <h3 className="font-headline-md text-[20px] font-semibold text-on-surface border-b border-outline-variant pb-2">
+                    Account
+                  </h3>
+
+                  {!isAuthenticated ? (
+                    <div className="bg-surface-container-low rounded-lg p-md border border-outline-variant flex items-center justify-between gap-md">
+                      <div>
+                        <p className="font-label-md text-label-md text-on-surface">You're browsing as a guest</p>
+                        <p className="font-body-sm text-body-sm text-on-surface-variant">
+                          Create a free account to keep ownership of your workspaces.
+                        </p>
+                      </div>
+                      <Button type="button" variant="primary" size="md" onClick={openGuestUpgrade}>
+                        Create Account
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {(accountMessage || accountError) && (
+                        <div
+                          className={`rounded-lg px-md py-sm font-body-sm text-body-sm ${
+                            accountError ? "bg-error/10 border border-error/30 text-error" : "bg-success/10 border border-success/30 text-success"
+                          }`}
+                        >
+                          {accountError ?? accountMessage}
+                        </div>
+                      )}
+
+                      <div className="bg-surface-container-low rounded-lg p-md border border-outline-variant flex flex-col gap-sm">
+                        <p className="font-label-md text-label-md text-on-surface">Email</p>
+                        <p className="font-body-sm text-body-sm text-on-surface-variant">{user?.email}</p>
+                      </div>
+
+                      <div className="bg-surface-container-low rounded-lg p-md border border-outline-variant flex flex-col gap-sm max-w-sm">
+                        <label htmlFor="account-username" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+                          Username
+                        </label>
+                        <div className="flex gap-sm">
+                          <input
+                            id="account-username"
+                            type="text"
+                            value={username}
+                            onChange={(event) => setUsername(event.target.value)}
+                            className="flex-1 bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                          />
+                          <Button type="button" variant="secondary" size="md" onClick={handleUsernameSave}>
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="bg-surface-container-low rounded-lg p-md border border-outline-variant flex flex-col gap-sm max-w-sm">
+                        <p className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Change Password</p>
+                        <input
+                          type="password"
+                          placeholder="Current password"
+                          value={currentPassword}
+                          onChange={(event) => setCurrentPassword(event.target.value)}
+                          className="bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                        />
+                        <input
+                          type="password"
+                          placeholder="New password"
+                          value={newPassword}
+                          onChange={(event) => setNewPassword(event.target.value)}
+                          className="bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                        />
+                        <Button type="button" variant="secondary" size="md" onClick={handlePasswordChange}>
+                          Update Password
+                        </Button>
+                      </div>
+
+                      <div className="bg-error/5 rounded-lg p-md border border-error/30 flex items-center justify-between gap-md">
+                        <div>
+                          <p className="font-label-md text-label-md text-error">Delete Account</p>
+                          <p className="font-body-sm text-body-sm text-on-surface-variant">
+                            Permanently delete your account and remove your access to owned workspaces.
+                          </p>
+                        </div>
+                        <Button type="button" variant="secondary" size="md" onClick={handleDeleteAccount}>
+                          Delete
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </section>
               )}
 

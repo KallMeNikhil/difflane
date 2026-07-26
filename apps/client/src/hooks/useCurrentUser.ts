@@ -1,4 +1,7 @@
 import { createContext, useContext } from "react";
+import type { AuthUserProfile } from "@difflane/shared-types";
+
+export type AuthStatus = "loading" | "guest" | "authenticated";
 
 export interface CurrentUserIdentity {
   userId: string;
@@ -7,7 +10,20 @@ export interface CurrentUserIdentity {
 }
 
 export interface CurrentUserContextValue extends CurrentUserIdentity {
+  status: AuthStatus;
+  isAuthenticated: boolean;
+  guestId: string | null;
+  user: AuthUserProfile | null;
+  authError: string | null;
   setDisplayName: (displayName: string) => void;
+  login: (email: string, password: string) => Promise<void>;
+  registerAccount: (email: string, username: string, displayName: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  upgradeGuest: (email: string, username: string, displayName: string, password: string) => Promise<void>;
+  beginOAuthFlow: (provider: "google" | "github") => Promise<void>;
+  completeOAuthLogin: (provider: "google" | "github", code: string, state: string) => Promise<void>;
+  updateAccountProfile: (patch: { displayName?: string; username?: string }) => Promise<void>;
+  clearAuthError: () => void;
 }
 
 export const CurrentUserContext = createContext<CurrentUserContextValue | undefined>(undefined);

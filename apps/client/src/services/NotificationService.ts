@@ -1,93 +1,7 @@
 import { formatRelativeTimeLabel } from "./SessionHistoryService";
 import type { NotificationFilter, NotificationGroup, NotificationRecord } from "../types/notifications";
 
-const MINUTE = 60 * 1000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-
-function minutesAgo(minutes: number): string {
-  return new Date(Date.now() - minutes * MINUTE).toISOString();
-}
-
-function hoursAgo(hours: number): string {
-  return new Date(Date.now() - hours * HOUR).toISOString();
-}
-
-function daysAgo(days: number): string {
-  return new Date(Date.now() - days * DAY).toISOString();
-}
-
-const NOTIFICATION_RECORDS: NotificationRecord[] = [
-  {
-    id: "notification-invite",
-    category: "workspace",
-    icon: "grid_view",
-    tone: "accent",
-    actorInitials: "L",
-    actorName: "Lead Architect",
-    message: "invited you to",
-    targetLabel: "Frontend Core Migration",
-    roomCode: "auth-review",
-    createdAt: minutesAgo(10),
-    isRead: false,
-    actions: [
-      { id: "accept", label: "Accept", kind: "accept", emphasis: "primary" },
-      { id: "decline", label: "Decline", kind: "decline", emphasis: "secondary" },
-    ],
-  },
-  {
-    id: "notification-mention",
-    category: "mentions",
-    icon: "alternate_email",
-    tone: "accent",
-    actorInitials: "F",
-    actorName: "Frontend Engineer",
-    message: "mentioned you in",
-    targetLabel: "PR #142",
-    quote: "Can you review the new auth flow logic here?",
-    roomCode: "auth-review",
-    createdAt: hoursAgo(2),
-    isRead: false,
-    actions: [{ id: "open-discussion", label: "Open Discussion", kind: "openDiscussion", emphasis: "secondary" }],
-  },
-  {
-    id: "notification-discussion-resolved",
-    category: "discussions",
-    icon: "forum",
-    tone: "accent",
-    actorInitials: "B",
-    actorName: "Backend Engineer",
-    message: "resolved a discussion in",
-    targetLabel: "Rate Limiting Implementation",
-    roomCode: "rate-limiting",
-    createdAt: hoursAgo(5),
-    isRead: false,
-    actions: [{ id: "open-discussion", label: "Open Discussion", kind: "openDiscussion", emphasis: "secondary" }],
-  },
-  {
-    id: "notification-import",
-    category: "system",
-    icon: "check_circle",
-    tone: "success",
-    message: "Import successful:",
-    targetLabel: "difflane-api",
-    roomCode: "auth-review",
-    createdAt: daysAgo(1),
-    isRead: true,
-    actions: [{ id: "open-explorer", label: "Go to Explorer", kind: "openExplorer", emphasis: "secondary" }],
-  },
-  {
-    id: "notification-sync-warning",
-    category: "system",
-    icon: "sync_problem",
-    tone: "warning",
-    message: "Repository sync delayed for",
-    targetLabel: "webapp",
-    createdAt: daysAgo(2),
-    isRead: true,
-    actions: [],
-  },
-];
+const DAY = 24 * 60 * 60 * 1000;
 
 export interface NotificationInput {
   category: NotificationRecord["category"];
@@ -125,7 +39,7 @@ export function createNotificationRecord(input: NotificationInput): Notification
 }
 
 export async function fetchNotifications(): Promise<NotificationRecord[]> {
-  return Promise.resolve(NOTIFICATION_RECORDS.map((record) => ({ ...record })));
+  return Promise.resolve([]);
 }
 
 export function getUnreadCount(records: NotificationRecord[]): number {

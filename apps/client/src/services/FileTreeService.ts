@@ -1,4 +1,4 @@
-import type { EditorLanguage, FileNode, FileStatus, OpenEditorTab, WorkspaceFileSystemEntry } from "../types/workspace";
+import type { DeletedFileRecord, EditorLanguage, FileNode, FileStatus, OpenEditorTab, WorkspaceFileSystemEntry } from "../types/workspace";
 
 export function buildFileTree(
   entries: WorkspaceFileSystemEntry[],
@@ -125,8 +125,18 @@ export function countTreeStats(tree: FileNode[]): { folderCount: number; fileCou
   return { folderCount, fileCount };
 }
 
-export function getChangedFiles(tree: FileNode[]): FileNode[] {
-  return flattenFileNodes(tree).filter((node) => node.status && node.status !== "unmodified");
+export function getChangedFiles(tree: FileNode[], deletedFiles: FileNode[] = []): FileNode[] {
+  return [...flattenFileNodes(tree).filter((node) => node.status && node.status !== "unmodified"), ...deletedFiles];
+}
+
+export function toDeletedFileNode(record: DeletedFileRecord): FileNode {
+  return {
+    id: record.id,
+    name: record.name,
+    type: "file",
+    language: record.language,
+    status: "deleted",
+  };
 }
 
 export function buildBreadcrumbPath(tree: FileNode[], fileId: string, trail: string[] = []): string[] | undefined {

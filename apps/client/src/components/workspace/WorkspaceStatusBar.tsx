@@ -10,9 +10,13 @@ const STATUS_DOT_CLASSES: Record<string, string> = {
 };
 
 export function WorkspaceStatusBar() {
-  const { connectionStatus, collaborators } = useRoom();
+  const { connectionStatus, collaborators, persistenceStatus } = useRoom();
   const status = connectionStatus ?? "connecting";
-  const isSynced = status === "connected";
+  const isConnected = status === "connected";
+
+  const syncLabel = !isConnected ? "Syncing..." : persistenceStatus === "failed" ? "Save failed" : persistenceStatus === "saved" ? "Saved" : "Saving...";
+  const syncIcon = persistenceStatus === "failed" ? "cloud_off" : "sync";
+  const syncColorClass = persistenceStatus === "failed" ? "text-error" : undefined;
 
   return (
     <footer className="h-[26px] bg-surface-container-lowest border-t border-outline-variant flex items-center px-sm gap-4 text-[11px] font-code text-on-surface-variant flex-shrink-0 z-50">
@@ -21,9 +25,9 @@ export function WorkspaceStatusBar() {
         <span>{describeConnectionStatus(status)}</span>
       </div>
       <div className="h-3 w-px bg-outline-variant/50" />
-      <div className="flex items-center gap-1">
-        <Icon name="sync" size={13} />
-        <span>{isSynced ? "Synced" : "Syncing..."}</span>
+      <div className={`flex items-center gap-1 ${syncColorClass ?? ""}`}>
+        <Icon name={syncIcon} size={13} />
+        <span>{syncLabel}</span>
       </div>
       <div className="ml-auto flex items-center gap-1">
         <Icon name="group" size={13} />

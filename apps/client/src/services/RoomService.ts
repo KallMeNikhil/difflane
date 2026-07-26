@@ -1,13 +1,10 @@
 import type {
   CreateRoomFormErrors,
   CreateRoomFormValues,
-  CreatedRoomResult,
   JoinRoomFormErrors,
   JoinRoomFormValues,
 } from "../types/room";
 
-const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const ROOM_CODE_LENGTH = 5;
 const ROOM_CODE_PATTERN = /^[A-Z0-9]{5,8}$/;
 const INVITATION_LINK_PATTERN = /^https?:\/\/\S+\/room\/\S+$/i;
 
@@ -34,18 +31,6 @@ export function validateCreateRoomForm(values: CreateRoomFormValues): CreateRoom
   }
 
   return errors;
-}
-
-export function generateMockRoomCode(): string {
-  let code = "";
-  for (let i = 0; i < ROOM_CODE_LENGTH; i += 1) {
-    code += ROOM_CODE_ALPHABET[Math.floor(Math.random() * ROOM_CODE_ALPHABET.length)];
-  }
-  return code;
-}
-
-export function createMockRoom(): CreatedRoomResult {
-  return { roomCode: generateMockRoomCode() };
 }
 
 export function validateJoinRoomForm(values: JoinRoomFormValues): JoinRoomFormErrors {

@@ -15,6 +15,7 @@ interface WorkspaceIconRailProps {
 const RAIL_TAB_TARGET: Partial<Record<string, WorkspaceTopTab>> = {
   files: "files",
   discussions: "discussion",
+  review: "review",
 };
 
 export function WorkspaceIconRail({

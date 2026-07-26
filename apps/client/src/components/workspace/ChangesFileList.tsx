@@ -1,11 +1,14 @@
 import { Icon } from "../common";
+import { FileReviewStatusBadge } from "../review";
 import { getFileIcon } from "../../utils/workspaceDisplay";
 import type { FileDiff, FileNode } from "../../types/workspace";
+import type { FileReviewStatus } from "../../types/review";
 
 interface ChangesFileListProps {
   changedFiles: FileNode[];
   diffsByFileId: Record<string, FileDiff>;
   onSelectFile: (node: FileNode) => void;
+  getReviewStatus?: (fileId: string) => FileReviewStatus;
 }
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -14,7 +17,7 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   deleted: { label: "DELETED", className: "text-error bg-error-container/20" },
 };
 
-export function ChangesFileList({ changedFiles, diffsByFileId, onSelectFile }: ChangesFileListProps) {
+export function ChangesFileList({ changedFiles, diffsByFileId, onSelectFile, getReviewStatus }: ChangesFileListProps) {
   return (
     <div className="flex-1 overflow-auto p-lg">
       <div className="max-w-3xl mx-auto flex flex-col gap-sm">
@@ -24,6 +27,7 @@ export function ChangesFileList({ changedFiles, diffsByFileId, onSelectFile }: C
         {changedFiles.map((file) => {
           const diff = diffsByFileId[file.id];
           const status = STATUS_STYLES[file.status ?? "modified"];
+          const reviewStatus = getReviewStatus?.(file.id);
           return (
             <button
               key={file.id}
@@ -39,6 +43,7 @@ export function ChangesFileList({ changedFiles, diffsByFileId, onSelectFile }: C
                     {status.label}
                   </span>
                 )}
+                {reviewStatus && <FileReviewStatusBadge status={reviewStatus} />}
               </div>
               {diff && (
                 <div className="flex items-center gap-sm font-code text-[12px] flex-shrink-0">

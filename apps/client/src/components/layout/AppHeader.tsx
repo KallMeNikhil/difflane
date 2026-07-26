@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Icon, IconButton } from "../common";
+import { Avatar, Icon, IconButton } from "../common";
+import { AccountMenu } from "../auth";
 import { useUserSettingsModal } from "../../hooks/useUserSettingsModal";
 import { useNotifications } from "../../hooks/useNotifications";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { NotificationCenterPanel } from "./NotificationCenterPanel";
 
 interface AppHeaderProps {
@@ -12,7 +14,9 @@ interface AppHeaderProps {
 export function AppHeader({ onOpenMobileNav, onOpenSearch }: AppHeaderProps) {
   const { openUserSettings } = useUserSettingsModal();
   const [isNotificationsOpen, setNotificationsOpen] = useState(false);
+  const [isAccountMenuOpen, setAccountMenuOpen] = useState(false);
   const notifications = useNotifications();
+  const { initials } = useCurrentUser();
 
   return (
     <>
@@ -47,14 +51,17 @@ export function AppHeader({ onOpenMobileNav, onOpenSearch }: AppHeaderProps) {
             )}
           </div>
           <IconButton icon="settings" aria-label="Settings" onClick={openUserSettings} />
-          <button
-            type="button"
-            aria-label="Account"
-            onClick={openUserSettings}
-            className="w-8 h-8 rounded-full bg-surface-variant border border-outline-variant ml-sm overflow-hidden cursor-pointer hover:border-primary transition-colors flex items-center justify-center"
-          >
-            <Icon name="person" size={20} />
-          </button>
+          <div className="relative ml-sm">
+            <button
+              type="button"
+              aria-label="Account"
+              onClick={() => setAccountMenuOpen((prev) => !prev)}
+              className="cursor-pointer"
+            >
+              <Avatar initials={initials} tone="primary" />
+            </button>
+            {isAccountMenuOpen && <AccountMenu onClose={() => setAccountMenuOpen(false)} />}
+          </div>
         </div>
       </header>
 

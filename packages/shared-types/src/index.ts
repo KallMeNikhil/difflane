@@ -4,3 +4,6 @@ export * from "./socket-events.js";
 export * from "./workspace.js";
 export * from "./repository.js";
 export * from "./languageDetection.js";
+export * from "./api.js";
+export * from "./persistence.js";
+export * from "./review.js";

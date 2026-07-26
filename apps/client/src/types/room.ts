@@ -52,6 +52,6 @@ export type JoinRoomFormErrors = Partial<
 export interface QuickJoinRoom {
   id: string;
   name: string;
-  hostName: string;
+  hostName?: string;
   joinedLabel: string;
 }

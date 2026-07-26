@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Socket } from "socket.io-client";
-import type { RoomParticipant } from "@difflane/shared-types";
+import { SOCKET_EVENTS, type RoomParticipant, type WorkspacePersistedPayload, type WorkspacePersistenceFailedPayload } from "@difflane/shared-types";
 import { connectSocket, disconnectSocket, joinRoom, leaveRoom, onParticipantJoined, onParticipantLeft } from "../services/SocketService";
 import { useYjsDoc } from "../hooks/useYjsDoc";
 import { usePresence } from "../hooks/usePresence";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { getAccessToken } from "../lib/auth/tokenStore";
 import type { RejoinResult } from "../lib/yjs/YjsSocketProvider";
-import { RoomContext, type RoomContextValue } from "../hooks/useRoom";
+import { RoomContext, type RoomContextValue, type WorkspacePersistenceStatus } from "../hooks/useRoom";
 
 interface JoinedConnection {
   socket: Socket;
@@ -15,6 +16,7 @@ interface JoinedConnection {
   initialDocUpdate: Uint8Array;
   initialAwarenessUpdate: Uint8Array | null;
   selfColor: string;
+  selfRole: RoomParticipant["role"];
 }
 
 interface RoomProviderProps {
@@ -32,7 +34,13 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
     let cancelled = false;
     const socket = connectSocket();
 
-    joinRoom(socket, { roomCode, displayName: identity.displayName, initials: identity.initials })
+    joinRoom(socket, {
+      roomCode,
+      displayName: identity.displayName,
+      initials: identity.initials,
+      accessToken: identity.isAuthenticated ? (getAccessToken() ?? undefined) : undefined,
+      guestId: identity.isAuthenticated ? undefined : identity.guestId ?? undefined,
+    })
       .then((joined) => {
         if (cancelled) {
           disconnectSocket(socket);
@@ -47,6 +55,7 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
           initialDocUpdate: joined.docUpdate,
           initialAwarenessUpdate: joined.awarenessUpdate,
           selfColor: self?.color ?? "#b4c5ff",
+          selfRole: self?.role ?? "editor",
         });
       })
       .catch((error: unknown) => {
@@ -61,7 +70,7 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
       leaveRoom(socket);
       disconnectSocket(socket);
     };
-  }, [roomCode, identity.displayName, identity.initials]);
+  }, [roomCode, identity.displayName, identity.initials, identity.isAuthenticated, identity.guestId]);
 
   useEffect(() => {
     if (!connection) {
@@ -87,9 +96,13 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
       connectionStatus: null,
       participants,
       collaborators: [],
+      selfRole: "viewer",
       doc: null,
       awareness: null,
       setActiveFileId: () => {},
+      persistenceStatus: "pending",
+      lastPersistedAt: null,
+      persistenceErrorMessage: null,
     };
     return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;
   }
@@ -120,10 +133,12 @@ function ConnectedRoom({
       roomCode,
       displayName: identity.displayName,
       initials: identity.initials,
+      accessToken: identity.isAuthenticated ? (getAccessToken() ?? undefined) : undefined,
+      guestId: identity.isAuthenticated ? undefined : identity.guestId ?? undefined,
     });
     setParticipants(joined.room.participants);
     return { docUpdate: joined.docUpdate, awarenessUpdate: joined.awarenessUpdate };
-  }, [connection.socket, roomCode, identity.displayName, identity.initials, setParticipants]);
+  }, [connection.socket, roomCode, identity.displayName, identity.initials, identity.isAuthenticated, identity.guestId, setParticipants]);
   const { doc, awareness, status } = useYjsDoc({
     socket: connection.socket,
     roomId: connection.roomId,
@@ -131,9 +146,58 @@ function ConnectedRoom({
     initialAwarenessUpdate: connection.initialAwarenessUpdate,
     rejoin,
   });
+
+  const [persistenceStatus, setPersistenceStatus] = useState<WorkspacePersistenceStatus>("pending");
+  const [lastPersistedAt, setLastPersistedAt] = useState<string | null>(null);
+  const [persistenceErrorMessage, setPersistenceErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const socket = connection.socket;
+
+    function handlePersisted(payload: WorkspacePersistedPayload) {
+      if (payload.roomId !== connection.roomId) {
+        return;
+      }
+      setPersistenceStatus("saved");
+      setLastPersistedAt(payload.persistedAt);
+      setPersistenceErrorMessage(null);
+    }
+
+    function handleFailed(payload: WorkspacePersistenceFailedPayload) {
+      if (payload.roomId !== connection.roomId) {
+        return;
+      }
+      setPersistenceStatus("failed");
+      setPersistenceErrorMessage(payload.message);
+    }
+
+    function handleRestored(payload: { roomId: string }) {
+      if (payload.roomId !== connection.roomId) {
+        return;
+      }
+      window.location.reload();
+    }
+
+    socket.on(SOCKET_EVENTS.WORKSPACE_PERSISTED, handlePersisted);
+    socket.on(SOCKET_EVENTS.WORKSPACE_PERSISTENCE_FAILED, handleFailed);
+    socket.on(SOCKET_EVENTS.WORKSPACE_RESTORED, handleRestored);
+    return () => {
+      socket.off(SOCKET_EVENTS.WORKSPACE_PERSISTED, handlePersisted);
+      socket.off(SOCKET_EVENTS.WORKSPACE_PERSISTENCE_FAILED, handleFailed);
+      socket.off(SOCKET_EVENTS.WORKSPACE_RESTORED, handleRestored);
+    };
+  }, [connection.socket, connection.roomId]);
+
   const localIdentity = useMemo(
-    () => ({ userId: identity.userId, displayName: identity.displayName, initials: identity.initials, color: connection.selfColor }),
-    [identity.userId, identity.displayName, identity.initials, connection.selfColor],
+    () => ({
+      userId: identity.userId,
+      identityType: (identity.isAuthenticated ? "user" : "guest") as "user" | "guest",
+      displayName: identity.displayName,
+      initials: identity.initials,
+      color: connection.selfColor,
+      role: connection.selfRole,
+    }),
+    [identity.userId, identity.isAuthenticated, identity.displayName, identity.initials, connection.selfColor, connection.selfRole],
   );
   const { collaborators, setActiveFileId } = usePresence(awareness, localIdentity);
 
@@ -145,11 +209,27 @@ function ConnectedRoom({
       connectionStatus: status,
       participants,
       collaborators,
+      selfRole: connection.selfRole,
       doc,
       awareness,
       setActiveFileId,
+      persistenceStatus,
+      lastPersistedAt,
+      persistenceErrorMessage,
     }),
-    [roomCode, status, participants, collaborators, doc, awareness, setActiveFileId],
+    [
+      roomCode,
+      status,
+      participants,
+      collaborators,
+      connection.selfRole,
+      doc,
+      awareness,
+      setActiveFileId,
+      persistenceStatus,
+      lastPersistedAt,
+      persistenceErrorMessage,
+    ],
   );
 
   return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;

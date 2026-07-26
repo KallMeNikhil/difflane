@@ -3,6 +3,7 @@ import { Icon } from "../common";
 import { PendingCreateRow, type PendingCreate } from "./PendingCreateRow";
 import { getFileIcon } from "../../utils/workspaceDisplay";
 import type { FileNode } from "../../types/workspace";
+import type { FileReviewStatus } from "../../types/review";
 
 interface FileTreeItemProps {
   node: FileNode;
@@ -21,7 +22,14 @@ interface FileTreeItemProps {
   onRequestCreate: (parentId: string, type: "file" | "folder") => void;
   onCommitPendingCreate: (name: string) => void;
   onCancelPendingCreate: () => void;
+  getReviewStatus?: (fileId: string) => FileReviewStatus;
 }
+
+const REVIEW_DOT_CLASSES: Record<FileReviewStatus, string> = {
+  not_reviewed: "",
+  in_review: "bg-tertiary",
+  reviewed: "bg-success-mint",
+};
 
 const MENU_TRIGGER_CLASS = "opacity-0 group-hover:opacity-100 text-[#A7AFBF] hover:text-[#F3F4F6] transition-opacity";
 const MENU_PANEL_CLASS =
@@ -63,6 +71,7 @@ export function FileTreeItem({
   onRequestCreate,
   onCommitPendingCreate,
   onCancelPendingCreate,
+  getReviewStatus,
 }: FileTreeItemProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useCloseOnOutsideClick(menuOpen, () => setMenuOpen(false));
@@ -188,6 +197,7 @@ export function FileTreeItem({
                 onRequestCreate={onRequestCreate}
                 onCommitPendingCreate={onCommitPendingCreate}
                 onCancelPendingCreate={onCancelPendingCreate}
+                getReviewStatus={getReviewStatus}
               />
             ))}
             {pendingCreate?.parentId === node.id && (
@@ -233,6 +243,13 @@ export function FileTreeItem({
             <span className="w-4" />
             <Icon name={getFileIcon(node.name)} size={16} className={isActive ? "text-primary-fixed" : "text-secondary"} />
             <span className={`flex-1 truncate ${isActive ? "font-medium" : ""}`}>{node.name}</span>
+            {(() => {
+              const reviewStatus = getReviewStatus?.(node.id);
+              if (!reviewStatus || reviewStatus === "not_reviewed") {
+                return null;
+              }
+              return <span title={reviewStatus === "reviewed" ? "Reviewed" : "In Review"} className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${REVIEW_DOT_CLASSES[reviewStatus]}`} />;
+            })()}
             <button
               type="button"
               aria-label="File actions"

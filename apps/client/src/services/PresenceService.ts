@@ -1,12 +1,14 @@
 import type { Awareness } from "y-protocols/awareness";
-import type { AwarenessState, ConnectionStatus } from "@difflane/shared-types";
+import type { AwarenessState, ConnectionStatus, MemberRole, ParticipantIdentityType } from "@difflane/shared-types";
 import type { Collaborator } from "../types/workspace";
 
 export interface LocalIdentity {
   userId: string;
+  identityType: ParticipantIdentityType;
   displayName: string;
   initials: string;
   color: string;
+  role: MemberRole;
 }
 
 const CONNECTION_STATUS_LABELS: Record<ConnectionStatus, string> = {
@@ -16,12 +18,20 @@ const CONNECTION_STATUS_LABELS: Record<ConnectionStatus, string> = {
   disconnected: "Disconnected",
 };
 
+const ROLE_LABELS: Record<MemberRole, string> = {
+  owner: "Owner",
+  editor: "Editor",
+  viewer: "Viewer",
+};
+
 export function buildLocalAwarenessState(identity: LocalIdentity, activeFileId: string | null): AwarenessState {
   return {
     userId: identity.userId,
+    identityType: identity.identityType,
     displayName: identity.displayName,
     initials: identity.initials,
     color: identity.color,
+    role: identity.role,
     activeFileId,
   };
 }
@@ -40,7 +50,7 @@ export function readRemoteCollaborators(awareness: Awareness): Collaborator[] {
       id: awarenessState.userId,
       initials: awarenessState.initials ?? "?",
       name: awarenessState.displayName ?? "Guest",
-      role: "Collaborator",
+      role: awarenessState.role ? ROLE_LABELS[awarenessState.role] : "Collaborator",
       presence: "online",
     });
   });

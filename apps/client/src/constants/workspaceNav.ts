@@ -8,6 +8,7 @@ export const WORKSPACE_RAIL_ITEMS: WorkspaceRailItem[] = [
   { id: "workspace", label: "Workspace", icon: "grid_view" },
   { id: "files", label: "Files", icon: "description" },
   { id: "discussions", label: "Discussions", icon: "forum" },
+  { id: "review", label: "Review", icon: "rate_review" },
   { id: "participants", label: "Participants", icon: "groups" },
   { id: "search", label: "Search", icon: "search" },
   { id: "activity", label: "Activity", icon: "history" },

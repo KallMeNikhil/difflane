@@ -31,6 +31,15 @@ export interface FileNode {
   children?: FileNode[];
 }
 
+export interface DeletedFileRecord {
+  id: string;
+  name: string;
+  path: string;
+  language: EditorLanguage;
+  content: string;
+  deletedAt: string;
+}
+
 export interface OpenEditorTab {
   fileId: string;
   name: string;
@@ -124,7 +133,7 @@ export type DiscussionFeedItem =
   | { kind: "thread"; thread: DiscussionThread }
   | { kind: "event"; event: ActivityEvent };
 
-export type WorkspaceTopTab = "files" | "changes" | "discussion";
+export type WorkspaceTopTab = "files" | "changes" | "discussion" | "review";
 
 export interface WorkspaceMember {
   id: string;

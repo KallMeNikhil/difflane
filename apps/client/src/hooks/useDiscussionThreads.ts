@@ -30,14 +30,8 @@ export function useDiscussionThreads(
     if (!doc) {
       return;
     }
-    const shared = readDiscussionFeed(doc);
-    if (shared.length === 0 && initialFeed.length > 0) {
-      writeDiscussionFeed(doc, initialFeed);
-    } else {
-      setLocalFeed(shared);
-    }
+    setLocalFeed(readDiscussionFeed(doc));
     return subscribeDiscussionFeed(doc, setLocalFeed);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc]);
 
   const commit = useCallback(

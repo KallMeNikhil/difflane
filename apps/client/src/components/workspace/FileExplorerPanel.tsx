@@ -4,6 +4,7 @@ import { FileTreeItem } from "./FileTreeItem";
 import { PendingCreateRow, type PendingCreate } from "./PendingCreateRow";
 import { getImportSourceLabel, getRelativeTimeLabel } from "../../utils/workspaceDisplay";
 import type { FileNode, WorkspaceRepositoryInfo } from "../../types/workspace";
+import type { FileReviewStatus } from "../../types/review";
 
 export type { PendingCreate };
 
@@ -44,6 +45,7 @@ interface FileExplorerPanelProps {
   onOpenImport: () => void;
   onSync: () => void;
   isSyncing: boolean;
+  getReviewStatus?: (fileId: string) => FileReviewStatus;
 }
 
 export function FileExplorerPanel({
@@ -65,6 +67,7 @@ export function FileExplorerPanel({
   onOpenImport,
   onSync,
   isSyncing,
+  getReviewStatus,
 }: FileExplorerPanelProps) {
   const [pendingCreate, setPendingCreate] = useState<PendingCreate | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -212,6 +215,7 @@ export function FileExplorerPanel({
               onRequestCreate={(parentId, type) => setPendingCreate({ parentId, type })}
               onCommitPendingCreate={commitPendingCreate}
               onCancelPendingCreate={() => setPendingCreate(null)}
+              getReviewStatus={getReviewStatus}
             />
           ))}
         </ul>

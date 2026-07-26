@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type * as Y from "yjs";
 import { buildFileTree } from "../services/FileTreeService";
-import { readWorkspaceState, subscribeWorkspaceState, writeActiveFileId } from "../services/CollaborationService";
+import {
+  peekFileText,
+  readDeletedFiles,
+  readFileBaselines,
+  readWorkspaceState,
+  subscribeDeletedFiles,
+  subscribeFileBaselines,
+  subscribeFileTextsChanged,
+  subscribeWorkspaceState,
+  writeActiveFileId,
+} from "../services/CollaborationService";
 import {
   buildDuplicateName,
   collectDescendantIds,
@@ -15,7 +25,7 @@ import {
   resolveCreateParentId as resolveCreateParentIdEntry,
   subscribeFileSystemEntries,
 } from "../services/WorkspaceFileSystemService";
-import type { FileStatus, WorkspaceFileSystemEntry } from "../types/workspace";
+import type { DeletedFileRecord, FileStatus, WorkspaceFileSystemEntry } from "../types/workspace";
 
 interface UseFileExplorerSeed {
   entries: WorkspaceFileSystemEntry[];
@@ -29,6 +39,9 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     () => new Set(seed.entries.filter((entry) => entry.type === "folder").map((entry) => entry.id)),
   );
+  const [baselines, setBaselines] = useState<Record<string, string>>({});
+  const [contentVersion, setContentVersion] = useState(0);
+  const [deletedFiles, setDeletedFiles] = useState<DeletedFileRecord[]>([]);
 
   useEffect(() => {
     if (!doc) {
@@ -36,6 +49,8 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
     }
     initializeFileSystemIfEmpty(doc, seed.entries);
     setEntries(readFileSystemEntries(doc));
+    setBaselines(readFileBaselines(doc));
+    setDeletedFiles(readDeletedFiles(doc));
 
     const shared = readWorkspaceState(doc).activeFileId;
     if (shared) {
@@ -50,9 +65,15 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
         setActiveFileIdState(state.activeFileId);
       }
     });
+    const unsubscribeBaselines = subscribeFileBaselines(doc, setBaselines);
+    const unsubscribeContent = subscribeFileTextsChanged(doc, () => setContentVersion((version) => version + 1));
+    const unsubscribeDeletedFiles = subscribeDeletedFiles(doc, setDeletedFiles);
     return () => {
       unsubscribeEntries();
       unsubscribeState();
+      unsubscribeBaselines();
+      unsubscribeContent();
+      unsubscribeDeletedFiles();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc]);
@@ -171,9 +192,29 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
     [entries, selectedId],
   );
 
+  const statusByFileId = useMemo(() => {
+    if (!doc) {
+      return seed.statusByFileId;
+    }
+    const result: Record<string, FileStatus> = {};
+    for (const entry of entries) {
+      if (entry.type !== "file") {
+        continue;
+      }
+      const baseline = baselines[entry.id];
+      if (baseline === undefined) {
+        result[entry.id] = "added";
+        continue;
+      }
+      result[entry.id] = peekFileText(doc, entry.id) === baseline ? "unmodified" : "modified";
+    }
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, entries, baselines, contentVersion]);
+
   const tree = useMemo(
-    () => buildFileTree(entries, expandedIds, seed.statusByFileId),
-    [entries, expandedIds, seed.statusByFileId],
+    () => buildFileTree(entries, expandedIds, statusByFileId),
+    [entries, expandedIds, statusByFileId],
   );
 
   return {
@@ -191,5 +232,7 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
     renameEntry,
     deleteEntry,
     duplicateEntry,
+    baselines,
+    deletedFiles,
   };
 }

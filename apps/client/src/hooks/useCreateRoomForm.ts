@@ -1,5 +1,7 @@
 import { useCallback, useState, type FormEvent } from "react";
-import { createMockRoom, validateCreateRoomForm } from "../services/RoomService";
+import { createWorkspaceRecord } from "../services/AuthService";
+import { validateCreateRoomForm } from "../services/RoomService";
+import { useCurrentUser } from "./useCurrentUser";
 import type {
   CreateRoomFeatureToggles,
   CreateRoomFormErrors,
@@ -22,13 +24,15 @@ const INITIAL_VALUES: CreateRoomFormValues = {
   features: INITIAL_FEATURES,
 };
 
-export type CreateRoomStatus = "idle" | "submitting" | "success";
+export type CreateRoomStatus = "idle" | "submitting" | "success" | "error";
 
 export function useCreateRoomForm() {
+  const { isAuthenticated, guestId } = useCurrentUser();
   const [values, setValues] = useState<CreateRoomFormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<CreateRoomFormErrors>({});
   const [status, setStatus] = useState<CreateRoomStatus>("idle");
   const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const setField = useCallback(
     <K extends keyof CreateRoomFormValues>(key: K, value: CreateRoomFormValues[K]) => {
@@ -52,13 +56,18 @@ export function useCreateRoomForm() {
       }
 
       setStatus("submitting");
-      window.setTimeout(() => {
-        const result = createMockRoom();
-        setRoomCode(result.roomCode);
-        setStatus("success");
-      }, 500);
+      setSubmitError(null);
+      createWorkspaceRecord(values.roomName, isAuthenticated ? null : guestId)
+        .then((result) => {
+          setRoomCode(result.workspaceCode);
+          setStatus("success");
+        })
+        .catch(() => {
+          setSubmitError("Unable to create your workspace right now. Please try again.");
+          setStatus("error");
+        });
     },
-    [values],
+    [values, isAuthenticated, guestId],
   );
 
   const reset = useCallback(() => {
@@ -66,7 +75,8 @@ export function useCreateRoomForm() {
     setErrors({});
     setStatus("idle");
     setRoomCode(null);
+    setSubmitError(null);
   }, []);
 
-  return { values, errors, status, roomCode, setField, setFeature, handleSubmit, reset };
+  return { values, errors, status, roomCode, submitError, setField, setFeature, handleSubmit, reset };
 }

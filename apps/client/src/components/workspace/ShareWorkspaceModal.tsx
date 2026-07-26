@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Avatar, Button, Icon, IconButton } from "../common";
 import { useRoom } from "../../hooks/useRoom";
 import { useRepositoryInfo } from "../../hooks/useRepositoryInfo";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
+import { transferWorkspaceOwnership } from "../../lib/auth/authClient";
 import { getImportSourceLabel, getMemberRoleLabel } from "../../utils/workspaceDisplay";
 
 interface ShareWorkspaceModalProps {
@@ -10,8 +12,14 @@ interface ShareWorkspaceModalProps {
 
 export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
   const { roomCode, participants, doc } = useRoom();
+  const { userId, isAuthenticated, guestId } = useCurrentUser();
   const [copiedField, setCopiedField] = useState<"code" | null>(null);
+  const [transferringId, setTransferringId] = useState<string | null>(null);
+  const [transferNotice, setTransferNotice] = useState<string | null>(null);
   const repositoryInfo = useRepositoryInfo(doc);
+
+  const selfParticipant = participants.find((participant) => participant.userId === userId);
+  const isSelfOwner = selfParticipant?.role === "owner";
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -30,6 +38,23 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
       window.setTimeout(() => setCopiedField(null), 1500);
     } catch {
       // Clipboard access denied; the field remains selectable for manual copy.
+    }
+  }
+
+  async function handleTransferOwnership(targetUserId: string, targetIdentityType: "user" | "guest") {
+    setTransferringId(targetUserId);
+    setTransferNotice(null);
+    try {
+      await transferWorkspaceOwnership(
+        roomCode,
+        { targetIdentityId: targetUserId, targetIdentityType },
+        isAuthenticated ? null : guestId,
+      );
+      setTransferNotice("Ownership transferred. This updates for everyone the next time they rejoin.");
+    } catch {
+      setTransferNotice("Unable to transfer ownership right now.");
+    } finally {
+      setTransferringId(null);
     }
   }
 
@@ -98,6 +123,12 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
 
           <div className="flex flex-col gap-sm">
             <h3 className="font-label-md text-label-md text-on-surface mb-xs">Active Members</h3>
+            {transferNotice && (
+              <div className="flex items-start gap-sm bg-primary/10 border border-primary/30 rounded-lg px-md py-sm">
+                <Icon name="info" size={16} className="text-primary mt-[2px]" />
+                <p className="font-body-sm text-body-sm text-on-surface">{transferNotice}</p>
+              </div>
+            )}
             {participants.map((participant) => (
               <div key={participant.connectionId} className="flex items-center justify-between p-sm rounded hover:bg-surface-variant/30 transition-colors group">
                 <div className="flex items-center gap-md">
@@ -113,6 +144,16 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-md">
+                  {isSelfOwner && participant.role !== "owner" && (
+                    <button
+                      type="button"
+                      onClick={() => handleTransferOwnership(participant.userId, participant.identityType)}
+                      disabled={transferringId === participant.userId}
+                      className="font-label-sm text-label-sm text-primary hover:underline disabled:opacity-50"
+                    >
+                      {transferringId === participant.userId ? "Transferring…" : "Make Owner"}
+                    </button>
+                  )}
                   <span className="font-label-sm text-label-sm px-2 py-1 rounded text-on-surface-variant bg-surface-variant/50 border border-outline-variant">
                     {getMemberRoleLabel(participant.role)}
                   </span>

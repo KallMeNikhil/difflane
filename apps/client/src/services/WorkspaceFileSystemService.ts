@@ -5,8 +5,18 @@ import type {
   WorkspaceMetadata,
   WorkspaceRepositoryInfo,
 } from "@difflane/shared-types";
-import type { FileNode } from "../types/workspace";
-import { removeFileText, seedFileTextIfEmpty, getFileText } from "./CollaborationService";
+import type { DeletedFileRecord, EditorLanguage, FileNode } from "../types/workspace";
+import {
+  removeFileText,
+  seedFileTextIfEmpty,
+  getFileText,
+  clearFileBaselines,
+  clearDeletedFiles,
+  readFileBaseline,
+  removeFileBaseline,
+  writeDeletedFile,
+  writeFileBaselines,
+} from "./CollaborationService";
 import { buildBreadcrumbPath, flattenFileNodes } from "./FileTreeService";
 
 export interface ExportableFile {
@@ -139,6 +149,21 @@ export function collectDescendantIds(entries: WorkspaceFileSystemEntry[], rootId
   return result;
 }
 
+function buildFlatEntryPath(entries: WorkspaceFileSystemEntry[], entry: WorkspaceFileSystemEntry): string {
+  const byId = new Map(entries.map((candidate) => [candidate.id, candidate]));
+  const segments: string[] = [entry.name];
+  let parentId = entry.parentId;
+  while (parentId) {
+    const parent = byId.get(parentId);
+    if (!parent) {
+      break;
+    }
+    segments.unshift(parent.name);
+    parentId = parent.parentId;
+  }
+  return segments.join("/");
+}
+
 export function deleteEntry(doc: Y.Doc, id: string): string[] {
   const entries = readFileSystemEntries(doc);
   const idsToRemove = collectDescendantIds(entries, id);
@@ -148,6 +173,19 @@ export function deleteEntry(doc: Y.Doc, id: string): string[] {
       const entry = map.get(removeId);
       map.delete(removeId);
       if (entry?.type === "file") {
+        const baseline = readFileBaseline(doc, removeId);
+        if (baseline !== undefined) {
+          const record: DeletedFileRecord = {
+            id: removeId,
+            name: entry.name,
+            path: buildFlatEntryPath(entries, entry),
+            language: (entry.language?.toLowerCase() as EditorLanguage | undefined) ?? "plaintext",
+            content: baseline,
+            deletedAt: new Date().toISOString(),
+          };
+          writeDeletedFile(doc, record);
+        }
+        removeFileBaseline(doc, removeId);
         removeFileText(doc, removeId);
       }
     }
@@ -245,6 +283,9 @@ export function seedFromImport(doc: Y.Doc, seed: WorkspaceImportSeed): void {
       seedFileTextIfEmpty(doc, fileId, content);
     }
   });
+  clearFileBaselines(doc);
+  writeFileBaselines(doc, seed.files);
+  clearDeletedFiles(doc);
   writeRepositoryInfo(doc, seed.repositoryInfo);
 }
 

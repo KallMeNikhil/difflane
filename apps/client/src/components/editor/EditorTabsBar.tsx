@@ -1,5 +1,5 @@
 import { Icon } from "../common";
-import { getFileIcon } from "../../utils/workspaceDisplay";
+import { getFileIcon, getStatusBadgeLabel } from "../../utils/workspaceDisplay";
 import type { OpenEditorTab } from "../../types/workspace";
 
 interface EditorTabsBarProps {
@@ -35,7 +35,14 @@ export function EditorTabsBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Ed
           >
             <Icon name={getFileIcon(tab.name)} size={14} className={isActive ? "text-secondary" : ""} />
             <span>{tab.name}</span>
-            {tab.status !== "unmodified" && <span className="w-1.5 h-1.5 rounded-full bg-secondary flex-shrink-0" />}
+            {tab.status !== "unmodified" && (
+              <span
+                role="img"
+                aria-label={`${getStatusBadgeLabel(tab.status)} since baseline`}
+                title={`${getStatusBadgeLabel(tab.status)} since baseline — see Changes panel`}
+                className="w-1.5 h-1.5 rounded-full bg-secondary flex-shrink-0"
+              />
+            )}
             <button
               type="button"
               aria-label={`Close ${tab.name}`}

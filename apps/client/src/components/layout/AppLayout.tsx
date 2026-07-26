@@ -5,8 +5,6 @@ import { AppHeader } from "./AppHeader";
 import { GlobalSearchModal } from "../search";
 import { useGlobalSearch } from "../../hooks/useGlobalSearch";
 import { useSessionHistory } from "../../hooks/useSessionHistory";
-import { MOCK_CONNECTED_REPOSITORIES } from "../../constants/mockConnectedRepositories";
-import { MOCK_WORKSPACE_MEMBERS } from "../../constants/mockCollaborators";
 import { buildWorkspacePath } from "../../constants/routes";
 import type { SearchSources } from "../../services/SearchService";
 import type { SearchResultItem } from "../../types/search";
@@ -19,12 +17,8 @@ export function AppLayout() {
   const searchSources: SearchSources = useMemo(
     () => ({
       sessions: sessionRecords,
-      repositories: MOCK_CONNECTED_REPOSITORIES.map((repository) => ({
-        id: repository.id,
-        name: repository.name,
-        detail: repository.syncedLabel,
-      })),
-      collaborators: MOCK_WORKSPACE_MEMBERS.map((member) => ({ id: member.id, name: member.name, role: member.role })),
+      repositories: [],
+      collaborators: [],
     }),
     [sessionRecords],
   );

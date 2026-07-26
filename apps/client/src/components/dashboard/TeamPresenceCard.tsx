@@ -1,4 +1,4 @@
-import { Avatar, type AvatarTone, type PresenceStatus, Card } from "../common";
+import { Avatar, type AvatarTone, type PresenceStatus, Card, ComingSoonBadge } from "../common";
 
 export interface TeamPresenceMember {
   id: string;
@@ -11,15 +11,24 @@ export interface TeamPresenceMember {
 
 interface TeamPresenceCardProps {
   members: TeamPresenceMember[];
+  comingSoon?: boolean;
 }
 
-export function TeamPresenceCard({ members }: TeamPresenceCardProps) {
+export function TeamPresenceCard({ members, comingSoon = false }: TeamPresenceCardProps) {
   return (
     <Card>
-      <h2 className="font-label-md text-label-md text-on-surface text-lg font-semibold mb-sm border-b border-outline-variant pb-sm">
+      <h2 className="font-label-md text-label-md text-on-surface text-lg font-semibold mb-sm border-b border-outline-variant pb-sm flex items-center gap-sm">
         Team Presence
+        {comingSoon && <ComingSoonBadge />}
       </h2>
       <div className="flex flex-col gap-3">
+        {comingSoon ? (
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
+            Cross-workspace team presence isn't available yet.
+          </p>
+        ) : members.length === 0 ? (
+          <p className="font-body-sm text-body-sm text-on-surface-variant">No teammates online right now.</p>
+        ) : null}
         {members.map((member) => (
           <div key={member.id} className="flex items-center gap-sm">
             <Avatar initials={member.initials} tone={member.tone} presence={member.presence} />

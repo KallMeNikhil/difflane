@@ -56,6 +56,29 @@
   }
 }
 
+.review-glyph-open,
+.review-glyph-resolved,
+.review-glyph-orphaned {
+  cursor: pointer;
+  width: 10px !important;
+  height: 10px !important;
+  margin-left: 4px;
+  margin-top: 5px;
+  border-radius: 9999px;
+}
+
+.review-glyph-open {
+  background-color: theme("colors.primary");
+}
+
+.review-glyph-resolved {
+  background-color: theme("colors.success-mint");
+}
+
+.review-glyph-orphaned {
+  background-color: theme("colors.outline");
+}
+
 .animate-smooth-blink {
   animation: smoothBlink 1.2s ease-in-out infinite;
 }

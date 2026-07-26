@@ -1,4 +1,4 @@
-import { Card, CardHeader, Icon, IconButton } from "../common";
+import { Card, CardHeader, ComingSoonBadge, Icon, IconButton } from "../common";
 
 export interface ConnectedRepository {
   id: string;
@@ -8,12 +8,14 @@ export interface ConnectedRepository {
 
 interface ConnectedRepositoriesCardProps {
   repositories: ConnectedRepository[];
+  comingSoon?: boolean;
   onAddRepository?: () => void;
   onOpenRoom?: (repositoryId: string) => void;
 }
 
 export function ConnectedRepositoriesCard({
   repositories,
+  comingSoon = false,
   onAddRepository,
   onOpenRoom,
 }: ConnectedRepositoriesCardProps) {
@@ -21,11 +23,23 @@ export function ConnectedRepositoriesCard({
     <Card className="flex flex-col gap-md">
       <CardHeader
         title="Connected Repositories"
+        titleAdornment={comingSoon && <ComingSoonBadge />}
         action={
-          <IconButton icon="add" aria-label="Add Repository" shape="square" size={18} className="w-8 h-8 border border-outline-variant" onClick={onAddRepository} />
+          !comingSoon && (
+            <IconButton icon="add" aria-label="Add Repository" shape="square" size={18} className="w-8 h-8 border border-outline-variant" onClick={onAddRepository} />
+          )
         }
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
+        {comingSoon ? (
+          <p className="sm:col-span-2 font-body-sm text-body-sm text-on-surface-variant py-sm">
+            Cross-workspace repository connections aren't available yet.
+          </p>
+        ) : repositories.length === 0 ? (
+          <p className="sm:col-span-2 font-body-sm text-body-sm text-on-surface-variant py-sm">
+            No repositories connected yet.
+          </p>
+        ) : null}
         {repositories.map((repo) => (
           <div
             key={repo.id}

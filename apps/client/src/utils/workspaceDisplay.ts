@@ -73,7 +73,6 @@ export function getStatusBadgeLabel(status: FileStatus | undefined): string | un
 const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
   owner: "Owner",
   editor: "Editor",
-  reviewer: "Reviewer",
   viewer: "Viewer",
 };
 

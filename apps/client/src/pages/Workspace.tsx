@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CodeEditor, DiffViewer, EditorTabsBar, EditorToolbar } from "../components/editor";
+import type { ReviewGutterMarker } from "../components/editor/CodeEditor";
 import {
   ChangesFileList,
   FileExplorerPanel,
@@ -13,6 +14,15 @@ import {
   WorkspaceStatusBar,
   WorkspaceTopNav,
 } from "../components/workspace";
+import {
+  FileReviewStatusBadge,
+  InlineReviewThread,
+  NewReviewCommentComposer,
+  ReviewFullView,
+  ReviewNavigationControls,
+  countReviewedFiles,
+  getNextFileReviewStatus,
+} from "../components/review";
 import { PlaceholderNotice } from "../components/common";
 import { GlobalSearchModal } from "../components/search";
 import { WorkspaceSettingsModal } from "../components/settings";
@@ -21,28 +31,29 @@ import ErrorPage from "./Error";
 import { useEditorTabs } from "../hooks/useEditorTabs";
 import { useFileExplorer } from "../hooks/useFileExplorer";
 import { useDiscussionThreads } from "../hooks/useDiscussionThreads";
+import { useReview } from "../hooks/useReview";
 import { useRoom } from "../hooks/useRoom";
 import { useWorkspaceMetadata } from "../hooks/useWorkspaceMetadata";
 import { useGlobalSearch } from "../hooks/useGlobalSearch";
-import { useSessionHistory } from "../hooks/useSessionHistory";
 import { useNotifications } from "../hooks/useNotifications";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { RoomProvider } from "../contexts/RoomContext";
-import { MOCK_FILE_CONTENTS } from "../constants/mockFileContents";
-import { MOCK_FILE_DIFFS } from "../constants/mockDiffData";
-import { MOCK_DISCUSSION_FEED } from "../constants/mockDiscussionThreads";
-import { MOCK_REPOSITORY_TREE, DEFAULT_ACTIVE_FILE_ID } from "../constants/mockRepository";
-import { MOCK_WORKSPACE_MEMBERS } from "../constants/mockCollaborators";
+import { WorkspaceLifecycleProvider } from "../contexts/WorkspaceLifecycleContext";
+import { WorkspaceRecoveryModal, RecoveryConflictModal, UnsavedChangesModal } from "../components/persistence";
+
 import {
   buildBreadcrumbPath,
   countTreeStats,
   findNodeById,
   flattenToSeedEntries,
   getChangedFiles,
+  toDeletedFileNode,
   toOpenTab,
 } from "../services/FileTreeService";
 import { applyImportResult, importRepository } from "../services/RepositoryService";
 import { collectExportableFiles } from "../services/WorkspaceFileSystemService";
+import { peekFileText } from "../services/CollaborationService";
+import { buildFileDiff } from "../services/DiffService";
 import { buildWorkspaceZipBlob, downloadBlob, slugifyWorkspaceName } from "../lib/zip/zipExport";
 import { buildLiveSessionRecord } from "../services/SessionHistoryService";
 import { useRepositoryInfo } from "../hooks/useRepositoryInfo";
@@ -50,9 +61,16 @@ import { getStatusBadgeLabel } from "../utils/workspaceDisplay";
 import { ROUTES, buildWorkspacePath } from "../constants/routes";
 import type { SearchSources } from "../services/SearchService";
 import type { SearchResultItem } from "../types/search";
-import type { DiffViewMode, FileNode, WorkspaceTopTab } from "../types/workspace";
+import type { FileReviewStatusRecord, ReviewAuthorIdentity, ReviewThread } from "../types/review";
+import type { DiffViewMode, DiscussionFeedItem, FileDiff, FileNode, OpenEditorTab, WorkspaceTopTab } from "../types/workspace";
 
 const DEFAULT_ROOM_CODE = "DEMO-ROOM";
+const EMPTY_REPOSITORY_TREE: FileNode[] = [];
+const EMPTY_ACTIVE_FILE_ID = "";
+const EMPTY_INITIAL_TABS: OpenEditorTab[] = [];
+const EMPTY_DISCUSSION_FEED: DiscussionFeedItem[] = [];
+const EMPTY_REVIEW_THREADS: ReviewThread[] = [];
+const EMPTY_FILE_REVIEW_STATUS: FileReviewStatusRecord[] = [];
 
 export default function Workspace() {
   const { roomCode: roomCodeParam } = useParams<{ roomCode?: string }>();
@@ -60,18 +78,37 @@ export default function Workspace() {
 
   return (
     <RoomProvider roomCode={roomCode}>
-      <WorkspaceContent />
+      <WorkspaceLifecycleProvider>
+        <WorkspaceContent />
+      </WorkspaceLifecycleProvider>
     </RoomProvider>
   );
 }
 
 function WorkspaceContent() {
-  const { status, errorMessage, doc, awareness, roomCode, participants, setActiveFileId: publishActiveFileId } = useRoom();
-  const { displayName, initials } = useCurrentUser();
+  const {
+    status,
+    errorMessage,
+    doc,
+    awareness,
+    roomCode,
+    participants,
+    selfRole,
+    setActiveFileId: publishActiveFileId,
+    persistenceStatus,
+    persistenceErrorMessage,
+  } = useRoom();
+  const { userId, displayName, initials, isAuthenticated } = useCurrentUser();
   const navigate = useNavigate();
   const workspaceMetadata = useWorkspaceMetadata(doc);
-  const { records: sessionRecords } = useSessionHistory();
   const { addNotification } = useNotifications();
+  const [isUnsavedChangesDismissed, setUnsavedChangesDismissed] = useState(false);
+
+  useEffect(() => {
+    if (persistenceStatus !== "failed") {
+      setUnsavedChangesDismissed(false);
+    }
+  }, [persistenceStatus]);
 
   const [activeTopTab, setActiveTopTab] = useState<WorkspaceTopTab>("files");
   const [isShareOpen, setShareOpen] = useState(false);
@@ -85,7 +122,7 @@ function WorkspaceContent() {
   const [isExporting, setExporting] = useState(false);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "error" } | null>(null);
 
-  const seed = useMemo(() => flattenToSeedEntries(MOCK_REPOSITORY_TREE), []);
+  const seed = useMemo(() => flattenToSeedEntries(EMPTY_REPOSITORY_TREE), []);
 
   const {
     tree,
@@ -100,40 +137,68 @@ function WorkspaceContent() {
     renameEntry,
     deleteEntry,
     duplicateEntry,
-  } = useFileExplorer(seed, DEFAULT_ACTIVE_FILE_ID, doc);
+    baselines,
+    deletedFiles: deletedFileRecords,
+  } = useFileExplorer(seed, EMPTY_ACTIVE_FILE_ID, doc);
 
-  const initialActiveNode = findNodeById(MOCK_REPOSITORY_TREE, DEFAULT_ACTIVE_FILE_ID);
-  const initialTabs = initialActiveNode ? [toOpenTab(MOCK_REPOSITORY_TREE, initialActiveNode)] : [];
   const { openTabs, activeTabId, setActiveTabId, openTab, closeTab } = useEditorTabs(
-    initialTabs,
-    DEFAULT_ACTIVE_FILE_ID,
+    EMPTY_INITIAL_TABS,
+    EMPTY_ACTIVE_FILE_ID,
     doc,
     tree,
   );
 
   const authorIdentity = useMemo(() => ({ name: displayName, initials }), [displayName, initials]);
-  const { feed, stats, resolve, reply, create } = useDiscussionThreads(MOCK_DISCUSSION_FEED, doc, authorIdentity);
+  const { feed, stats, resolve, reply, create } = useDiscussionThreads(EMPTY_DISCUSSION_FEED, doc, authorIdentity);
+
+  const reviewIdentity: ReviewAuthorIdentity = useMemo(
+    () => ({
+      id: userId,
+      identityType: isAuthenticated ? "user" : "guest",
+      initials,
+      name: displayName,
+    }),
+    [userId, isAuthenticated, initials, displayName],
+  );
+  const review = useReview(doc, reviewIdentity, selfRole, EMPTY_REVIEW_THREADS, EMPTY_FILE_REVIEW_STATUS);
+  const [openReviewThreadId, setOpenReviewThreadId] = useState<string | null>(null);
+  const [newCommentLine, setNewCommentLine] = useState<number | null>(null);
+  const [popoverTop, setPopoverTop] = useState(0);
+  const workspaceIdRef = useRef(roomCode);
+  workspaceIdRef.current = roomCode;
+
+  const activeSessionRecord = useMemo(() => {
+    const { folderCount, fileCount } = countTreeStats(tree);
+    return buildLiveSessionRecord({
+      roomCode,
+      workspace: workspaceMetadata,
+      repository: repositoryInfo,
+      folderCount,
+      fileCount,
+      counts: {
+        filesReviewed: countReviewedFiles(review.fileStatusRecords),
+        discussionsCreated: stats.resolvedCount + stats.pendingCount,
+        discussionsResolved: stats.resolvedCount,
+      },
+      participants,
+      startedAt: sessionStartedAt,
+      lastActivityAt: new Date().toISOString(),
+    });
+  }, [roomCode, workspaceMetadata, repositoryInfo, tree, review.fileStatusRecords, stats, participants, sessionStartedAt]);
 
   const searchSources: SearchSources = useMemo(
     () => ({
       fileTree: tree,
       openTabs,
-      sessions: sessionRecords,
+      sessions: [activeSessionRecord],
       repositories: repositoryInfo ? [{ id: repositoryInfo.name, name: repositoryInfo.name, detail: `${repositoryInfo.branch} • Imported` }] : [],
-      collaborators:
-        participants.length > 0
-          ? participants.map((participant) => ({
-              id: participant.userId,
-              name: participant.displayName,
-              role: participant.role,
-            }))
-          : MOCK_WORKSPACE_MEMBERS.map((member) => ({
-              id: member.id,
-              name: member.name,
-              role: member.role,
-            })),
+      collaborators: participants.map((participant) => ({
+        id: participant.userId,
+        name: participant.displayName,
+        role: participant.role,
+      })),
     }),
-    [tree, openTabs, sessionRecords, repositoryInfo, participants],
+    [tree, openTabs, activeSessionRecord, repositoryInfo, participants],
   );
   const search = useGlobalSearch(searchSources);
 
@@ -151,30 +216,126 @@ function WorkspaceContent() {
 
   const activeNode = findNodeById(tree, activeFileId);
   const breadcrumbPath = activeNode ? buildBreadcrumbPath(tree, activeNode.id) ?? [activeNode.name] : [];
-  const activeDiff = activeNode ? MOCK_FILE_DIFFS[activeNode.id] : undefined;
+  const [viewingDeletedFileId, setViewingDeletedFileId] = useState<string | null>(null);
+  const [diffPreviewFileId, setDiffPreviewFileId] = useState<string | null>(null);
+
+  function getFileTextById(fileId: string): string {
+    if (doc) {
+      return peekFileText(doc, fileId);
+    }
+    return "";
+  }
+
+  const deletedFileNodes = useMemo(() => deletedFileRecords.map(toDeletedFileNode), [deletedFileRecords]);
+  const changedFiles = useMemo(() => getChangedFiles(tree, deletedFileNodes), [tree, deletedFileNodes]);
+
+  const diffsByFileId = useMemo(() => {
+    const map: Record<string, FileDiff> = {};
+    for (const file of changedFiles) {
+      if (file.status === "deleted") {
+        const record = deletedFileRecords.find((candidate) => candidate.id === file.id);
+        if (record) {
+          map[file.id] = buildFileDiff(file.id, record.path, record.language, record.content, "");
+        }
+        continue;
+      }
+      const path = buildBreadcrumbPath(tree, file.id)?.join("/") ?? file.name;
+      const baseline = baselines[file.id] ?? "";
+      const current = getFileTextById(file.id);
+      map[file.id] = buildFileDiff(file.id, path, file.language ?? "plaintext", baseline, current);
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changedFiles, baselines, tree, doc]);
+
+  const viewingDeletedFile = viewingDeletedFileId
+    ? deletedFileRecords.find((record) => record.id === viewingDeletedFileId)
+    : undefined;
+
+  const activeDiff: FileDiff | undefined =
+    activeNode && diffPreviewFileId === activeNode.id ? diffsByFileId[activeNode.id] : undefined;
+
+  const activeFileText = useMemo(
+    () => (activeNode ? getFileTextById(activeNode.id) : ""),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [doc, activeNode],
+  );
+
+  const activeFileReviewThreads = useMemo(
+    () => (activeNode ? review.threadsForFile(activeNode.id) : []),
+    [activeNode, review],
+  );
+
+  const reviewMarkers: ReviewGutterMarker[] = useMemo(
+    () =>
+      activeFileReviewThreads.map((thread) => {
+        const resolvedAnchor = review.resolveAnchor(thread.anchor, activeFileText);
+        return {
+          threadId: thread.id,
+          line: resolvedAnchor.line,
+          resolved: thread.status === "resolved",
+          orphaned: resolvedAnchor.confidence === "orphaned",
+        };
+      }),
+    [activeFileReviewThreads, activeFileText, review],
+  );
+
+  const openReviewThread = openReviewThreadId ? review.threads.find((thread) => thread.id === openReviewThreadId) : undefined;
+
+  useEffect(() => {
+    setOpenReviewThreadId(null);
+    setNewCommentLine(null);
+  }, [activeFileId]);
+
+  function handleReviewMarkerClick(threadId: string, top: number) {
+    setNewCommentLine(null);
+    setOpenReviewThreadId(threadId);
+    setPopoverTop(top);
+    review.selectThread(threadId);
+  }
+
+  function handleReviewGutterClick(lineNumber: number, top: number) {
+    if (!review.permissions.canCreate) {
+      return;
+    }
+    setOpenReviewThreadId(null);
+    setNewCommentLine(lineNumber);
+    setPopoverTop(top);
+  }
+
+  function handleSubmitNewReviewComment(body: string) {
+    if (!activeNode || newCommentLine === null) {
+      return;
+    }
+    review.createThread({
+      workspaceId: workspaceIdRef.current,
+      fileId: activeNode.id,
+      filePath: breadcrumbPath.length > 0 ? breadcrumbPath.join("/") : activeNode.name,
+      startLine: newCommentLine,
+      endLine: newCommentLine,
+      startColumn: 1,
+      endColumn: 1,
+      fileText: activeFileText,
+      body,
+    });
+    setNewCommentLine(null);
+  }
+
+  function handleJumpToReviewThread(thread: { id: string; fileId: string }) {
+    if (thread.fileId !== activeFileId) {
+      const node = findNodeById(tree, thread.fileId);
+      if (node) {
+        handleSelectFile(node);
+      }
+    }
+    setActiveTopTab("files");
+    setOpenReviewThreadId(thread.id);
+    setNewCommentLine(null);
+  }
 
   useEffect(() => {
     publishActiveFileId(activeFileId);
   }, [activeFileId, publishActiveFileId]);
-
-  const activeSessionRecord = useMemo(() => {
-    const { folderCount, fileCount } = countTreeStats(tree);
-    return buildLiveSessionRecord({
-      roomCode,
-      workspace: workspaceMetadata,
-      repository: repositoryInfo,
-      folderCount,
-      fileCount,
-      counts: {
-        filesReviewed: openTabs.length,
-        discussionsCreated: stats.resolvedCount + stats.pendingCount,
-        discussionsResolved: stats.resolvedCount,
-      },
-      participants,
-      startedAt: sessionStartedAt,
-      lastActivityAt: new Date().toISOString(),
-    });
-  }, [roomCode, workspaceMetadata, repositoryInfo, tree, openTabs.length, stats, participants, sessionStartedAt]);
 
   const anchorThread = useMemo(() => {
     if (!activeNode) {
@@ -187,12 +348,30 @@ function WorkspaceContent() {
   }, [feed, activeNode]);
 
   function handleSelectFile(node: FileNode) {
+    setViewingDeletedFileId(null);
+    setDiffPreviewFileId(null);
     setActiveFileId(node.id);
     openTab(toOpenTab(tree, node));
     setActiveTopTab("files");
   }
 
+  function handleSelectChangedFile(node: FileNode) {
+    if (node.status === "deleted") {
+      setDiffPreviewFileId(null);
+      setViewingDeletedFileId(node.id);
+      setActiveTopTab("files");
+      return;
+    }
+    setViewingDeletedFileId(null);
+    setActiveFileId(node.id);
+    openTab(toOpenTab(tree, node));
+    setActiveTopTab("files");
+    setDiffPreviewFileId(node.status === "modified" ? node.id : null);
+  }
+
   function handleSelectTab(fileId: string) {
+    setViewingDeletedFileId(null);
+    setDiffPreviewFileId(null);
     setActiveTabId(fileId);
     setActiveFileId(fileId);
   }
@@ -320,7 +499,7 @@ function WorkspaceContent() {
           onTabChange={setActiveTopTab}
           onOpenShare={() => setShareOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
-          onOpenHistory={() => navigate(ROUTES.history)}
+          onOpenHistory={() => setSessionSummaryOpen(true)}
           onOpenSearch={search.open}
         />
         <FileExplorerPanel
@@ -342,6 +521,7 @@ function WorkspaceContent() {
           onOpenImport={() => setImportOpen(true)}
           onSync={handleSync}
           isSyncing={isSyncing}
+          getReviewStatus={review.getFileStatusFor}
         />
 
         <section className="flex-1 flex flex-col h-full min-w-0 z-20">
@@ -354,22 +534,82 @@ function WorkspaceContent() {
                 statusLabel={getStatusBadgeLabel(activeNode.status)}
                 diffViewMode={activeDiff ? diffViewMode : undefined}
                 onChangeDiffViewMode={activeDiff ? setDiffViewMode : undefined}
+                rightSlot={
+                  !activeDiff && (
+                    <div className="flex items-center gap-sm">
+                      <ReviewNavigationControls
+                        count={activeFileReviewThreads.length}
+                        onPrevious={() => review.goToAdjacentThread(activeNode.id, "previous")}
+                        onNext={() => review.goToAdjacentThread(activeNode.id, "next")}
+                      />
+                      <FileReviewStatusBadge
+                        status={review.getFileStatusFor(activeNode.id)}
+                        interactive={review.permissions.canSetFileStatus}
+                        onCycle={() =>
+                          review.setFileStatus(activeNode.id, getNextFileReviewStatus(review.getFileStatusFor(activeNode.id)))
+                        }
+                      />
+                    </div>
+                  )
+                }
               />
               {activeDiff ? (
                 <DiffViewer diff={activeDiff} viewMode={diffViewMode} anchorThread={anchorThread} onSubmitReply={reply} />
               ) : (
-                <CodeEditor
-                  fileId={activeNode.id}
-                  language={activeNode.language ?? "plaintext"}
-                  value={MOCK_FILE_CONTENTS[activeNode.id] ?? ""}
-                  doc={doc}
-                  awareness={awareness}
-                />
+                <div className="relative flex-1 min-h-0">
+                  <CodeEditor
+                    fileId={activeNode.id}
+                    language={activeNode.language ?? "plaintext"}
+                    value={activeFileText}
+                    doc={doc}
+                    awareness={awareness}
+                    reviewMarkers={reviewMarkers}
+                    onReviewMarkerClick={handleReviewMarkerClick}
+                    onReviewGutterClick={handleReviewGutterClick}
+                  />
+                  {openReviewThread && (
+                    <InlineReviewThread
+                      thread={openReviewThread}
+                      anchorConfidence={review.resolveAnchor(openReviewThread.anchor, activeFileText).confidence}
+                      permissions={review.permissions}
+                      style={{ top: popoverTop }}
+                      onReply={review.reply}
+                      onResolve={review.resolve}
+                      onReopen={review.reopen}
+                      onDeleteThread={(threadId) => {
+                        review.removeThread(threadId);
+                        setOpenReviewThreadId(null);
+                      }}
+                      onClose={() => setOpenReviewThreadId(null)}
+                    />
+                  )}
+                  {newCommentLine !== null && (
+                    <NewReviewCommentComposer
+                      lineNumber={newCommentLine}
+                      style={{ top: popoverTop }}
+                      onSubmit={handleSubmitNewReviewComment}
+                      onClose={() => setNewCommentLine(null)}
+                    />
+                  )}
+                </div>
               )}
             </>
           )}
 
-          {activeTopTab === "files" && !activeNode && tree.length === 0 && (
+          {activeTopTab === "files" && !activeNode && viewingDeletedFile && diffsByFileId[viewingDeletedFile.id] && (
+            <>
+              <EditorToolbar
+                breadcrumb={viewingDeletedFile.path.split("/").slice(0, -1)}
+                activeFileName={viewingDeletedFile.name}
+                statusLabel={getStatusBadgeLabel("deleted")}
+                diffViewMode={diffViewMode}
+                onChangeDiffViewMode={setDiffViewMode}
+              />
+              <DiffViewer diff={diffsByFileId[viewingDeletedFile.id]} viewMode={diffViewMode} onSubmitReply={reply} />
+            </>
+          )}
+
+          {activeTopTab === "files" && !activeNode && !viewingDeletedFile && tree.length === 0 && (
             <WorkspaceEmptyState
               onOpenImport={() => setImportOpen(true)}
               onCreateFile={() => createFile(null, "untitled.ts")}
@@ -377,23 +617,47 @@ function WorkspaceContent() {
             />
           )}
 
-          {activeTopTab === "files" && !activeNode && tree.length > 0 && (
+          {activeTopTab === "files" && !activeNode && !viewingDeletedFile && tree.length > 0 && (
             <div className="flex-1 flex items-center justify-center text-on-surface-variant font-body-sm text-body-sm">
               Select a file to begin editing.
             </div>
           )}
 
           {activeTopTab === "changes" && (
-            <ChangesFileList changedFiles={getChangedFiles(tree)} diffsByFileId={MOCK_FILE_DIFFS} onSelectFile={handleSelectFile} />
+            <ChangesFileList
+              changedFiles={changedFiles}
+              diffsByFileId={diffsByFileId}
+              onSelectFile={handleSelectChangedFile}
+              getReviewStatus={review.getFileStatusFor}
+            />
           )}
 
           {activeTopTab === "discussion" && <DiscussionFullView feed={feed} onResolve={handleResolveThread} onSubmitReply={reply} />}
+
+          {activeTopTab === "review" && (
+            <ReviewFullView
+              threads={review.threads}
+              permissions={review.permissions}
+              resolveAnchorConfidence={(thread) => review.resolveAnchor(thread.anchor, getFileTextById(thread.fileId)).confidence}
+              onReply={review.reply}
+              onResolve={review.resolve}
+              onReopen={review.reopen}
+              onDeleteThread={review.removeThread}
+              onJumpToThread={handleJumpToReviewThread}
+            />
+          )}
         </section>
 
         <DiscussionPanel feed={feed} stats={stats} onResolve={handleResolveThread} onSubmitReply={reply} onCreateThread={create} />
       </main>
 
       <WorkspaceStatusBar />
+
+      <WorkspaceRecoveryModal />
+      <RecoveryConflictModal />
+      {persistenceStatus === "failed" && !isUnsavedChangesDismissed && (
+        <UnsavedChangesModal message={persistenceErrorMessage} onDismiss={() => setUnsavedChangesDismissed(true)} />
+      )}
 
       {isShareOpen && <ShareWorkspaceModal onClose={() => setShareOpen(false)} />}
       {isSettingsOpen && <WorkspaceSettingsModal onClose={() => setSettingsOpen(false)} />}
@@ -404,7 +668,7 @@ function WorkspaceContent() {
           onOpenWorkspace={() => setSessionSummaryOpen(false)}
           onOpenHistory={() => {
             setSessionSummaryOpen(false);
-            navigate(ROUTES.history);
+            window.open(ROUTES.history, "_blank", "noopener,noreferrer");
           }}
         />
       )}

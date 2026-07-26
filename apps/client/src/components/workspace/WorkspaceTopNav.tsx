@@ -17,6 +17,7 @@ const TABS: { id: WorkspaceTopTab; label: string }[] = [
   { id: "files", label: "Files" },
   { id: "changes", label: "Changes" },
   { id: "discussion", label: "Discussion" },
+  { id: "review", label: "Review" },
 ];
 
 const MAX_VISIBLE_PRESENCE_DOTS = 3;
@@ -86,7 +87,13 @@ export function WorkspaceTopNav({
         )}
 
         <IconButton icon="settings" aria-label="Settings" onClick={onOpenSettings} />
-        <IconButton icon="help" aria-label="Help" />
+        <IconButton
+          icon="help"
+          aria-label="Help"
+          title="Help — coming soon"
+          disabled
+          className="opacity-40 cursor-not-allowed hover:bg-transparent hover:text-on-surface-variant"
+        />
 
         <IconButton
           icon={isExporting ? "sync" : "download"}

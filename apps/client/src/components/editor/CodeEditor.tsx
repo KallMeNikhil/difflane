@@ -1,9 +1,18 @@
-import Editor, { type BeforeMount } from "@monaco-editor/react";
+import { useEffect, useRef } from "react";
+import Editor, { type BeforeMount, type OnMount } from "@monaco-editor/react";
+import type { editor as MonacoEditorNamespace } from "monaco-editor";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { useMonacoYjsBinding } from "../../hooks/useMonacoYjsBinding";
 import { useEditorPreferences } from "../../hooks/useEditorPreferences";
 import type { EditorLanguage } from "../../types/workspace";
+
+export interface ReviewGutterMarker {
+  threadId: string;
+  line: number;
+  resolved: boolean;
+  orphaned: boolean;
+}
 
 interface CodeEditorProps {
   value: string;
@@ -11,6 +20,9 @@ interface CodeEditorProps {
   fileId: string;
   doc?: Y.Doc | null;
   awareness?: Awareness | null;
+  reviewMarkers?: ReviewGutterMarker[];
+  onReviewMarkerClick?: (threadId: string, top: number) => void;
+  onReviewGutterClick?: (lineNumber: number, top: number) => void;
 }
 
 const THEME_NAME = "difflane-slate";
@@ -32,7 +44,16 @@ const handleBeforeMount: BeforeMount = (monaco) => {
   });
 };
 
-export function CodeEditor({ value, language, fileId, doc, awareness }: CodeEditorProps) {
+export function CodeEditor({
+  value,
+  language,
+  fileId,
+  doc,
+  awareness,
+  reviewMarkers = [],
+  onReviewMarkerClick,
+  onReviewGutterClick,
+}: CodeEditorProps) {
   const { preferences } = useEditorPreferences();
   const { monacoLanguage, isCollaborative, handleMount } = useMonacoYjsBinding({
     fileId,
@@ -42,6 +63,57 @@ export function CodeEditor({ value, language, fileId, doc, awareness }: CodeEdit
     awareness,
   });
 
+  const editorRef = useRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null);
+  const decorationIdsRef = useRef<string[]>([]);
+  const reviewMarkersRef = useRef<ReviewGutterMarker[]>(reviewMarkers);
+  const onReviewMarkerClickRef = useRef(onReviewMarkerClick);
+  const onReviewGutterClickRef = useRef(onReviewGutterClick);
+
+  useEffect(() => {
+    reviewMarkersRef.current = reviewMarkers;
+  }, [reviewMarkers]);
+  useEffect(() => {
+    onReviewMarkerClickRef.current = onReviewMarkerClick;
+  }, [onReviewMarkerClick]);
+  useEffect(() => {
+    onReviewGutterClickRef.current = onReviewGutterClick;
+  }, [onReviewGutterClick]);
+
+  useEffect(() => {
+    const editorInstance = editorRef.current;
+    if (!editorInstance) {
+      return;
+    }
+    const decorations: MonacoEditorNamespace.IModelDeltaDecoration[] = reviewMarkers.map((marker) => ({
+      range: { startLineNumber: marker.line, startColumn: 1, endLineNumber: marker.line, endColumn: 1 },
+      options: {
+        glyphMarginClassName: marker.orphaned ? "review-glyph-orphaned" : marker.resolved ? "review-glyph-resolved" : "review-glyph-open",
+        glyphMarginHoverMessage: { value: "Review comment — click to view" },
+      },
+    }));
+    decorationIdsRef.current = editorInstance.deltaDecorations(decorationIdsRef.current, decorations);
+  }, [reviewMarkers, fileId]);
+
+  const handleEditorMount: OnMount = (editorInstance, monaco) => {
+    handleMount(editorInstance, monaco);
+    editorRef.current = editorInstance;
+    decorationIdsRef.current = [];
+    editorInstance.onMouseDown((event) => {
+      if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || !event.target.position) {
+        return;
+      }
+      const line = event.target.position.lineNumber;
+      const visiblePosition = editorInstance.getScrolledVisiblePosition({ lineNumber: line, column: 1 });
+      const top = visiblePosition?.top ?? 0;
+      const marker = reviewMarkersRef.current.find((candidate) => candidate.line === line);
+      if (marker) {
+        onReviewMarkerClickRef.current?.(marker.threadId, top);
+      } else {
+        onReviewGutterClickRef.current?.(line, top);
+      }
+    });
+  };
+
   return (
     <Editor
       key={`${fileId}:${isCollaborative ? "collab" : "local"}`}
@@ -50,7 +122,7 @@ export function CodeEditor({ value, language, fileId, doc, awareness }: CodeEdit
       language={monacoLanguage}
       theme={THEME_NAME}
       beforeMount={handleBeforeMount}
-      onMount={handleMount}
+      onMount={handleEditorMount}
       height="100%"
       options={{
         fontFamily: "'JetBrains Mono', monospace",
@@ -61,6 +133,7 @@ export function CodeEditor({ value, language, fileId, doc, awareness }: CodeEdit
         minimap: { enabled: preferences.minimap },
         scrollBeyondLastLine: false,
         automaticLayout: true,
+        glyphMargin: true,
         padding: { top: 16 },
       }}
     />

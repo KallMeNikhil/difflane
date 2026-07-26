@@ -1,11 +1,12 @@
 import { createContext, useContext } from "react";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
-import type { RoomParticipant } from "@difflane/shared-types";
+import type { MemberRole, RoomParticipant } from "@difflane/shared-types";
 import type { Collaborator } from "../types/workspace";
 import type { YjsSocketProviderStatus } from "../lib/yjs/YjsSocketProvider";
 
 export type RoomConnectionStatus = "joining" | "ready" | "error";
+export type WorkspacePersistenceStatus = "pending" | "saved" | "failed";
 
 export interface RoomContextValue {
   status: RoomConnectionStatus;
@@ -14,9 +15,13 @@ export interface RoomContextValue {
   connectionStatus: YjsSocketProviderStatus | null;
   participants: RoomParticipant[];
   collaborators: Collaborator[];
+  selfRole: MemberRole;
   doc: Y.Doc | null;
   awareness: Awareness | null;
   setActiveFileId: (fileId: string | null) => void;
+  persistenceStatus: WorkspacePersistenceStatus;
+  lastPersistedAt: string | null;
+  persistenceErrorMessage: string | null;
 }
 
 export const RoomContext = createContext<RoomContextValue | undefined>(undefined);

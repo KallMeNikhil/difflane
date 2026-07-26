@@ -3,8 +3,9 @@ import * as Y from "yjs";
 import { applyAwarenessUpdate } from "y-protocols/awareness";
 import { SOCKET_EVENTS, type AwarenessUpdatePayload, type DocUpdatePayload } from "@difflane/shared-types";
 import type { RoomRegistry } from "../rooms/RoomRegistry.js";
+import type { WorkspaceLifecycleManager } from "../workspaces/WorkspaceLifecycleManager.js";
 
-export function registerSyncHandlers(socket: Socket, registry: RoomRegistry): void {
+export function registerSyncHandlers(socket: Socket, registry: RoomRegistry, lifecycleManager: WorkspaceLifecycleManager): void {
   socket.on(SOCKET_EVENTS.DOC_UPDATE, (payload: DocUpdatePayload) => {
     const room = registry.getRoom(payload.roomId);
     if (!room || socket.data.roomId !== payload.roomId) {
@@ -12,6 +13,7 @@ export function registerSyncHandlers(socket: Socket, registry: RoomRegistry): vo
     }
     Y.applyUpdate(room.doc, payload.update, socket.id);
     socket.to(payload.roomId).emit(SOCKET_EVENTS.DOC_UPDATE, payload);
+    lifecycleManager.persistDocUpdate(room.roomId, room.workspaceId, room.doc);
   });
 
   socket.on(SOCKET_EVENTS.AWARENESS_UPDATE, (payload: AwarenessUpdatePayload) => {

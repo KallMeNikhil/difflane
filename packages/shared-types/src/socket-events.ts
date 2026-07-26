@@ -9,6 +9,9 @@ export const SOCKET_EVENTS = {
   ROOM_PARTICIPANT_LEFT: "room:participant-left",
   DOC_UPDATE: "doc:update",
   AWARENESS_UPDATE: "awareness:update",
+  WORKSPACE_PERSISTED: "workspace:persisted",
+  WORKSPACE_PERSISTENCE_FAILED: "workspace:persistence-failed",
+  WORKSPACE_RESTORED: "workspace:restored",
 } as const;
 
 export type SocketEventName = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];
@@ -17,6 +20,8 @@ export interface RoomJoinPayload {
   roomCode: string;
   displayName: string;
   initials: string;
+  accessToken?: string;
+  guestId?: string;
 }
 
 export interface RoomJoinedPayload {
@@ -24,6 +29,10 @@ export interface RoomJoinedPayload {
   selfConnectionId: string;
   docUpdate: Uint8Array;
   awarenessUpdate: Uint8Array | null;
+}
+
+export interface RoomJoinErrorPayload {
+  error: string;
 }
 
 export interface RoomParticipantJoinedPayload {
@@ -46,4 +55,19 @@ export interface DocUpdatePayload {
 export interface AwarenessUpdatePayload {
   roomId: string;
   update: Uint8Array;
+}
+
+export interface WorkspacePersistedPayload {
+  roomId: string;
+  persistedAt: string;
+}
+
+export interface WorkspacePersistenceFailedPayload {
+  roomId: string;
+  message: string;
+  willRetry: boolean;
+}
+
+export interface WorkspaceRestoredPayload {
+  roomId: string;
 }

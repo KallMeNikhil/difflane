@@ -7,10 +7,20 @@ export const ROUTES = {
   workspaceRoot: "/workspace",
   history: "/history",
   settings: "/settings",
+  profile: "/profile",
+  signIn: "/sign-in",
+  createAccount: "/create-account",
+  forgotPassword: "/forgot-password",
+  resetPassword: "/reset-password",
+  oauthCallback: "/auth/callback/:provider",
 } as const;
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
 
 export function buildWorkspacePath(roomCode: string): string {
   return `/workspace/${roomCode}`;
+}
+
+export function buildOAuthCallbackPath(provider: "google" | "github"): string {
+  return `/auth/callback/${provider}`;
 }

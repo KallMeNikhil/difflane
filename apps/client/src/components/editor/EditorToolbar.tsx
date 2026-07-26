@@ -1,4 +1,5 @@
 import { Icon } from "../common";
+import type { ReactNode } from "react";
 import type { DiffViewMode } from "../../types/workspace";
 
 interface EditorToolbarProps {
@@ -7,9 +8,17 @@ interface EditorToolbarProps {
   statusLabel?: string;
   diffViewMode?: DiffViewMode;
   onChangeDiffViewMode?: (mode: DiffViewMode) => void;
+  rightSlot?: ReactNode;
 }
 
-export function EditorToolbar({ breadcrumb, activeFileName, statusLabel, diffViewMode, onChangeDiffViewMode }: EditorToolbarProps) {
+export function EditorToolbar({
+  breadcrumb,
+  activeFileName,
+  statusLabel,
+  diffViewMode,
+  onChangeDiffViewMode,
+  rightSlot,
+}: EditorToolbarProps) {
   const isDiffMode = diffViewMode !== undefined && onChangeDiffViewMode !== undefined;
 
   return (
@@ -60,6 +69,7 @@ export function EditorToolbar({ breadcrumb, activeFileName, statusLabel, diffVie
         >
           <Icon name="splitscreen" size={18} />
         </button>
+        {rightSlot}
       </div>
     </div>
   );

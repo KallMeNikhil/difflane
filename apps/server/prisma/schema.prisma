@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OAuthProviderType {
+  GOOGLE
+  GITHUB
+}
+
+enum WorkspaceMemberRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum SnapshotTrigger {
+  MANUAL
+  BEFORE_IMPORT
+  BEFORE_RESTORE
+  BEFORE_DESTRUCTIVE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String   @unique
+  displayName  String
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  oauthAccounts     OAuthAccount[]
+  refreshSessions   RefreshSession[]
+  workspaceMembers  WorkspaceMembership[]
+  ownedWorkspaces   Workspace[]            @relation("WorkspaceOwnerUser")
+
+  @@map("users")
+}
+
+model OAuthAccount {
+  id              String            @id @default(uuid())
+  provider        OAuthProviderType
+  providerAccountId String
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@map("oauth_accounts")
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  @@map("refresh_sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@map("password_reset_tokens")
+}
+
+model GuestSession {
+  id          String   @id @default(uuid())
+  displayName String
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @updatedAt
+
+  workspaceMembers WorkspaceMembership[]
+  ownedWorkspaces  Workspace[]            @relation("WorkspaceOwnerGuest")
+
+  @@map("guest_sessions")
+}
+
+model Workspace {
+  id             String   @id @default(uuid())
+  code           String   @unique
+  name           String
+  ownerUserId    String?
+  ownerUser      User?    @relation("WorkspaceOwnerUser", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  ownerGuestId   String?
+  ownerGuest     GuestSession? @relation("WorkspaceOwnerGuest", fields: [ownerGuestId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  members   WorkspaceMembership[]
+  state     WorkspaceState?
+  snapshots WorkspaceSnapshot[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceState {
+  id          String   @id @default(uuid())
+  workspaceId String   @unique
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  stateBytes  Bytes
+  fileCount   Int      @default(0)
+  folderCount Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@map("workspace_states")
+}
+
+model WorkspaceSnapshot {
+  id            String          @id @default(uuid())
+  workspaceId   String
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  label         String
+  trigger       SnapshotTrigger
+  stateBytes    Bytes
+  fileCount     Int             @default(0)
+  folderCount   Int             @default(0)
+  createdByUserId  String?
+  createdByGuestId String?
+  createdAt     DateTime        @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@map("workspace_snapshots")
+}
+
+model WorkspaceMembership {
+  id          String              @id @default(uuid())
+  workspaceId String
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestId     String?
+  guest       GuestSession?       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  role        WorkspaceMemberRole
+  pinned      Boolean             @default(false)
+  archived    Boolean             @default(false)
+  joinedAt    DateTime            @default(now())
+
+  @@unique([workspaceId, userId])
+  @@unique([workspaceId, guestId])
+  @@map("workspace_memberships")
+}

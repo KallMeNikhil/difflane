@@ -1,11 +1,12 @@
 import * as Y from "yjs";
 import { Awareness, removeAwarenessStates } from "y-protocols/awareness";
-import type { RoomParticipant, RoomSnapshot } from "@difflane/shared-types";
+import type { MemberRole, ParticipantIdentityType, RoomParticipant, RoomSnapshot } from "@difflane/shared-types";
 import type { ConnectionAwarenessTracker } from "../socket/ConnectionAwarenessTracker.js";
 
 interface Room {
   roomId: string;
   roomCode: string;
+  workspaceId: string;
   doc: Y.Doc;
   awareness: Awareness;
   participants: Map<string, RoomParticipant>;
@@ -13,8 +14,16 @@ interface Room {
 
 const PARTICIPANT_COLOR_PALETTE = ["#b4c5ff", "#ffb596", "#86efac", "#b7c8e1", "#f4a8c9", "#f6d97a"];
 
-function toRoomId(roomCode: string): string {
+export function toRoomId(roomCode: string): string {
   return `room:${roomCode.trim().toUpperCase()}`;
+}
+
+export interface AddParticipantInput {
+  userId: string;
+  identityType: ParticipantIdentityType;
+  displayName: string;
+  initials: string;
+  role: MemberRole;
 }
 
 export class RoomRegistry {
@@ -22,13 +31,19 @@ export class RoomRegistry {
 
   constructor(private readonly awarenessTracker: ConnectionAwarenessTracker) {}
 
-  getOrCreateRoomByCode(roomCode: string): Room {
+  getOrCreateRoomByCode(roomCode: string, workspaceId: string): { room: Room; created: boolean } {
     const normalizedCode = roomCode.trim().toUpperCase();
     const roomId = toRoomId(normalizedCode);
     const existing = this.rooms.get(roomId);
     if (existing) {
-      return existing;
+      return { room: existing, created: false };
     }
+    const room = this.createRoom(roomId, normalizedCode, workspaceId, new Map());
+    this.rooms.set(roomId, room);
+    return { room, created: true };
+  }
+
+  private createRoom(roomId: string, roomCode: string, workspaceId: string, participants: Map<string, RoomParticipant>): Room {
     const doc = new Y.Doc();
     const awareness = new Awareness(doc);
     awareness.on("update", ({ added, updated }: { added: number[]; updated: number[] }, origin: unknown) => {
@@ -36,16 +51,25 @@ export class RoomRegistry {
         this.awarenessTracker.track(origin, [...added, ...updated]);
       }
     });
-    const room: Room = { roomId, roomCode: normalizedCode, doc, awareness, participants: new Map() };
-    this.rooms.set(roomId, room);
-    return room;
+    return { roomId, roomCode, workspaceId, doc, awareness, participants };
+  }
+
+  resetRoomDoc(roomId: string): Room | undefined {
+    const existing = this.rooms.get(roomId);
+    if (!existing) {
+      return undefined;
+    }
+    existing.doc.destroy();
+    const replacement = this.createRoom(roomId, existing.roomCode, existing.workspaceId, existing.participants);
+    this.rooms.set(roomId, replacement);
+    return replacement;
   }
 
   getRoom(roomId: string): Room | undefined {
     return this.rooms.get(roomId);
   }
 
-  addParticipant(roomId: string, connectionId: string, displayName: string, initials: string): RoomParticipant {
+  addParticipant(roomId: string, connectionId: string, input: AddParticipantInput): RoomParticipant {
     const room = this.rooms.get(roomId);
     if (!room) {
       throw new Error(`Cannot add participant to unknown room: ${roomId}`);
@@ -53,10 +77,11 @@ export class RoomRegistry {
     const color = PARTICIPANT_COLOR_PALETTE[room.participants.size % PARTICIPANT_COLOR_PALETTE.length];
     const participant: RoomParticipant = {
       connectionId,
-      userId: connectionId,
-      displayName,
-      initials,
-      role: "editor",
+      userId: input.userId,
+      identityType: input.identityType,
+      displayName: input.displayName,
+      initials: input.initials,
+      role: input.role,
       color,
     };
     room.participants.set(connectionId, participant);
