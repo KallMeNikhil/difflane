@@ -11,7 +11,7 @@ export function MarketingHeader() {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-40 px-lg pt-lg pointer-events-none">
-      <header className="max-w-7xl mx-auto w-full bg-[#0E1117]/70 backdrop-blur-xl border border-white/5 rounded-xl flex justify-between items-center px-2xl h-[72px] transition-all duration-300 shadow-lg shadow-black/50 pointer-events-auto">
+      <header className="max-w-7xl mx-auto w-full bg-[#0B0D12]/50 backdrop-blur-2xl border border-white/10 rounded-xl flex justify-between items-center px-2xl h-[72px] transition-all duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.45)] pointer-events-auto">
         <div className="flex-1 flex items-center pl-sm">
           <Link to={ROUTES.landing}>
             <Logo variant="marketing" />

@@ -43,7 +43,7 @@ const FEATURES: FeatureCardData[] = [
 
 function FeatureCard({ icon, title, description }: FeatureCardData) {
   return (
-    <div className="col-span-1 rounded-xl border border-white/5 bg-[#0E1117] p-xl transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/10 hover:bg-[#161b22] hover:shadow-xl hover:shadow-black/50 group">
+    <div className="col-span-1 rounded-xl border border-white/10 bg-[#0B0D12]/50 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-xl transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/20 hover:bg-[#0B0D12]/70 hover:shadow-xl hover:shadow-black/50 group">
       <div className="w-12 h-12 rounded-lg bg-[#161b22] flex items-center justify-center mb-md border border-white/5 group-hover:border-white/10 transition-all duration-300 ease-out relative overflow-hidden">
         <Icon
           name={icon}
@@ -62,11 +62,11 @@ export default function Landing() {
   return (
     <>
       <section className="relative max-w-7xl mx-auto px-lg pt-xl pb-md md:pt-[16px] md:pb-[40px] flex flex-col items-center text-center z-10">
-        <h1 className="font-display text-[40px] md:text-[56px] leading-tight md:leading-[1.1] font-bold tracking-normal text-white max-w-4xl mb-margin drop-shadow-sm">
+        <h1 className="font-display text-[40px] md:text-[56px] leading-tight md:leading-[1.1] font-bold tracking-normal text-white max-w-4xl mb-margin drop-shadow-[0_2px_16px_rgba(0,0,0,0.65)]">
           Built for Engineering in Sync.
         </h1>
 
-        <p className="font-body-lg text-xl text-gray-400 max-w-2xl mb-xl">
+        <p className="font-body-lg text-xl text-gray-400 max-w-2xl mb-xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">
           A high-performance workspace for live collaborative sessions. Review code together with synced cursors,
           instant navigation, and unified context.
         </p>
@@ -80,7 +80,7 @@ export default function Landing() {
           </Link>
           <Link
             to={ROUTES.joinRoom}
-            className="font-label-md text-label-md px-xl py-md rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 hover:text-white hover:-translate-y-0.5 transition-all duration-300 ease-out flex items-center justify-center gap-sm"
+            className="font-label-md text-label-md px-xl py-md rounded-lg bg-white/[0.06] backdrop-blur-xl border border-white/20 text-gray-200 hover:bg-white/10 hover:border-white/30 hover:text-white hover:-translate-y-0.5 transition-all duration-300 ease-out flex items-center justify-center gap-sm shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
           >
             <Icon name="group" size={20} />
             Join Workspace
@@ -88,8 +88,8 @@ export default function Landing() {
         </div>
 
         {}
-        <div className="mt-xl translate-y-6 z-20 max-w-[440px] rounded-xl border border-white/10 bg-[#0E1117] overflow-hidden font-code text-code text-gray-400 text-left shadow-2xl shadow-black/80 transition-transform hover:scale-[1.01] duration-500 ease-out">
-          <div className="flex border-b border-white/5 px-md py-sm bg-[#161b22] gap-2 items-center">
+        <div className="mt-xl translate-y-6 z-20 max-w-[440px] rounded-xl border border-white/10 bg-[#0B0D12]/60 backdrop-blur-2xl overflow-hidden font-code text-code text-gray-400 text-left shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-transform hover:scale-[1.01] duration-500 ease-out">
+          <div className="flex border-b border-white/10 px-md py-sm bg-white/[0.04] backdrop-blur-md gap-2 items-center">
             <div className="w-2.5 h-2.5 rounded-full bg-white/20" />
             <div className="w-2.5 h-2.5 rounded-full bg-white/20" />
             <div className="w-2.5 h-2.5 rounded-full bg-white/20" />
