@@ -14,6 +14,26 @@ function toPublicRole(role: WorkspaceMemberRole): "owner" | "editor" | "viewer" 
 }
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const WORKSPACE_CODE_PATTERN = new RegExp(`^[${CODE_ALPHABET}]{5}$`);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ASSIGNABLE_ROLES: WorkspaceMemberRole[] = ["EDITOR", "VIEWER"];
+const MUTATING_ROLES: WorkspaceMemberRole[] = ["OWNER", "EDITOR"];
+
+export function isValidWorkspaceCode(code: string): boolean {
+  return WORKSPACE_CODE_PATTERN.test(code.trim().toUpperCase());
+}
+
+export function isValidUuid(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}
+
+export function isValidIdentityType(value: string): value is "user" | "guest" {
+  return value === "user" || value === "guest";
+}
+
+export function isAssignableRole(value: string): value is "editor" | "viewer" {
+  return value === "editor" || value === "viewer";
+}
 
 function generateWorkspaceCode(): string {
   let code = "";
@@ -57,8 +77,7 @@ export async function getWorkspaceByCode(code: string): Promise<WorkspaceRecord 
   return identityStore.findWorkspaceByCode(code.trim().toUpperCase());
 }
 
-async function toSummary(workspace: WorkspaceRecord, membership: WorkspaceMembershipRecord): Promise<WorkspaceOwnershipSummary> {
-  const members = await identityStore.listMembershipsForWorkspace(workspace.id);
+function toSummary(workspace: WorkspaceRecord, membership: WorkspaceMembershipRecord, memberCount: number): WorkspaceOwnershipSummary {
   return {
     workspaceCode: workspace.code,
     name: workspace.name,
@@ -67,22 +86,29 @@ async function toSummary(workspace: WorkspaceRecord, membership: WorkspaceMember
     pinned: membership.pinned,
     archived: membership.archived,
     createdAt: workspace.createdAt.toISOString(),
-    memberCount: members.length,
+    memberCount,
   };
 }
 
 export async function getDashboard(identity: Identity): Promise<WorkspaceDashboardResponse> {
   const memberships = await identityStore.listMembershipsForIdentity(toIdentityKey(identity));
+  const workspaceIds = memberships.map((membership) => membership.workspaceId);
+
+  const [workspaces, memberCounts] = await Promise.all([
+    identityStore.findWorkspacesByIds(workspaceIds),
+    identityStore.countMembershipsForWorkspaces(workspaceIds),
+  ]);
+  const workspaceById = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
 
   const entries: { workspace: WorkspaceRecord; membership: WorkspaceMembershipRecord }[] = [];
   for (const membership of memberships) {
-    const workspace = await identityStore.findWorkspaceById(membership.workspaceId);
+    const workspace = workspaceById.get(membership.workspaceId);
     if (workspace) {
       entries.push({ workspace, membership });
     }
   }
 
-  const summaries = await Promise.all(entries.map((entry) => toSummary(entry.workspace, entry.membership)));
+  const summaries = entries.map((entry) => toSummary(entry.workspace, entry.membership, memberCounts[entry.workspace.id] ?? 0));
 
   const created = summaries.filter((summary) => summary.isOwner);
   const joined = summaries.filter((summary) => !summary.isOwner && !summary.archived);
@@ -104,6 +130,20 @@ export async function requireMembership(identity: Identity, workspaceId: string)
   return membership;
 }
 
+export async function requireRole(
+  identity: Identity,
+  workspaceId: string,
+  allowedRoles: WorkspaceMemberRole[],
+): Promise<WorkspaceMembershipRecord> {
+  const membership = await requireMembership(identity, workspaceId);
+  if (!allowedRoles.includes(membership.role)) {
+    throw new AuthError("unknown_error", "You do not have permission to perform this action.", 403);
+  }
+  return membership;
+}
+
+export { MUTATING_ROLES };
+
 export async function transferOwnership(identity: Identity, code: string, target: Identity): Promise<void> {
   const workspace = await getWorkspaceByCode(code);
   if (!workspace) {
@@ -118,12 +158,13 @@ export async function transferOwnership(identity: Identity, code: string, target
     throw new AuthError("unknown_error", "Target member is not part of this workspace.", 404);
   }
 
-  await identityStore.updateMembershipRole(requesterMembership.id, "EDITOR");
-  await identityStore.updateMembershipRole(targetMembership.id, "OWNER");
-  await identityStore.updateWorkspaceOwner(workspace.id, toIdentityKey(target));
+  await identityStore.transferWorkspaceOwnership(workspace.id, requesterMembership.id, targetMembership.id, toIdentityKey(target));
 }
 
 export async function updateMemberRole(identity: Identity, code: string, target: Identity, role: "editor" | "viewer"): Promise<void> {
+  if (!isAssignableRole(role)) {
+    throw new AuthError("unknown_error", "Role must be either 'editor' or 'viewer'.", 400);
+  }
   const workspace = await getWorkspaceByCode(code);
   if (!workspace) {
     throw new AuthError("unknown_error", "Workspace not found.", 404);
@@ -139,7 +180,11 @@ export async function updateMemberRole(identity: Identity, code: string, target:
   if (targetMembership.role === "OWNER") {
     throw new AuthError("unknown_error", "Transfer ownership to change the owner's role.", 400);
   }
-  await identityStore.updateMembershipRole(targetMembership.id, role.toUpperCase() as WorkspaceMemberRole);
+  const nextRole = role.toUpperCase() as WorkspaceMemberRole;
+  if (!ASSIGNABLE_ROLES.includes(nextRole)) {
+    throw new AuthError("unknown_error", "Role must be either 'editor' or 'viewer'.", 400);
+  }
+  await identityStore.updateMembershipRole(targetMembership.id, nextRole);
 }
 
 export async function deleteWorkspace(identity: Identity, code: string): Promise<void> {

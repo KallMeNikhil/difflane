@@ -51,6 +51,7 @@ model OAuthAccount {
   createdAt       DateTime          @default(now())
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
   @@map("oauth_accounts")
 }
 
@@ -64,6 +65,8 @@ model RefreshSession {
   revokedAt      DateTime?
   replacedByHash String?
 
+  @@index([tokenHash])
+  @@index([userId])
   @@map("refresh_sessions")
 }
 
@@ -76,6 +79,18 @@ model PasswordResetToken {
   usedAt    DateTime?
 
   @@map("password_reset_tokens")
+}
+
+model OAuthState {
+  id        String            @id @default(uuid())
+  state     String            @unique
+  provider  OAuthProviderType
+  guestId   String?
+  createdAt DateTime          @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@map("oauth_states")
 }
 
 model GuestSession {
@@ -152,5 +167,7 @@ model WorkspaceMembership {
 
   @@unique([workspaceId, userId])
   @@unique([workspaceId, guestId])
+  @@index([userId])
+  @@index([guestId])
   @@map("workspace_memberships")
 }

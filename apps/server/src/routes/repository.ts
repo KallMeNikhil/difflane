@@ -1,21 +1,40 @@
 import { Router, type Response } from "express";
 import { GitHubRequestError } from "../github/githubClient.js";
-import { getRepositoryBranches, getRepositorySummary, importRepository, parseRepositoryQuery } from "../github/repositoryService.js";
+import {
+  getRepositoryBranches,
+  getRepositorySummary,
+  importRepository,
+  isValidGitHubBranch,
+  isValidGitHubOwner,
+  isValidGitHubRepoName,
+  parseRepositoryQuery,
+} from "../github/repositoryService.js";
+import { resolveIdentity } from "../middleware/resolveIdentity.js";
+import { moderateRateLimit } from "../middleware/rateLimit.js";
 
 export const repositoryRouter = Router();
+
+const QUERY_MAX_LENGTH = 200;
 
 function handleGitHubError(error: unknown, res: Response): void {
   if (error instanceof GitHubRequestError) {
     res.status(error.status).json({ message: error.message });
     return;
   }
-  const message = error instanceof Error ? error.message : "Unable to complete the repository request.";
-  res.status(400).json({ message });
+  if (error instanceof Error && (error.message.startsWith("Enter a valid repository") || error.message.startsWith("Enter a repository"))) {
+    res.status(400).json({ message: error.message });
+    return;
+  }
+  res.status(400).json({ message: "Unable to complete the repository request." });
 }
 
-repositoryRouter.get("/api/repository/search", async (req, res) => {
+repositoryRouter.get("/api/repository/search", resolveIdentity, moderateRateLimit, async (req, res) => {
   try {
     const query = String(req.query.query ?? "");
+    if (!query || query.length > QUERY_MAX_LENGTH) {
+      res.status(400).json({ message: "Enter a valid repository in the form owner/repo." });
+      return;
+    }
     const { owner, repo } = parseRepositoryQuery(query);
     const summary = await getRepositorySummary(owner, repo);
     res.json(summary);
@@ -24,9 +43,13 @@ repositoryRouter.get("/api/repository/search", async (req, res) => {
   }
 });
 
-repositoryRouter.get("/api/repository/:owner/:repo/branches", async (req, res) => {
+repositoryRouter.get("/api/repository/:owner/:repo/branches", resolveIdentity, moderateRateLimit, async (req, res) => {
   try {
     const { owner, repo } = req.params;
+    if (!isValidGitHubOwner(owner) || !isValidGitHubRepoName(repo)) {
+      res.status(400).json({ message: "Invalid repository owner or name." });
+      return;
+    }
     const branches = await getRepositoryBranches(owner, repo);
     res.json({ branches });
   } catch (error) {
@@ -34,11 +57,15 @@ repositoryRouter.get("/api/repository/:owner/:repo/branches", async (req, res) =
   }
 });
 
-repositoryRouter.post("/api/repository/import", async (req, res) => {
+repositoryRouter.post("/api/repository/import", resolveIdentity, moderateRateLimit, async (req, res) => {
   try {
     const { owner, repo, branch } = req.body as { owner?: string; repo?: string; branch?: string };
     if (!owner || !repo || !branch) {
       res.status(400).json({ message: "owner, repo and branch are required." });
+      return;
+    }
+    if (!isValidGitHubOwner(owner) || !isValidGitHubRepoName(repo) || !isValidGitHubBranch(branch)) {
+      res.status(400).json({ message: "Invalid owner, repo, or branch." });
       return;
     }
     const result = await importRepository(owner, repo, branch);

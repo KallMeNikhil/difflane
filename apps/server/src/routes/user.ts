@@ -1,19 +1,11 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { AuthError } from "../auth/AuthError.js";
+import { handleRouteError as handleAuthError } from "../middleware/routeHelpers.js";
 import { changePassword, deleteAccount, toPublicUser, updateProfile } from "../auth/authService.js";
 import { identityStore } from "../db/index.js";
 
 export const userRouter = Router();
-
-function handleAuthError(error: unknown, res: Response): void {
-  if (error instanceof AuthError) {
-    res.status(error.status).json({ code: error.code, message: error.message });
-    return;
-  }
-  res.status(500).json({ code: "unknown_error", message: "Something went wrong. Please try again." });
-}
 
 userRouter.get(
   "/api/user/me",

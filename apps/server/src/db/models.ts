@@ -38,6 +38,16 @@ export interface PasswordResetTokenRecord {
   usedAt: Date | null;
 }
 
+export interface OAuthStateRecord {
+  id: string;
+  state: string;
+  provider: OAuthProviderType;
+  guestId: string | null;
+  createdAt: Date;
+  expiresAt: Date;
+  usedAt: Date | null;
+}
+
 export interface GuestSessionRecord {
   id: string;
   displayName: string;

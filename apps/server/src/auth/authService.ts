@@ -1,10 +1,13 @@
 import type { AuthUserProfile, OAuthProvider } from "@difflane/shared-types";
+import { env } from "../config/env.js";
 import { identityStore } from "../db/index.js";
 import type { RefreshSessionRecord, UserRecord } from "../db/models.js";
 import { AuthError } from "./AuthError.js";
+import { buildAuthorizationUrl, exchangeCodeForIdentity } from "./oauthService.js";
 import { validatePasswordPolicy } from "./passwordPolicy.js";
 import { hashPassword, verifyPassword } from "./passwordService.js";
 import {
+  createOAuthStateValue,
   createRefreshTokenValue,
   hashRefreshToken,
   refreshTokenExpiry,
@@ -15,6 +18,7 @@ import {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,24}$/;
+const DISPLAY_NAME_MAX_LENGTH = 60;
 
 export interface AuthSessionResult {
   user: UserRecord;
@@ -57,6 +61,9 @@ function validateRegistrationInput(email: string, username: string, displayName:
   }
   if (!displayName.trim()) {
     throw new AuthError("unknown_error", "Display name is required.");
+  }
+  if (displayName.trim().length > DISPLAY_NAME_MAX_LENGTH) {
+    throw new AuthError("unknown_error", `Display name must be ${DISPLAY_NAME_MAX_LENGTH} characters or fewer.`);
   }
   const policyErrors = validatePasswordPolicy(password);
   if (policyErrors.length > 0) {
@@ -178,7 +185,7 @@ export function verifyAccessTokenClaims(token: string): AccessTokenClaims | null
 }
 
 export async function createGuestSession(displayName: string) {
-  const trimmed = displayName.trim() || "Guest";
+  const trimmed = displayName.trim().slice(0, DISPLAY_NAME_MAX_LENGTH) || "Guest";
   return identityStore.createGuestSession(trimmed);
 }
 
@@ -243,6 +250,15 @@ export async function changePassword(userId: string, currentPassword: string, ne
 }
 
 export async function deleteAccount(userId: string): Promise<void> {
+  const memberships = await identityStore.listMembershipsForIdentity({ userId });
+  const ownedWorkspaceCount = memberships.filter((membership) => membership.role === "OWNER").length;
+  if (ownedWorkspaceCount > 0) {
+    throw new AuthError(
+      "unknown_error",
+      "Transfer ownership or delete your owned workspaces before deleting your account.",
+      409,
+    );
+  }
   await identityStore.revokeRefreshSessionsForUser(userId);
   await identityStore.deleteUser(userId);
 }
@@ -278,6 +294,7 @@ export async function findOrCreateOAuthUser(
   provider: OAuthProvider,
   providerAccountId: string,
   email: string,
+  emailVerified: boolean,
   displayName: string,
 ): Promise<UserRecord> {
   const existingLink = await identityStore.findOAuthAccount(provider, providerAccountId);
@@ -290,6 +307,13 @@ export async function findOrCreateOAuthUser(
 
   const existingEmailUser = await identityStore.findUserByEmail(email);
   if (existingEmailUser) {
+    if (!emailVerified) {
+      throw new AuthError(
+        "account_exists",
+        "An account with this email already exists. Sign in with your password, or verify this email address with the provider and try again.",
+        409,
+      );
+    }
     await identityStore.linkOAuthAccount(existingEmailUser.id, provider, providerAccountId);
     return existingEmailUser;
   }
@@ -304,4 +328,35 @@ export async function findOrCreateOAuthUser(
   const user = await identityStore.createUser({ email, username, displayName, passwordHash: null });
   await identityStore.linkOAuthAccount(user.id, provider, providerAccountId);
   return user;
+}
+
+export async function beginOAuthFlow(provider: OAuthProvider, guestId: string | null): Promise<{ url: string; state: string }> {
+  let verifiedGuestId: string | null = null;
+  if (guestId) {
+    const guest = await identityStore.findGuestSession(guestId);
+    verifiedGuestId = guest ? guest.id : null;
+  }
+  const stateValue = createOAuthStateValue();
+  const expiresAt = new Date(Date.now() + env.auth.oauthStateTtlMinutes * 60 * 1000);
+  await identityStore.createOAuthState(stateValue, provider, verifiedGuestId, expiresAt);
+  const url = buildAuthorizationUrl(provider, stateValue);
+  return { url, state: stateValue };
+}
+
+export async function completeOAuthFlow(provider: OAuthProvider, code: string, stateValue: string): Promise<AuthSessionResult> {
+  const stateRecord = await identityStore.findOAuthStateByValue(stateValue);
+  if (!stateRecord || stateRecord.usedAt || stateRecord.provider !== provider || stateRecord.expiresAt.getTime() < Date.now()) {
+    throw new AuthError("invalid_state", "This sign-in attempt is invalid or has expired. Please try again.", 400);
+  }
+  await identityStore.markOAuthStateUsed(stateRecord.id);
+
+  const identity = await exchangeCodeForIdentity(provider, code);
+  const user = await findOrCreateOAuthUser(provider, identity.providerAccountId, identity.email, identity.emailVerified, identity.displayName);
+
+  if (stateRecord.guestId) {
+    await identityStore.reassignWorkspaceMembershipsOnGuestUpgrade(stateRecord.guestId, user.id);
+    await identityStore.deleteGuestSession(stateRecord.guestId);
+  }
+
+  return issueSession(user);
 }

@@ -1,4 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
+import { env } from "../config/env.js";
 import { verifyAccessTokenClaims } from "../auth/authService.js";
 import { identityStore } from "../db/index.js";
 import type { Identity } from "../workspaces/workspaceService.js";
@@ -28,7 +29,7 @@ async function resolveIdentityHandler(req: Request, res: Response, next: NextFun
     return;
   }
 
-  const guestId = (req.headers["x-guest-id"] as string | undefined) ?? (req.body as { guestId?: string } | undefined)?.guestId;
+  const guestId = req.cookies?.[env.auth.guestCookieName] as string | undefined;
   if (guestId) {
     const guest = await identityStore.findGuestSession(guestId);
     if (!guest) {

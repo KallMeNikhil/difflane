@@ -1,8 +1,10 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./prismaClient.js";
 import type {
   GuestSessionRecord,
   OAuthAccountRecord,
   OAuthProviderType,
+  OAuthStateRecord,
   PasswordResetTokenRecord,
   RefreshSessionRecord,
   UserRecord,
@@ -99,6 +101,26 @@ function toGuestSessionRecord(guest: { id: string; displayName: string; createdA
   return { id: guest.id, displayName: guest.displayName, createdAt: guest.createdAt, lastSeenAt: guest.lastSeenAt };
 }
 
+function toOAuthStateRecord(state: {
+  id: string;
+  state: string;
+  provider: PrismaOAuthProvider;
+  guestId: string | null;
+  createdAt: Date;
+  expiresAt: Date;
+  usedAt: Date | null;
+}): OAuthStateRecord {
+  return {
+    id: state.id,
+    state: state.state,
+    provider: toAppOAuthProvider(state.provider),
+    guestId: state.guestId,
+    createdAt: state.createdAt,
+    expiresAt: state.expiresAt,
+    usedAt: state.usedAt,
+  };
+}
+
 function toWorkspaceRecord(workspace: {
   id: string;
   code: string;
@@ -146,6 +168,12 @@ function ownerColumns(owner: { userId: string } | { guestId: string }): { ownerU
     return { ownerUserId: owner.userId, ownerGuestId: null };
   }
   return { ownerUserId: null, ownerGuestId: owner.guestId };
+}
+
+const ROLE_RANK: Record<"OWNER" | "EDITOR" | "VIEWER", number> = { OWNER: 3, EDITOR: 2, VIEWER: 1 };
+
+function higherRole(a: "OWNER" | "EDITOR" | "VIEWER", b: "OWNER" | "EDITOR" | "VIEWER"): "OWNER" | "EDITOR" | "VIEWER" {
+  return ROLE_RANK[a] >= ROLE_RANK[b] ? a : b;
 }
 
 export function createPrismaIdentityStore(): IdentityStore {
@@ -241,6 +269,20 @@ export function createPrismaIdentityStore(): IdentityStore {
       await prisma.passwordResetToken.updateMany({ where: { id }, data: { usedAt: new Date() } });
     },
 
+    async createOAuthState(state, provider, guestId, expiresAt) {
+      const record = await prisma.oAuthState.create({
+        data: { state, provider: toPrismaOAuthProvider(provider), guestId, expiresAt },
+      });
+      return toOAuthStateRecord(record);
+    },
+    async findOAuthStateByValue(state) {
+      const record = await prisma.oAuthState.findUnique({ where: { state } });
+      return record ? toOAuthStateRecord(record) : null;
+    },
+    async markOAuthStateUsed(id) {
+      await prisma.oAuthState.updateMany({ where: { id }, data: { usedAt: new Date() } });
+    },
+
     async createGuestSession(displayName) {
       const guest = await prisma.guestSession.create({ data: { displayName } });
       return toGuestSessionRecord(guest);
@@ -268,18 +310,59 @@ export function createPrismaIdentityStore(): IdentityStore {
       const workspace = await prisma.workspace.findUnique({ where: { id } });
       return workspace ? toWorkspaceRecord(workspace) : null;
     },
+    async findWorkspacesByIds(ids) {
+      if (ids.length === 0) {
+        return [];
+      }
+      const workspaces = await prisma.workspace.findMany({ where: { id: { in: ids } } });
+      return workspaces.map(toWorkspaceRecord);
+    },
     async updateWorkspaceOwner(workspaceId, owner) {
       const workspace = await prisma.workspace.update({ where: { id: workspaceId }, data: ownerColumns(owner) });
       return toWorkspaceRecord(workspace);
+    },
+    async transferWorkspaceOwnership(workspaceId, requesterMembershipId, targetMembershipId, newOwner) {
+      await prisma.$transaction([
+        prisma.workspaceMembership.update({ where: { id: requesterMembershipId }, data: { role: "EDITOR" } }),
+        prisma.workspaceMembership.update({ where: { id: targetMembershipId }, data: { role: "OWNER" } }),
+        prisma.workspace.update({ where: { id: workspaceId }, data: ownerColumns(newOwner) }),
+      ]);
     },
     async deleteWorkspace(workspaceId) {
       await prisma.workspace.delete({ where: { id: workspaceId } });
     },
     async reassignWorkspaceMembershipsOnGuestUpgrade(guestId, userId) {
-      await prisma.$transaction([
-        prisma.workspaceMembership.updateMany({ where: { guestId }, data: { guestId: null, userId } }),
-        prisma.workspace.updateMany({ where: { ownerGuestId: guestId }, data: { ownerGuestId: null, ownerUserId: userId } }),
-      ]);
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const guestMemberships = await tx.workspaceMembership.findMany({ where: { guestId } });
+
+        for (const guestMembership of guestMemberships) {
+          const existingUserMembership = await tx.workspaceMembership.findUnique({
+            where: { workspaceId_userId: { workspaceId: guestMembership.workspaceId, userId } },
+          });
+
+          if (!existingUserMembership) {
+            await tx.workspaceMembership.update({
+              where: { id: guestMembership.id },
+              data: { guestId: null, userId },
+            });
+            continue;
+          }
+
+          // Both a guest membership and a registered-user membership exist for this
+          // workspace. Merge them into the surviving user membership instead of
+          // letting the unique (workspaceId, userId) constraint reject the update.
+          const mergedRole = higherRole(existingUserMembership.role, guestMembership.role);
+          await tx.workspaceMembership.delete({ where: { id: guestMembership.id } });
+          if (mergedRole !== existingUserMembership.role) {
+            await tx.workspaceMembership.update({
+              where: { id: existingUserMembership.id },
+              data: { role: mergedRole },
+            });
+          }
+        }
+
+        await tx.workspace.updateMany({ where: { ownerGuestId: guestId }, data: { ownerGuestId: null, ownerUserId: userId } });
+      });
     },
 
     async upsertMembership(workspaceId, identity, role) {
@@ -313,6 +396,21 @@ export function createPrismaIdentityStore(): IdentityStore {
     async listMembershipsForWorkspace(workspaceId) {
       const memberships = await prisma.workspaceMembership.findMany({ where: { workspaceId } });
       return memberships.map(toMembershipRecord);
+    },
+    async countMembershipsForWorkspaces(workspaceIds) {
+      if (workspaceIds.length === 0) {
+        return {};
+      }
+      const grouped = await prisma.workspaceMembership.groupBy({
+        by: ["workspaceId"],
+        where: { workspaceId: { in: workspaceIds } },
+        _count: { _all: true },
+      });
+      const counts: Record<string, number> = {};
+      for (const group of grouped) {
+        counts[group.workspaceId] = group._count._all;
+      }
+      return counts;
     },
     async listMembershipsForIdentity(identity) {
       const memberships = await prisma.workspaceMembership.findMany({

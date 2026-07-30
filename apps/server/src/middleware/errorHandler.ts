@@ -10,6 +10,5 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     res.status(err.status).json({ code: err.code, message: err.message });
     return;
   }
-  const message = err instanceof Error ? err.message : "Unexpected server error";
-  res.status(500).json({ code: "unknown_error", message });
+  res.status(500).json({ code: "unknown_error", message: "Something went wrong. Please try again." });
 }

@@ -11,6 +11,21 @@ import {
 import { fetchBranches, fetchFileContent, fetchRepository, fetchTree, type GitHubTreeEntry } from "./githubClient.js";
 
 const CONTENT_FETCH_CONCURRENCY = 8;
+const GITHUB_OWNER_PATTERN = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/;
+const GITHUB_REPO_PATTERN = /^[a-zA-Z0-9._-]{1,100}$/;
+const GITHUB_BRANCH_PATTERN = /^[^\s~^:?*[\\]{1,255}$/;
+
+export function isValidGitHubOwner(value: string): boolean {
+  return GITHUB_OWNER_PATTERN.test(value);
+}
+
+export function isValidGitHubRepoName(value: string): boolean {
+  return GITHUB_REPO_PATTERN.test(value) && value !== "." && value !== "..";
+}
+
+export function isValidGitHubBranch(value: string): boolean {
+  return GITHUB_BRANCH_PATTERN.test(value) && !value.startsWith("/") && !value.endsWith("/") && !value.includes("..");
+}
 
 export function parseRepositoryQuery(query: string): { owner: string; repo: string } {
   const trimmed = query.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, "");
@@ -18,7 +33,11 @@ export function parseRepositoryQuery(query: string): { owner: string; repo: stri
   if (segments.length < 2) {
     throw new Error("Enter a repository in the form owner/repo.");
   }
-  return { owner: segments[0], repo: segments[1] };
+  const [owner, repo] = segments;
+  if (!isValidGitHubOwner(owner) || !isValidGitHubRepoName(repo)) {
+    throw new Error("Enter a valid repository in the form owner/repo.");
+  }
+  return { owner, repo };
 }
 
 export async function getRepositorySummary(owner: string, repo: string): Promise<RepositorySummary> {

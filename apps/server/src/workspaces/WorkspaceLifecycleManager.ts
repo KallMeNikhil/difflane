@@ -90,13 +90,26 @@ export class WorkspaceLifecycleManager {
         await this.attemptPersist(roomId, workspaceId, doc, attempt + 1);
         return;
       }
+      console.error(`Failed to persist workspace ${workspaceId}:`, error);
       const payload: WorkspacePersistenceFailedPayload = {
         roomId,
-        message: error instanceof Error ? error.message : "Failed to save workspace changes.",
+        message: "Failed to save workspace changes. Changes will be retried automatically.",
         willRetry: true,
       };
       this.io.to(roomId).emit(SOCKET_EVENTS.WORKSPACE_PERSISTENCE_FAILED, payload);
     }
+  }
+
+  async flushPendingPersists(): Promise<void> {
+    for (const [workspaceId, timer] of this.pendingPersistTimers) {
+      clearTimeout(timer);
+      this.pendingPersistTimers.delete(workspaceId);
+      const room = this.registry.getRoomByWorkspaceId(workspaceId);
+      if (room) {
+        this.schedulePersist(room.roomId, workspaceId, room.doc);
+      }
+    }
+    await Promise.all(Array.from(this.writeQueues.values()));
   }
 
   async listSnapshots(workspaceId: string): Promise<WorkspaceSnapshotRecord[]> {

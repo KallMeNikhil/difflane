@@ -5,6 +5,7 @@ import { AuthError } from "./AuthError.js";
 export interface OAuthIdentity {
   providerAccountId: string;
   email: string;
+  emailVerified: boolean;
   displayName: string;
 }
 
@@ -70,8 +71,13 @@ export async function exchangeCodeForIdentity(provider: OAuthProvider, code: str
       if (!profileResponse.ok) {
         throw new AuthError("provider_error", "Unable to load your Google profile.", 502);
       }
-      const profile = (await profileResponse.json()) as { sub: string; email: string; name?: string };
-      return { providerAccountId: profile.sub, email: profile.email, displayName: profile.name ?? profile.email };
+      const profile = (await profileResponse.json()) as { sub: string; email: string; email_verified?: boolean; name?: string };
+      return {
+        providerAccountId: profile.sub,
+        email: profile.email,
+        emailVerified: profile.email_verified === true,
+        displayName: profile.name ?? profile.email,
+      };
     }
 
     const tokenResponse = await fetch("https://github.com/login/oauth/access_token", {
@@ -95,8 +101,22 @@ export async function exchangeCodeForIdentity(provider: OAuthProvider, code: str
       throw new AuthError("provider_error", "Unable to load your GitHub profile.", 502);
     }
     const profile = (await profileResponse.json()) as { id: number; login: string; name?: string; email?: string | null };
-    const email = profile.email ?? `${profile.login}@users.noreply.github.com`;
-    return { providerAccountId: String(profile.id), email, displayName: profile.name ?? profile.login };
+
+    let email = profile.email ?? `${profile.login}@users.noreply.github.com`;
+    let emailVerified = false;
+    const emailsResponse = await fetch("https://api.github.com/user/emails", {
+      headers: { Authorization: `Bearer ${tokenBody.access_token}`, Accept: "application/vnd.github+json" },
+    });
+    if (emailsResponse.ok) {
+      const emails = (await emailsResponse.json()) as { email: string; primary: boolean; verified: boolean }[];
+      const primary = emails.find((entry) => entry.primary) ?? emails.find((entry) => entry.email === profile.email);
+      if (primary) {
+        email = primary.email;
+        emailVerified = primary.verified === true;
+      }
+    }
+
+    return { providerAccountId: String(profile.id), email, emailVerified, displayName: profile.name ?? profile.login };
   } catch (error) {
     if (error instanceof AuthError) {
       throw error;

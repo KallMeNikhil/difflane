@@ -2,6 +2,7 @@ import type {
   GuestSessionRecord,
   OAuthAccountRecord,
   OAuthProviderType,
+  OAuthStateRecord,
   PasswordResetTokenRecord,
   RefreshSessionRecord,
   UserRecord,
@@ -39,6 +40,10 @@ export interface IdentityStore {
   findPasswordResetTokenByHash(tokenHash: string): Promise<PasswordResetTokenRecord | null>;
   markPasswordResetTokenUsed(id: string): Promise<void>;
 
+  createOAuthState(state: string, provider: OAuthProviderType, guestId: string | null, expiresAt: Date): Promise<OAuthStateRecord>;
+  findOAuthStateByValue(state: string): Promise<OAuthStateRecord | null>;
+  markOAuthStateUsed(id: string): Promise<void>;
+
   createGuestSession(displayName: string): Promise<GuestSessionRecord>;
   findGuestSession(id: string): Promise<GuestSessionRecord | null>;
   touchGuestSession(id: string): Promise<void>;
@@ -47,7 +52,14 @@ export interface IdentityStore {
   createWorkspace(code: string, name: string, owner: { userId: string } | { guestId: string }): Promise<WorkspaceRecord>;
   findWorkspaceByCode(code: string): Promise<WorkspaceRecord | null>;
   findWorkspaceById(id: string): Promise<WorkspaceRecord | null>;
+  findWorkspacesByIds(ids: string[]): Promise<WorkspaceRecord[]>;
   updateWorkspaceOwner(workspaceId: string, owner: { userId: string } | { guestId: string }): Promise<WorkspaceRecord>;
+  transferWorkspaceOwnership(
+    workspaceId: string,
+    requesterMembershipId: string,
+    targetMembershipId: string,
+    newOwner: { userId: string } | { guestId: string },
+  ): Promise<void>;
   deleteWorkspace(workspaceId: string): Promise<void>;
   reassignWorkspaceMembershipsOnGuestUpgrade(guestId: string, userId: string): Promise<void>;
 
@@ -58,6 +70,7 @@ export interface IdentityStore {
   ): Promise<WorkspaceMembershipRecord>;
   findMembership(workspaceId: string, identity: { userId: string } | { guestId: string }): Promise<WorkspaceMembershipRecord | null>;
   listMembershipsForWorkspace(workspaceId: string): Promise<WorkspaceMembershipRecord[]>;
+  countMembershipsForWorkspaces(workspaceIds: string[]): Promise<Record<string, number>>;
   listMembershipsForIdentity(identity: { userId: string } | { guestId: string }): Promise<WorkspaceMembershipRecord[]>;
   updateMembershipRole(membershipId: string, role: WorkspaceMembershipRecord["role"]): Promise<WorkspaceMembershipRecord>;
   setMembershipFlags(membershipId: string, patch: Partial<Pick<WorkspaceMembershipRecord, "pinned" | "archived">>): Promise<WorkspaceMembershipRecord>;

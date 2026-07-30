@@ -1,5 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import * as Y from "yjs";
+import { parseCookie } from "cookie";
 import { encodeAwarenessUpdate } from "y-protocols/awareness";
 import {
   SOCKET_EVENTS,
@@ -10,18 +11,32 @@ import {
   type RoomJoinedPayload,
   type RoomParticipantLeftPayload,
 } from "@difflane/shared-types";
-import type { RoomRegistry } from "../rooms/RoomRegistry.js";
+import { toRoomId, type RoomRegistry } from "../rooms/RoomRegistry.js";
 import type { ConnectionAwarenessTracker } from "./ConnectionAwarenessTracker.js";
+import { env } from "../config/env.js";
 import { verifyAccessTokenClaims } from "../auth/authService.js";
 import { identityStore } from "../db/index.js";
-import { ensureWorkspace } from "../workspaces/workspaceService.js";
+import { ensureWorkspace, isValidWorkspaceCode } from "../workspaces/workspaceService.js";
 import type { WorkspaceLifecycleManager } from "../workspaces/WorkspaceLifecycleManager.js";
 
+const DISPLAY_NAME_MAX_LENGTH = 60;
+const INITIALS_MAX_LENGTH = 4;
+
+function readGuestIdFromHandshake(socket: Socket): string | null {
+  const rawCookie = socket.handshake.headers.cookie;
+  if (!rawCookie) {
+    return null;
+  }
+  const parsed = parseCookie(rawCookie);
+  return parsed[env.auth.guestCookieName] ?? null;
+}
+
 async function resolveJoinIdentity(
+  socket: Socket,
   payload: RoomJoinPayload,
 ): Promise<{ identityId: string; identityType: ParticipantIdentityType; displayName: string; initials: string }> {
-  const fallbackDisplayName = payload.displayName.trim() || "Guest";
-  const fallbackInitials = payload.initials.trim() || fallbackDisplayName.slice(0, 2).toUpperCase();
+  const fallbackDisplayName = payload.displayName.trim().slice(0, DISPLAY_NAME_MAX_LENGTH) || "Guest";
+  const fallbackInitials = payload.initials.trim().slice(0, INITIALS_MAX_LENGTH) || fallbackDisplayName.slice(0, 2).toUpperCase();
 
   if (payload.accessToken) {
     const claims = verifyAccessTokenClaims(payload.accessToken);
@@ -33,8 +48,9 @@ async function resolveJoinIdentity(
     }
   }
 
-  if (payload.guestId) {
-    const guest = await identityStore.findGuestSession(payload.guestId);
+  const cookieGuestId = readGuestIdFromHandshake(socket);
+  if (cookieGuestId) {
+    const guest = await identityStore.findGuestSession(cookieGuestId);
     if (guest) {
       await identityStore.touchGuestSession(guest.id);
       return { identityId: guest.id, identityType: "guest", displayName: fallbackDisplayName, initials: fallbackInitials };
@@ -43,6 +59,24 @@ async function resolveJoinIdentity(
 
   const guest = await identityStore.createGuestSession(fallbackDisplayName);
   return { identityId: guest.id, identityType: "guest", displayName: fallbackDisplayName, initials: fallbackInitials };
+}
+
+interface JoinRateState {
+  count: number;
+  windowStart: number;
+}
+
+const joinRateBySocket = new Map<string, JoinRateState>();
+
+function isRoomJoinRateLimited(socketId: string): boolean {
+  const now = Date.now();
+  const state = joinRateBySocket.get(socketId);
+  if (!state || now - state.windowStart > env.socketRateLimit.windowMs) {
+    joinRateBySocket.set(socketId, { count: 1, windowStart: now });
+    return false;
+  }
+  state.count += 1;
+  return state.count > env.socketRateLimit.roomJoinMax;
 }
 
 export function registerRoomHandlers(
@@ -55,14 +89,24 @@ export function registerRoomHandlers(
   socket.on(SOCKET_EVENTS.ROOM_JOIN, (payload: RoomJoinPayload, ack?: (response: RoomJoinedPayload | RoomJoinErrorPayload) => void) => {
     void (async () => {
       try {
-        const identity = await resolveJoinIdentity(payload);
-        const { workspace, role } = await ensureWorkspace(
-          { type: identity.identityType, id: identity.identityId },
-          payload.roomCode,
-          payload.roomCode,
-        );
+        if (isRoomJoinRateLimited(socket.id)) {
+          ack?.({ error: "Too many join attempts. Please wait a moment and try again." });
+          return;
+        }
+        if (typeof payload?.roomCode !== "string" || !isValidWorkspaceCode(payload.roomCode)) {
+          ack?.({ error: "Invalid room code." });
+          return;
+        }
+        const roomCode = payload.roomCode.trim().toUpperCase();
 
-        const { room, created } = registry.getOrCreateRoomByCode(payload.roomCode, workspace.id);
+        if (socket.data.roomId && socket.data.roomId !== toRoomId(roomCode)) {
+          leaveCurrentRoom(io, socket, registry, awarenessTracker);
+        }
+
+        const identity = await resolveJoinIdentity(socket, payload);
+        const { workspace, role } = await ensureWorkspace({ type: identity.identityType, id: identity.identityId }, roomCode, roomCode);
+
+        const { room, created } = registry.getOrCreateRoomByCode(roomCode, workspace.id);
         if (created) {
           await lifecycleManager.hydrateRoomDoc(workspace.id, room.doc);
         }
@@ -89,8 +133,8 @@ export function registerRoomHandlers(
         ack?.(response);
         socket.to(room.roomId).emit(SOCKET_EVENTS.ROOM_PARTICIPANT_JOINED, { participant });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to join this workspace.";
-        ack?.({ error: message });
+        console.error("ROOM_JOIN failed:", error);
+        ack?.({ error: "Unable to join this workspace. Please try again." });
       }
     })();
   });
@@ -100,6 +144,7 @@ export function registerRoomHandlers(
   });
 
   socket.on("disconnect", () => {
+    joinRateBySocket.delete(socket.id);
     leaveCurrentRoom(io, socket, registry, awarenessTracker);
   });
 }

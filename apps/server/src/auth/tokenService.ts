@@ -26,6 +26,10 @@ export function createRefreshTokenValue(): string {
   return `${randomUUID()}.${randomUUID()}`;
 }
 
+export function createOAuthStateValue(): string {
+  return `${randomUUID()}${randomUUID()}`.replace(/-/g, "");
+}
+
 export function hashRefreshToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }

@@ -1,10 +1,10 @@
 import { Router, type Request, type Response } from "express";
 import type { AuthSessionResponse, GuestBootstrapResponse, OAuthProvider } from "@difflane/shared-types";
 import { env } from "../config/env.js";
-import { AuthError } from "../auth/AuthError.js";
 import {
+  beginOAuthFlow,
+  completeOAuthFlow,
   createGuestSession,
-  issueSessionForUser,
   login,
   logout,
   refreshSession,
@@ -14,11 +14,11 @@ import {
   toPublicUser,
   upgradeGuestSession,
 } from "../auth/authService.js";
-import { buildAuthorizationUrl, exchangeCodeForIdentity } from "../auth/oauthService.js";
-import { findOrCreateOAuthUser } from "../auth/authService.js";
 import type { AuthSessionResult } from "../auth/authService.js";
 import { identityStore } from "../db/index.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { moderateRateLimit, strictRateLimit } from "../middleware/rateLimit.js";
+import { handleRouteError as handleAuthError } from "../middleware/routeHelpers.js";
 
 export const authRouter = Router();
 
@@ -26,24 +26,28 @@ function setRefreshCookie(res: Response, refreshToken: string): void {
   res.cookie(env.auth.refreshCookieName, refreshToken, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: env.isProduction,
     maxAge: env.auth.refreshTokenTtlSeconds * 1000,
-    path: "/api/auth",
+    path: env.auth.refreshCookiePath,
   });
 }
 
 function clearRefreshCookie(res: Response): void {
-  res.clearCookie(env.auth.refreshCookieName, { path: "/api/auth" });
+  res.clearCookie(env.auth.refreshCookieName, { path: env.auth.refreshCookiePath });
 }
 
 function setGuestCookie(res: Response, guestId: string): void {
   res.cookie(env.auth.guestCookieName, guestId, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: env.isProduction,
     maxAge: env.auth.refreshTokenTtlSeconds * 1000,
-    path: "/api/auth",
+    path: env.auth.guestCookiePath,
   });
+}
+
+function clearGuestCookie(res: Response): void {
+  res.clearCookie(env.auth.guestCookieName, { path: env.auth.guestCookiePath });
 }
 
 async function respondWithSession(res: Response, session: AuthSessionResult, status = 200): Promise<void> {
@@ -56,15 +60,7 @@ async function respondWithSession(res: Response, session: AuthSessionResult, sta
   res.status(status).json(payload);
 }
 
-function handleAuthError(error: unknown, res: Response): void {
-  if (error instanceof AuthError) {
-    res.status(error.status).json({ code: error.code, message: error.message });
-    return;
-  }
-  res.status(500).json({ code: "unknown_error", message: "Something went wrong. Please try again." });
-}
-
-authRouter.post("/api/auth/register", async (req: Request, res: Response) => {
+authRouter.post("/api/auth/register", strictRateLimit, async (req: Request, res: Response) => {
   try {
     const { email, username, displayName, password } = req.body as {
       email?: string;
@@ -83,7 +79,7 @@ authRouter.post("/api/auth/register", async (req: Request, res: Response) => {
   }
 });
 
-authRouter.post("/api/auth/login", async (req: Request, res: Response) => {
+authRouter.post("/api/auth/login", strictRateLimit, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body as { email?: string; password?: string };
     if (!email || !password) {
@@ -124,6 +120,7 @@ authRouter.post(
 
 authRouter.post(
   "/api/auth/guest",
+  moderateRateLimit,
   asyncHandler(async (req: Request, res: Response) => {
     const { displayName } = req.body as { displayName?: string };
     const existingGuestId = req.cookies?.[env.auth.guestCookieName] as string | undefined;
@@ -137,59 +134,66 @@ authRouter.post(
   }),
 );
 
-authRouter.post("/api/auth/guest/upgrade", async (req: Request, res: Response) => {
+authRouter.post("/api/auth/guest/upgrade", strictRateLimit, async (req: Request, res: Response) => {
   try {
-    const { guestId, email, username, displayName, password } = req.body as {
-      guestId?: string;
+    const { email, username, displayName, password } = req.body as {
       email?: string;
       username?: string;
       displayName?: string;
       password?: string;
     };
-    if (!guestId || !email || !username || !displayName || !password) {
+    const guestId = req.cookies?.[env.auth.guestCookieName] as string | undefined;
+    if (!guestId) {
+      res.status(401).json({ code: "invalid_token", message: "No active guest session to upgrade." });
+      return;
+    }
+    if (!email || !username || !displayName || !password) {
       res.status(400).json({ code: "unknown_error", message: "All fields are required." });
       return;
     }
     const session = await upgradeGuestSession(guestId, email, username, displayName, password);
+    clearGuestCookie(res);
     await respondWithSession(res, session, 201);
   } catch (error) {
     handleAuthError(error, res);
   }
 });
 
-authRouter.get("/api/auth/oauth/:provider/start", (req: Request, res: Response) => {
+const OAUTH_PROVIDERS: OAuthProvider[] = ["google", "github"];
+
+function isValidOAuthProvider(value: string): value is OAuthProvider {
+  return (OAUTH_PROVIDERS as string[]).includes(value);
+}
+
+authRouter.get("/api/auth/oauth/:provider/start", moderateRateLimit, async (req: Request, res: Response) => {
   try {
-    const provider = req.params.provider as OAuthProvider;
-    const guestId = typeof req.query.guestId === "string" ? req.query.guestId : undefined;
-    const nonce = Math.random().toString(36).slice(2);
-    const state = guestId ? `guest:${guestId}:${nonce}` : nonce;
-    const url = buildAuthorizationUrl(provider, state);
+    if (!isValidOAuthProvider(req.params.provider)) {
+      res.status(400).json({ code: "provider_error", message: "Unsupported sign-in provider." });
+      return;
+    }
+    const provider = req.params.provider;
+    const guestId = (req.cookies?.[env.auth.guestCookieName] as string | undefined) ?? null;
+    const { url, state } = await beginOAuthFlow(provider, guestId);
     res.json({ url, state });
   } catch (error) {
     handleAuthError(error, res);
   }
 });
 
-authRouter.post("/api/auth/oauth/:provider/callback", async (req: Request, res: Response) => {
+authRouter.post("/api/auth/oauth/:provider/callback", strictRateLimit, async (req: Request, res: Response) => {
   try {
-    const provider = req.params.provider as OAuthProvider;
+    if (!isValidOAuthProvider(req.params.provider)) {
+      res.status(400).json({ code: "provider_error", message: "Unsupported sign-in provider." });
+      return;
+    }
+    const provider = req.params.provider;
     const { code, state } = req.body as { code?: string; state?: string };
-    if (!code) {
+    if (!code || !state) {
       res.status(400).json({ code: "provider_error", message: "Missing authorization code." });
       return;
     }
-    const identity = await exchangeCodeForIdentity(provider, code);
-    const user = await findOrCreateOAuthUser(provider, identity.providerAccountId, identity.email, identity.displayName);
-
-    if (state?.startsWith("guest:")) {
-      const guestId = state.split(":")[1];
-      if (guestId) {
-        await identityStore.reassignWorkspaceMembershipsOnGuestUpgrade(guestId, user.id);
-        await identityStore.deleteGuestSession(guestId);
-      }
-    }
-
-    const session = await issueSessionForUser(user);
+    const session = await completeOAuthFlow(provider, code, state);
+    clearGuestCookie(res);
     await respondWithSession(res, session, 201);
   } catch (error) {
     handleAuthError(error, res);
@@ -198,6 +202,7 @@ authRouter.post("/api/auth/oauth/:provider/callback", async (req: Request, res: 
 
 authRouter.post(
   "/api/auth/password/forgot",
+  strictRateLimit,
   asyncHandler(async (req: Request, res: Response) => {
     const { email } = req.body as { email?: string };
     if (!email) {
@@ -209,7 +214,7 @@ authRouter.post(
   }),
 );
 
-authRouter.post("/api/auth/password/reset", async (req: Request, res: Response) => {
+authRouter.post("/api/auth/password/reset", strictRateLimit, async (req: Request, res: Response) => {
   try {
     const { token, newPassword } = req.body as { token?: string; newPassword?: string };
     if (!token || !newPassword) {

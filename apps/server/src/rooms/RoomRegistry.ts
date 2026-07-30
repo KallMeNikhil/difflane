@@ -13,6 +13,7 @@ interface Room {
 }
 
 const PARTICIPANT_COLOR_PALETTE = ["#b4c5ff", "#ffb596", "#86efac", "#b7c8e1", "#f4a8c9", "#f6d97a"];
+const EMPTY_ROOM_EVICTION_MS = 5 * 60 * 1000;
 
 export function toRoomId(roomCode: string): string {
   return `room:${roomCode.trim().toUpperCase()}`;
@@ -28,12 +29,22 @@ export interface AddParticipantInput {
 
 export class RoomRegistry {
   private readonly rooms = new Map<string, Room>();
+  private readonly emptyRoomTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(private readonly awarenessTracker: ConnectionAwarenessTracker) {}
+
+  private cancelEviction(roomId: string): void {
+    const timer = this.emptyRoomTimers.get(roomId);
+    if (timer) {
+      clearTimeout(timer);
+      this.emptyRoomTimers.delete(roomId);
+    }
+  }
 
   getOrCreateRoomByCode(roomCode: string, workspaceId: string): { room: Room; created: boolean } {
     const normalizedCode = roomCode.trim().toUpperCase();
     const roomId = toRoomId(normalizedCode);
+    this.cancelEviction(roomId);
     const existing = this.rooms.get(roomId);
     if (existing) {
       return { room: existing, created: false };
@@ -69,6 +80,15 @@ export class RoomRegistry {
     return this.rooms.get(roomId);
   }
 
+  getRoomByWorkspaceId(workspaceId: string): Room | undefined {
+    for (const room of this.rooms.values()) {
+      if (room.workspaceId === workspaceId) {
+        return room;
+      }
+    }
+    return undefined;
+  }
+
   addParticipant(roomId: string, connectionId: string, input: AddParticipantInput): RoomParticipant {
     const room = this.rooms.get(roomId);
     if (!room) {
@@ -97,6 +117,19 @@ export class RoomRegistry {
     if (awarenessClientIds.length > 0) {
       removeAwarenessStates(room.awareness, awarenessClientIds, "connection-closed");
     }
+    if (room.participants.size === 0) {
+      this.cancelEviction(roomId);
+      const timer = setTimeout(() => {
+        this.emptyRoomTimers.delete(roomId);
+        const current = this.rooms.get(roomId);
+        if (current && current.participants.size === 0) {
+          current.doc.destroy();
+          this.rooms.delete(roomId);
+        }
+      }, EMPTY_ROOM_EVICTION_MS);
+      timer.unref?.();
+      this.emptyRoomTimers.set(roomId, timer);
+    }
   }
 
   getSnapshot(roomId: string): RoomSnapshot | undefined {
@@ -105,5 +138,9 @@ export class RoomRegistry {
       return undefined;
     }
     return { roomId: room.roomId, roomCode: room.roomCode, participants: Array.from(room.participants.values()) };
+  }
+
+  getParticipant(roomId: string, connectionId: string): RoomParticipant | undefined {
+    return this.rooms.get(roomId)?.participants.get(connectionId);
   }
 }

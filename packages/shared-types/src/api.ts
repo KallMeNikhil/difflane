@@ -78,6 +78,7 @@ export interface AuthErrorPayload {
     | "username_taken"
     | "email_taken"
     | "weak_password"
+    | "invalid_state"
     | "invalid_token"
     | "expired_token"
     | "network_error"
