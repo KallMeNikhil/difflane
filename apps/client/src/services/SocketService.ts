@@ -11,6 +11,15 @@ import { createSocketConnection } from "../lib/socket/socketClient";
 
 const JOIN_TIMEOUT_MS = 15000;
 
+export class RoomJoinError extends Error {
+  readonly code?: RoomJoinErrorPayload["code"];
+
+  constructor(message: string, code?: RoomJoinErrorPayload["code"]) {
+    super(message);
+    this.code = code;
+  }
+}
+
 export function connectSocket(): Socket {
   const socket = createSocketConnection();
   socket.connect();
@@ -38,7 +47,7 @@ export function joinRoom(socket: Socket, payload: RoomJoinPayload): Promise<Room
       clearTimeout(timeoutId);
       socket.off("connect_error", handleConnectError);
       if ("error" in response) {
-        reject(new Error(response.error));
+        reject(new RoomJoinError(response.error, response.code));
         return;
       }
       resolve(response);

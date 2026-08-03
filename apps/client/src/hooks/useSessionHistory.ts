@@ -6,10 +6,12 @@ import {
   sortSessionRecords,
 } from "../services/SessionHistoryService";
 import { DEFAULT_SESSION_HISTORY_FILTERS, type SessionHistoryFilters, type SessionRecord, type SessionSortOrder } from "../types/session";
+import { useCurrentUser } from "./useCurrentUser";
 
 export type SessionHistoryStatus = "loading" | "ready" | "error";
 
 export function useSessionHistory() {
+  const { guestId, userId } = useCurrentUser();
   const [status, setStatus] = useState<SessionHistoryStatus>("loading");
   const [records, setRecords] = useState<SessionRecord[]>([]);
   const [filters, setFilters] = useState<SessionHistoryFilters>(DEFAULT_SESSION_HISTORY_FILTERS);
@@ -18,13 +20,13 @@ export function useSessionHistory() {
   const load = useCallback(async () => {
     setStatus("loading");
     try {
-      const result = await fetchSessionRecords();
+      const result = await fetchSessionRecords(guestId);
       setRecords(result);
       setStatus("ready");
     } catch {
       setStatus("error");
     }
-  }, []);
+  }, [guestId]);
 
   useEffect(() => {
     load();
@@ -33,8 +35,8 @@ export function useSessionHistory() {
   const workspaceOptions = useMemo(() => getWorkspaceNameOptions(records), [records]);
 
   const visibleRecords = useMemo(
-    () => sortSessionRecords(filterSessionRecords(records, filters), sortOrder),
-    [records, filters, sortOrder],
+    () => sortSessionRecords(filterSessionRecords(records, filters, userId), sortOrder),
+    [records, filters, sortOrder, userId],
   );
 
   const updateFilters = useCallback((patch: Partial<SessionHistoryFilters>) => {

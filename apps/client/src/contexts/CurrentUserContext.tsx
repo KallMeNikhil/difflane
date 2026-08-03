@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AuthUserProfile } from "@difflane/shared-types";
 import * as AuthService from "../services/AuthService";
 import { setAccessToken } from "../lib/auth/tokenStore";
@@ -21,13 +21,31 @@ export function CurrentUserProvider({ children, initialDisplayName = "You" }: { 
   const [guestId, setGuestId] = useState<string | null>(null);
   const [guestDisplayName, setGuestDisplayName] = useState(() => readStoredDisplayName() ?? initialDisplayName);
   const [authError, setAuthError] = useState<string | null>(null);
+  const identityEpochRef = useRef(0);
+
+  const bootstrapAsGuest = useCallback(
+    async (epoch: number) => {
+      try {
+        const bootstrap = await AuthService.bootstrapGuest(readStoredDisplayName() ?? initialDisplayName);
+        if (identityEpochRef.current !== epoch) return;
+        setGuestId(bootstrap.identity.guest.id);
+        setGuestDisplayName(bootstrap.identity.guest.displayName);
+        setStatus("guest");
+      } catch {
+        if (identityEpochRef.current !== epoch) return;
+        setStatus("guest");
+      }
+    },
+    [initialDisplayName],
+  );
 
   useEffect(() => {
     let cancelled = false;
+    const epoch = identityEpochRef.current;
     (async () => {
       try {
         const session = await AuthService.refresh();
-        if (cancelled) return;
+        if (cancelled || identityEpochRef.current !== epoch) return;
         if (session.identity.kind === "authenticated") {
           setUser(session.identity.user);
           setStatus("authenticated");
@@ -36,23 +54,14 @@ export function CurrentUserProvider({ children, initialDisplayName = "You" }: { 
       } catch {
         setAccessToken(null);
       }
-      if (cancelled) return;
-      try {
-        const bootstrap = await AuthService.bootstrapGuest(readStoredDisplayName() ?? initialDisplayName);
-        if (cancelled) return;
-        setGuestId(bootstrap.identity.guest.id);
-        setGuestDisplayName(bootstrap.identity.guest.displayName);
-        setStatus("guest");
-      } catch {
-        if (cancelled) return;
-        setStatus("guest");
-      }
+      if (cancelled || identityEpochRef.current !== epoch) return;
+      await bootstrapAsGuest(epoch);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [initialDisplayName]);
+  }, [initialDisplayName, bootstrapAsGuest]);
 
   const clearAuthError = useCallback(() => setAuthError(null), []);
 
@@ -148,20 +157,26 @@ export function CurrentUserProvider({ children, initialDisplayName = "You" }: { 
     [status, guestId],
   );
 
-  const completeOAuthLogin = useCallback(async (provider: "google" | "github", code: string, state: string) => {
-    setAuthError(null);
-    try {
-      const session = await AuthService.completeOAuthFlow(provider, code, state);
-      if (session.identity.kind === "authenticated") {
-        setUser(session.identity.user);
-        setGuestId(null);
-        setStatus("authenticated");
+  const completeOAuthLogin = useCallback(
+    async (provider: "google" | "github", code: string, state: string) => {
+      setAuthError(null);
+      identityEpochRef.current += 1;
+      const epoch = identityEpochRef.current;
+      try {
+        const session = await AuthService.completeOAuthFlow(provider, code, state);
+        if (session.identity.kind === "authenticated") {
+          setUser(session.identity.user);
+          setGuestId(null);
+          setStatus("authenticated");
+        }
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : `Unable to complete ${provider} sign-in.`);
+        await bootstrapAsGuest(epoch);
+        throw error;
       }
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : `Unable to complete ${provider} sign-in.`);
-      throw error;
-    }
-  }, []);
+    },
+    [bootstrapAsGuest],
+  );
 
   const updateAccountProfile = useCallback(
     async (patch: { displayName?: string; username?: string }) => {

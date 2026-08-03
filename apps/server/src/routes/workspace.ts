@@ -3,10 +3,12 @@ import type { TransferOwnershipRequest, UpdateMemberRoleRequest } from "@difflan
 import { resolveIdentity } from "../middleware/resolveIdentity.js";
 import { moderateRateLimit, relaxedRateLimit } from "../middleware/rateLimit.js";
 import { handleRouteError, requireIdentity } from "../middleware/routeHelpers.js";
+import type { WorkspaceLifecycleManager } from "../workspaces/WorkspaceLifecycleManager.js";
 import {
   createWorkspace,
   deleteWorkspace,
   getDashboard,
+  getSessionHistory,
   getWorkspaceByCode,
   isAssignableRole,
   isValidIdentityType,
@@ -18,11 +20,12 @@ import {
   updateMemberRole,
 } from "../workspaces/workspaceService.js";
 
-export const workspaceRouter = Router();
-
 const WORKSPACE_NAME_MAX_LENGTH = 100;
 const handleError = handleRouteError;
 const toIdentity = requireIdentity;
+
+export function createWorkspaceRouter(lifecycleManager: WorkspaceLifecycleManager): Router {
+  const router = Router();
 
 function requireValidCode(req: Request, res: Response): string | null {
   const code = req.params.code;
@@ -33,7 +36,7 @@ function requireValidCode(req: Request, res: Response): string | null {
   return code;
 }
 
-workspaceRouter.post("/api/workspaces", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
+router.post("/api/workspaces", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
   try {
     const { name } = req.body as { name?: string };
     if (name !== undefined && (typeof name !== "string" || name.length > WORKSPACE_NAME_MAX_LENGTH)) {
@@ -47,7 +50,7 @@ workspaceRouter.post("/api/workspaces", resolveIdentity, moderateRateLimit, asyn
   }
 });
 
-workspaceRouter.get("/api/workspaces/dashboard", resolveIdentity, relaxedRateLimit, async (req: Request, res: Response) => {
+router.get("/api/workspaces/dashboard", resolveIdentity, relaxedRateLimit, async (req: Request, res: Response) => {
   try {
     const dashboard = await getDashboard(toIdentity(req));
     res.json(dashboard);
@@ -56,7 +59,16 @@ workspaceRouter.get("/api/workspaces/dashboard", resolveIdentity, relaxedRateLim
   }
 });
 
-workspaceRouter.get("/api/workspaces/:code", resolveIdentity, relaxedRateLimit, async (req: Request, res: Response) => {
+router.get("/api/workspaces/sessions", resolveIdentity, relaxedRateLimit, async (req: Request, res: Response) => {
+  try {
+    const sessions = await getSessionHistory(toIdentity(req));
+    res.json({ sessions });
+  } catch (error) {
+    handleError(error, res);
+  }
+});
+
+router.get("/api/workspaces/:code", resolveIdentity, relaxedRateLimit, async (req: Request, res: Response) => {
   try {
     const code = requireValidCode(req, res);
     if (!code) return;
@@ -72,7 +84,7 @@ workspaceRouter.get("/api/workspaces/:code", resolveIdentity, relaxedRateLimit, 
   }
 });
 
-workspaceRouter.delete("/api/workspaces/:code", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
+router.delete("/api/workspaces/:code", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
   try {
     const code = requireValidCode(req, res);
     if (!code) return;
@@ -83,7 +95,7 @@ workspaceRouter.delete("/api/workspaces/:code", resolveIdentity, moderateRateLim
   }
 });
 
-workspaceRouter.patch("/api/workspaces/:code/pin", resolveIdentity, relaxedRateLimit, async (req: Request, res: Response) => {
+router.patch("/api/workspaces/:code/pin", resolveIdentity, relaxedRateLimit, async (req: Request, res: Response) => {
   try {
     const code = requireValidCode(req, res);
     if (!code) return;
@@ -95,7 +107,7 @@ workspaceRouter.patch("/api/workspaces/:code/pin", resolveIdentity, relaxedRateL
   }
 });
 
-workspaceRouter.patch("/api/workspaces/:code/archive", resolveIdentity, relaxedRateLimit, async (req: Request, res: Response) => {
+router.patch("/api/workspaces/:code/archive", resolveIdentity, relaxedRateLimit, async (req: Request, res: Response) => {
   try {
     const code = requireValidCode(req, res);
     if (!code) return;
@@ -107,7 +119,7 @@ workspaceRouter.patch("/api/workspaces/:code/archive", resolveIdentity, relaxedR
   }
 });
 
-workspaceRouter.post("/api/workspaces/:code/transfer-ownership", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
+router.post("/api/workspaces/:code/transfer-ownership", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
   try {
     const code = requireValidCode(req, res);
     if (!code) return;
@@ -123,7 +135,7 @@ workspaceRouter.post("/api/workspaces/:code/transfer-ownership", resolveIdentity
   }
 });
 
-workspaceRouter.patch("/api/workspaces/:code/members/role", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
+router.patch("/api/workspaces/:code/members/role", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
   try {
     const code = requireValidCode(req, res);
     if (!code) return;
@@ -139,9 +151,13 @@ workspaceRouter.patch("/api/workspaces/:code/members/role", resolveIdentity, mod
       res.status(400).json({ code: "unknown_error", message: "A valid target member and role are required." });
       return;
     }
-    await updateMemberRole(toIdentity(req), code, { type: targetIdentityType, id: targetIdentityId }, role);
+    const result = await updateMemberRole(toIdentity(req), code, { type: targetIdentityType, id: targetIdentityId }, role);
+    lifecycleManager.notifyRoleChanged(result.workspaceId, result.targetUserId, result.targetIdentityType, role);
     res.status(204).send();
   } catch (error) {
     handleError(error, res);
   }
 });
+
+  return router;
+}

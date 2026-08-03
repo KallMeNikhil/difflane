@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Icon } from "../common";
 import { useRepository, IMPORT_PROGRESS_STEPS, type ImportSourceTab, type ImportSuccessSummary } from "../../hooks/useRepository";
 import { useRoom } from "../../hooks/useRoom";
+import { useModalDialog } from "../../hooks/useModalDialog";
 
 interface ImportProjectModalProps {
   onClose: () => void;
@@ -41,16 +42,7 @@ export function ImportProjectModal({ onClose, onOpenWorkspace }: ImportProjectMo
 
   const folderInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose);
 
   async function handleChooseLocalFolder() {
     const outcome = await startLocalFolderImport();
@@ -95,7 +87,14 @@ export function ImportProjectModal({ onClose, onOpenWorkspace }: ImportProjectMo
           event.target.value = "";
         }}
       />
-      <div className={`bg-[#111318] border border-[#2A3140] rounded-xl w-full ${cardWidthClass} overflow-hidden flex flex-col max-h-[90vh]`}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Import Project"
+        tabIndex={-1}
+        className={`bg-[#111318] border border-[#2A3140] rounded-xl w-full ${cardWidthClass} overflow-hidden flex flex-col max-h-[90vh] outline-none`}
+      >
         {step === "source" && (
           <SourceSelectionView
             sourceTab={sourceTab}

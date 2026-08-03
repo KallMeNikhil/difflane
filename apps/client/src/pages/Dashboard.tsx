@@ -13,7 +13,7 @@ import { WorkspaceImportModal } from "../components/persistence";
 import { ROUTES, buildWorkspacePath } from "../constants/routes";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useWorkspaceDashboard } from "../hooks/useWorkspaceDashboard";
-import { deleteWorkspaceRecord, setWorkspacePinned } from "../services/AuthService";
+import { deleteWorkspaceRecord, setWorkspaceArchived, setWorkspacePinned } from "../services/AuthService";
 import { formatRelativeTimeLabel } from "../services/SessionHistoryService";
 import { readLastActiveWorkspaceCode, readRecoveryMarker, type RecoveryMarker } from "../lib/persistence/recoveryCache";
 import type { WorkspaceOwnershipSummary } from "@difflane/shared-types";
@@ -34,6 +34,11 @@ export default function Dashboard() {
 
   async function handleTogglePin(workspaceCode: string, pinned: boolean) {
     await setWorkspacePinned(workspaceCode, pinned, isAuthenticated ? null : guestId);
+    await refresh();
+  }
+
+  async function handleToggleArchive(workspaceCode: string, archived: boolean) {
+    await setWorkspaceArchived(workspaceCode, archived, isAuthenticated ? null : guestId);
     await refresh();
   }
 
@@ -111,6 +116,7 @@ export default function Dashboard() {
             isLoading={isLoading}
             onSelectWorkspace={(code) => navigate(buildWorkspacePath(code))}
             onTogglePin={handleTogglePin}
+            onToggleArchive={handleToggleArchive}
             onDeleteWorkspace={handleDeleteWorkspace}
           />
           <RecentRoomsTable

@@ -19,6 +19,7 @@ export interface WorkspaceOwnershipCardProps {
   isLoading: boolean;
   onSelectWorkspace: (workspaceCode: string) => void;
   onTogglePin: (workspaceCode: string, pinned: boolean) => void;
+  onToggleArchive: (workspaceCode: string, archived: boolean) => void;
   onDeleteWorkspace: (workspaceCode: string, workspaceName: string) => void;
 }
 
@@ -30,6 +31,7 @@ export function WorkspaceOwnershipCard({
   isLoading,
   onSelectWorkspace,
   onTogglePin,
+  onToggleArchive,
   onDeleteWorkspace,
 }: WorkspaceOwnershipCardProps) {
   const [tab, setTab] = useState<OwnershipTab>("created");
@@ -88,6 +90,16 @@ export function WorkspaceOwnershipCard({
               >
                 <Icon name="push_pin" size={18} filled={workspace.pinned} />
               </button>
+              {workspace.isOwner && (
+                <button
+                  type="button"
+                  aria-label={workspace.archived ? "Unarchive workspace" : "Archive workspace"}
+                  onClick={() => onToggleArchive(workspace.workspaceCode, !workspace.archived)}
+                  className="text-on-surface-variant hover:text-primary transition-colors"
+                >
+                  <Icon name={workspace.archived ? "unarchive" : "archive"} size={18} />
+                </button>
+              )}
               {workspace.isOwner && (
                 <button
                   type="button"

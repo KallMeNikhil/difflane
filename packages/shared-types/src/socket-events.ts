@@ -1,4 +1,4 @@
-import type { RoomParticipant, RoomSnapshot } from "./room.js";
+import type { MemberRole, RoomParticipant, RoomSnapshot } from "./room.js";
 
 export const SOCKET_EVENTS = {
   ROOM_JOIN: "room:join",
@@ -7,6 +7,7 @@ export const SOCKET_EVENTS = {
   ROOM_ERROR: "room:error",
   ROOM_PARTICIPANT_JOINED: "room:participant-joined",
   ROOM_PARTICIPANT_LEFT: "room:participant-left",
+  ROOM_ROLE_CHANGED: "room:role-changed",
   DOC_UPDATE: "doc:update",
   AWARENESS_UPDATE: "awareness:update",
   WORKSPACE_PERSISTED: "workspace:persisted",
@@ -33,6 +34,7 @@ export interface RoomJoinedPayload {
 
 export interface RoomJoinErrorPayload {
   error: string;
+  code?: "expired_token";
 }
 
 export interface RoomParticipantJoinedPayload {
@@ -41,6 +43,12 @@ export interface RoomParticipantJoinedPayload {
 
 export interface RoomParticipantLeftPayload {
   connectionId: string;
+}
+
+export interface RoomRoleChangedPayload {
+  roomId: string;
+  connectionId: string;
+  role: MemberRole;
 }
 
 export interface RoomErrorPayload {

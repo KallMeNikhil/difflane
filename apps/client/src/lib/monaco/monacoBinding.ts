@@ -21,6 +21,14 @@ function getOrCreateStyleElement(): HTMLStyleElement {
   return style;
 }
 
+function escapeCssString(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, " ");
+}
+
+function sanitizeCssColor(value: string): string {
+  return /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : "#8d90a0";
+}
+
 function renderAwarenessStyles(awareness: Awareness, localClientId: number): void {
   const style = getOrCreateStyleElement();
   const rules: string[] = [];
@@ -29,8 +37,8 @@ function renderAwarenessStyles(awareness: Awareness, localClientId: number): voi
       return;
     }
     const awarenessState = state as Partial<AwarenessState>;
-    const color = awarenessState.color ?? "#8d90a0";
-    const name = awarenessState.displayName ?? "Guest";
+    const color = sanitizeCssColor(awarenessState.color ?? "#8d90a0");
+    const name = escapeCssString(awarenessState.displayName ?? "Guest");
     rules.push(`.yRemoteSelection-${clientId} { background-color: ${color}33; }`);
     rules.push(
       `.yRemoteSelectionHead-${clientId} { position: relative; border-left: 2px solid ${color}; }`,

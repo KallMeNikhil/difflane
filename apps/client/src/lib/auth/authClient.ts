@@ -5,10 +5,11 @@ import type {
   GuestBootstrapResponse,
   UpdateMemberRoleRequest,
   TransferOwnershipRequest,
+  SessionHistoryResponse,
   WorkspaceDashboardResponse,
 } from "@difflane/shared-types";
 import { resolveServerUrl } from "../socket/socketClient";
-import { getAccessToken } from "./tokenStore";
+import { getAccessToken, setAccessToken } from "./tokenStore";
 
 export class AuthRequestError extends Error {
   readonly code: AuthErrorPayload["code"];
@@ -21,7 +22,18 @@ export class AuthRequestError extends Error {
 
 const REQUEST_TIMEOUT_MS = 15000;
 
-async function requestJson<T>(path: string, init?: RequestInit, withAuth = true): Promise<T> {
+let inFlightRefresh: Promise<AuthSessionResponse> | null = null;
+
+function refreshAccessTokenOnce(): Promise<AuthSessionResponse> {
+  if (!inFlightRefresh) {
+    inFlightRefresh = requestJson<AuthSessionResponse>("/api/auth/refresh", { method: "POST" }, false).finally(() => {
+      inFlightRefresh = null;
+    });
+  }
+  return inFlightRefresh;
+}
+
+async function requestJson<T>(path: string, init?: RequestInit, withAuth = true, allowRefreshRetry = true): Promise<T> {
   const baseUrl = resolveServerUrl() ?? "";
   const accessToken = withAuth ? getAccessToken() : null;
   const controller = new AbortController();
@@ -53,7 +65,17 @@ async function requestJson<T>(path: string, init?: RequestInit, withAuth = true)
 
   const body = await response.json().catch(() => ({ code: "unknown_error", message: "Unexpected server response." }));
   if (!response.ok) {
-    throw new AuthRequestError(body?.code ?? "unknown_error", body?.message ?? "Something went wrong. Please try again.");
+    const code = body?.code ?? "unknown_error";
+    if (withAuth && allowRefreshRetry && accessToken && code === "expired_token") {
+      try {
+        const session = await refreshAccessTokenOnce();
+        setAccessToken(session.accessToken);
+      } catch {
+        throw new AuthRequestError(code, body?.message ?? "Something went wrong. Please try again.");
+      }
+      return requestJson<T>(path, init, withAuth, false);
+    }
+    throw new AuthRequestError(code, body?.message ?? "Something went wrong. Please try again.");
   }
   return body as T;
 }
@@ -143,6 +165,10 @@ export function createWorkspaceRecord(name: string, guestId: string | null): Pro
 
 export function fetchWorkspaceDashboard(guestId: string | null): Promise<WorkspaceDashboardResponse> {
   return requestJson<WorkspaceDashboardResponse>("/api/workspaces/dashboard", { headers: guestHeaders(guestId) });
+}
+
+export function fetchSessionHistory(guestId: string | null): Promise<SessionHistoryResponse> {
+  return requestJson<SessionHistoryResponse>("/api/workspaces/sessions", { headers: guestHeaders(guestId) });
 }
 
 export function deleteWorkspaceRecord(code: string, guestId: string | null): Promise<void> {

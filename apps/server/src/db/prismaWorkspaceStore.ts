@@ -1,8 +1,36 @@
+import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prismaClient.js";
-import type { SnapshotTrigger, WorkspaceSnapshotRecord, WorkspaceStateRecord } from "./models.js";
-import type { CreateSnapshotInput, SaveStateInput, WorkspaceStore } from "./WorkspaceStore.js";
+import type {
+  SessionHistoryRecord,
+  SessionParticipantEntry,
+  SessionTimelineEntry,
+  SnapshotTrigger,
+  WorkspaceSnapshotRecord,
+  WorkspaceStateRecord,
+} from "./models.js";
+import type { CreateSnapshotInput, SaveStateInput, SessionTimelineEventInput, StartOrTouchSessionInput, WorkspaceStore } from "./WorkspaceStore.js";
+
+type PrismaSessionStatus = "ACTIVE" | "COMPLETED";
 
 type PrismaSnapshotTrigger = "MANUAL" | "BEFORE_IMPORT" | "BEFORE_RESTORE" | "BEFORE_DESTRUCTIVE";
+
+/**
+ * SessionParticipantEntry/SessionTimelineEntry (packages/shared-types via
+ * db/models.ts) are plain, JSON-safe data: every field is a string. Prisma's
+ * `Json` write type, Prisma.InputJsonValue, is structurally an index-signature
+ * type (`{ [Key in string]?: InputJsonValue | null }`), and TypeScript does
+ * not consider a closed interface assignable to an index-signature type even
+ * when every property matches — it requires an explicit index signature on
+ * the source. This is a TypeScript structural-typing gap, not a real
+ * JSON-incompatibility (there are no Dates, Maps, Sets, undefined, class
+ * instances, bigints, or symbols in these types). The cast below is the
+ * single, justified serialization boundary for that gap; it must not be
+ * duplicated elsewhere.
+ */
+function toInputJson<T>(value: T): Prisma.InputJsonValue {
+  return value as unknown as Prisma.InputJsonValue;
+}
 
 function toAppTrigger(trigger: PrismaSnapshotTrigger): SnapshotTrigger {
   return trigger.toLowerCase() as SnapshotTrigger;
@@ -51,6 +79,43 @@ function toSnapshotRecord(snapshot: {
     createdByUserId: snapshot.createdByUserId,
     createdByGuestId: snapshot.createdByGuestId,
     createdAt: snapshot.createdAt,
+  };
+}
+
+function toSessionHistoryRecord(record: {
+  id: string;
+  workspaceId: string;
+  roomCode: string;
+  status: PrismaSessionStatus;
+  fileCount: number;
+  folderCount: number;
+  participants: unknown;
+  timeline: unknown;
+  startedAt: Date;
+  endedAt: Date | null;
+  lastActivityAt: Date;
+}): SessionHistoryRecord {
+  return {
+    id: record.id,
+    workspaceId: record.workspaceId,
+    roomCode: record.roomCode,
+    status: record.status === "ACTIVE" ? "active" : "completed",
+    fileCount: record.fileCount,
+    folderCount: record.folderCount,
+    participants: (record.participants as SessionParticipantEntry[] | null) ?? [],
+    timeline: (record.timeline as SessionTimelineEntry[] | null) ?? [],
+    startedAt: record.startedAt,
+    endedAt: record.endedAt,
+    lastActivityAt: record.lastActivityAt,
+  };
+}
+
+function toTimelineEntry(event: SessionTimelineEventInput): SessionTimelineEntry {
+  return {
+    id: randomUUID(),
+    actorName: event.actorName,
+    description: event.description,
+    occurredAt: event.occurredAt.toISOString(),
   };
 }
 
@@ -116,6 +181,87 @@ export function createPrismaWorkspaceStore(): WorkspaceStore {
 
     async deleteSnapshot(workspaceId: string, snapshotId: string) {
       await prisma.workspaceSnapshot.deleteMany({ where: { id: snapshotId, workspaceId } });
+    },
+
+    async startOrTouchSession(input: StartOrTouchSessionInput) {
+      const existing = await prisma.sessionHistoryRecord.findFirst({
+        where: { workspaceId: input.workspaceId, roomCode: input.roomCode, status: "ACTIVE" },
+        orderBy: { startedAt: "desc" },
+      });
+
+      const eventEntry = toTimelineEntry(input.event);
+
+      if (!existing) {
+        const created = await prisma.sessionHistoryRecord.create({
+          data: {
+            workspaceId: input.workspaceId,
+            roomCode: input.roomCode,
+            fileCount: input.fileCount,
+            folderCount: input.folderCount,
+            participants: toInputJson([input.participant]),
+            timeline: toInputJson([eventEntry]),
+          },
+        });
+        return toSessionHistoryRecord(created);
+      }
+
+      const existingParticipants = (existing.participants as SessionParticipantEntry[] | null) ?? [];
+      const alreadyPresent = existingParticipants.some((participant) => participant.userId === input.participant.userId);
+      const participants = alreadyPresent ? existingParticipants : [...existingParticipants, input.participant];
+      const timeline = [...((existing.timeline as SessionTimelineEntry[] | null) ?? []), eventEntry];
+
+      const updated = await prisma.sessionHistoryRecord.update({
+        where: { id: existing.id },
+        data: {
+          fileCount: input.fileCount,
+          folderCount: input.folderCount,
+          participants: toInputJson(participants),
+          timeline: toInputJson(timeline),
+          lastActivityAt: new Date(),
+        },
+      });
+      return toSessionHistoryRecord(updated);
+    },
+
+    async recordSessionEvent(workspaceId: string, roomCode: string, event: SessionTimelineEventInput) {
+      const existing = await prisma.sessionHistoryRecord.findFirst({
+        where: { workspaceId, roomCode, status: "ACTIVE" },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!existing) {
+        return;
+      }
+      const timeline = [...((existing.timeline as SessionTimelineEntry[] | null) ?? []), toTimelineEntry(event)];
+      await prisma.sessionHistoryRecord.update({
+        where: { id: existing.id },
+        data: { timeline: toInputJson(timeline), lastActivityAt: new Date() },
+      });
+    },
+
+    async completeSession(workspaceId: string, roomCode: string, event: SessionTimelineEventInput) {
+      const existing = await prisma.sessionHistoryRecord.findFirst({
+        where: { workspaceId, roomCode, status: "ACTIVE" },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!existing) {
+        return;
+      }
+      const timeline = [...((existing.timeline as SessionTimelineEntry[] | null) ?? []), toTimelineEntry(event)];
+      await prisma.sessionHistoryRecord.update({
+        where: { id: existing.id },
+        data: { status: "COMPLETED", endedAt: new Date(), timeline: toInputJson(timeline), lastActivityAt: new Date() },
+      });
+    },
+
+    async listSessionsForWorkspaceIds(workspaceIds: string[]) {
+      if (workspaceIds.length === 0) {
+        return [];
+      }
+      const records = await prisma.sessionHistoryRecord.findMany({
+        where: { workspaceId: { in: workspaceIds } },
+        orderBy: { startedAt: "desc" },
+      });
+      return records.map(toSessionHistoryRecord);
     },
   };
 }

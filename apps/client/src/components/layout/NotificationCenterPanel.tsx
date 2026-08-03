@@ -1,9 +1,9 @@
-import { useEffect } from "react";
 import { m } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Avatar, Button, Icon, IconButton, PlaceholderNotice } from "../common";
 import { MODAL_IN } from "../../constants/motion";
 import { buildWorkspacePath } from "../../constants/routes";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { formatNotificationTimeLabel } from "../../services/NotificationService";
 import { NOTIFICATION_FILTERS } from "../../types/notifications";
 import type { NotificationAction, NotificationFilter, NotificationGroup, NotificationRecord } from "../../types/notifications";
@@ -33,16 +33,7 @@ export function NotificationCenterPanel({
   onClose,
 }: NotificationCenterPanelProps) {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose);
 
   function handleAction(record: NotificationRecord, action: NotificationAction) {
     onMarkAsRead(record.id);
@@ -57,10 +48,12 @@ export function NotificationCenterPanel({
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-md bg-black/45 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Notifications">
       <m.div
+        ref={dialogRef}
+        tabIndex={-1}
         initial="hidden"
         animate="visible"
         variants={MODAL_IN}
-        className="relative w-full max-w-2xl bg-surface border border-outline rounded-xl flex flex-col max-h-[85vh] overflow-hidden shadow-2xl shadow-black/60"
+        className="relative w-full max-w-2xl bg-surface border border-outline rounded-xl flex flex-col max-h-[85vh] overflow-hidden shadow-2xl shadow-black/60 outline-none"
       >
         <div className="flex items-center justify-between px-lg py-md border-b border-outline shrink-0">
           <div className="flex items-center gap-sm">

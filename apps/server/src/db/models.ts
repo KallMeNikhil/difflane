@@ -98,3 +98,34 @@ export interface WorkspaceSnapshotRecord {
   createdByGuestId: string | null;
   createdAt: Date;
 }
+
+export type SessionRecordStatus = "active" | "completed";
+
+export interface SessionParticipantEntry {
+  userId: string;
+  identityType: "user" | "guest";
+  displayName: string;
+  initials: string;
+  role: string;
+}
+
+export interface SessionTimelineEntry {
+  id: string;
+  actorName: string;
+  description: string;
+  occurredAt: string;
+}
+
+export interface SessionHistoryRecord {
+  id: string;
+  workspaceId: string;
+  roomCode: string;
+  status: SessionRecordStatus;
+  fileCount: number;
+  folderCount: number;
+  participants: SessionParticipantEntry[];
+  timeline: SessionTimelineEntry[];
+  startedAt: Date;
+  endedAt: Date | null;
+  lastActivityAt: Date;
+}

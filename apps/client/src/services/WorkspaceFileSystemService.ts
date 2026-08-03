@@ -1,9 +1,10 @@
 import * as Y from "yjs";
-import type {
-  WorkspaceCollaborationPreferences,
-  WorkspaceFileSystemEntry,
-  WorkspaceMetadata,
-  WorkspaceRepositoryInfo,
+import {
+  detectLanguageForPath,
+  type WorkspaceCollaborationPreferences,
+  type WorkspaceFileSystemEntry,
+  type WorkspaceMetadata,
+  type WorkspaceRepositoryInfo,
 } from "@difflane/shared-types";
 import type { DeletedFileRecord, EditorLanguage, FileNode } from "../types/workspace";
 import {
@@ -93,7 +94,9 @@ export function initializeFileSystemIfEmpty(doc: Y.Doc, seedEntries: WorkspaceFi
 
 function nextOrder(doc: Y.Doc, parentId: string | null): number {
   const siblings = readFileSystemEntries(doc).filter((entry) => entry.parentId === parentId);
-  return siblings.length;
+  const maxOrder = siblings.reduce((max, entry) => Math.max(max, Math.trunc(entry.order)), -1);
+  const replicaOffset = (doc.clientID % 1_000_000) / 1_000_000;
+  return maxOrder + 1 + replicaOffset;
 }
 
 export function createFile(doc: Y.Doc, parentId: string | null, name: string): WorkspaceFileSystemEntry {
@@ -103,6 +106,7 @@ export function createFile(doc: Y.Doc, parentId: string | null, name: string): W
     name,
     type: "file",
     order: nextOrder(doc, parentId),
+    language: detectLanguageForPath(name),
   };
   getFileSystemMap(doc).set(entry.id, entry);
   seedFileTextIfEmpty(doc, entry.id, "");
@@ -124,10 +128,12 @@ export function createFolder(doc: Y.Doc, parentId: string | null, name: string):
 export function renameEntry(doc: Y.Doc, id: string, name: string): void {
   const map = getFileSystemMap(doc);
   const existing = map.get(id);
-  if (!existing || !name.trim()) {
+  const trimmed = name.trim();
+  if (!existing || !trimmed) {
     return;
   }
-  map.set(id, { ...existing, name: name.trim() });
+  const language = existing.type === "file" ? detectLanguageForPath(trimmed) : existing.language;
+  map.set(id, { ...existing, name: trimmed, language });
 }
 
 export function collectDescendantIds(entries: WorkspaceFileSystemEntry[], rootId: string): string[] {

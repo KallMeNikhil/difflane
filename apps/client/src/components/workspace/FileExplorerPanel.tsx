@@ -11,26 +11,10 @@ export type { PendingCreate };
 const TOOLBAR_BUTTON_CLASS =
   "w-7 h-7 flex items-center justify-center rounded text-[#A7AFBF] hover:bg-[#202632] hover:text-[#F3F4F6] transition-colors disabled:opacity-40 disabled:pointer-events-none";
 
-function findNodeInTree(nodes: FileNode[], id: string): FileNode | undefined {
-  for (const node of nodes) {
-    if (node.id === id) {
-      return node;
-    }
-    if (node.children) {
-      const found = findNodeInTree(node.children, id);
-      if (found) {
-        return found;
-      }
-    }
-  }
-  return undefined;
-}
-
 interface FileExplorerPanelProps {
   tree: FileNode[];
   activeFileId: string;
   selectedId: string | null;
-  resolveCreateParentId: () => string | null;
   repositoryInfo: WorkspaceRepositoryInfo | null;
   notice: { message: string; tone: "success" | "error" } | null;
   onDismissNotice: () => void;
@@ -52,7 +36,6 @@ export function FileExplorerPanel({
   tree,
   activeFileId,
   selectedId,
-  resolveCreateParentId,
   repositoryInfo,
   notice,
   onDismissNotice,
@@ -84,15 +67,8 @@ export function FileExplorerPanel({
     setPendingCreate(null);
   }
 
-  function requestCreateAtSelection(type: "file" | "folder") {
-    const parentId = resolveCreateParentId();
-    if (parentId) {
-      const target = findNodeInTree(tree, parentId);
-      if (target && !target.isExpanded) {
-        onToggleFolder(parentId);
-      }
-    }
-    setPendingCreate({ parentId, type });
+  function requestCreateAtRoot(type: "file" | "folder") {
+    setPendingCreate({ parentId: null, type });
   }
 
   return (
@@ -107,7 +83,7 @@ export function FileExplorerPanel({
             title="New File"
             aria-label="New File"
             className={TOOLBAR_BUTTON_CLASS}
-            onClick={() => requestCreateAtSelection("file")}
+            onClick={() => requestCreateAtRoot("file")}
           >
             <Icon name="note_add" size={16} />
           </button>
@@ -116,7 +92,7 @@ export function FileExplorerPanel({
             title="New Folder"
             aria-label="New Folder"
             className={TOOLBAR_BUTTON_CLASS}
-            onClick={() => requestCreateAtSelection("folder")}
+            onClick={() => requestCreateAtRoot("folder")}
           >
             <Icon name="create_new_folder" size={16} />
           </button>

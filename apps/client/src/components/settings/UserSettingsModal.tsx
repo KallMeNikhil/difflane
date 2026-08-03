@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Avatar, Icon, IconButton, Button } from "../common";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { useEditorPreferences } from "../../hooks/useEditorPreferences";
 import { useAuthModal } from "../../hooks/useAuthModal";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { changePassword, deleteAccount, validatePassword } from "../../services/AuthService";
 import type { EditorFontSize, EditorTabSize } from "../../types/settings";
 
@@ -101,24 +102,23 @@ export function UserSettingsModal({ onClose }: UserSettingsModalProps) {
     onClose();
   }
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-md bg-black/40 backdrop-blur-sm">
-      <div className="relative w-full max-w-[800px] bg-surface rounded-xl border border-outline-variant shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-settings-title"
+        tabIndex={-1}
+        className="relative w-full max-w-[800px] bg-surface rounded-xl border border-outline-variant shadow-2xl flex flex-col max-h-[90vh] overflow-hidden outline-none"
+      >
         <div className="flex items-center justify-between px-lg py-md border-b border-outline-variant bg-surface-container-low shrink-0">
           <div className="flex items-center gap-sm">
             <Icon name="settings" />
             <div>
-              <h2 className="font-headline-md text-headline-md text-on-surface leading-tight">Settings</h2>
+              <h2 id="user-settings-title" className="font-headline-md text-headline-md text-on-surface leading-tight">Settings</h2>
               <p className="font-body-sm text-body-sm text-on-surface-variant">Manage your account and preferences</p>
             </div>
           </div>

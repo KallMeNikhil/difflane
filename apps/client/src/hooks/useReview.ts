@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import type * as Y from "yjs";
 import {
+  appendReviewReply,
+  createReviewThread as createReviewThreadDoc,
+  deleteReviewComment,
+  deleteReviewThread,
+  editReviewComment,
   readFileReviewStatusRecords,
-  readReviewNavigation,
   readReviewThreads,
+  reopenReviewThread,
+  resolveReviewThread,
   subscribeFileReviewStatusRecords,
-  subscribeReviewNavigation,
   subscribeReviewThreads,
-  writeFileReviewStatusRecords,
-  writeReviewNavigation,
-  writeReviewThreads,
+  writeFileReviewStatusRecord,
 } from "../services/CollaborationService";
 import {
   appendReply,
@@ -56,49 +59,26 @@ export function useReview(
     }
     setThreads(readReviewThreads(doc));
     setFileStatusRecords(readFileReviewStatusRecords(doc));
-    setNavigation(readReviewNavigation(doc));
     const unsubscribeThreads = subscribeReviewThreads(doc, setThreads);
     const unsubscribeFileStatus = subscribeFileReviewStatusRecords(doc, setFileStatusRecords);
-    const unsubscribeNavigation = subscribeReviewNavigation(doc, setNavigation);
     return () => {
       unsubscribeThreads();
       unsubscribeFileStatus();
-      unsubscribeNavigation();
     };
   }, [doc]);
 
-  const commitThreads = useCallback(
-    (next: ReviewThread[]) => {
-      if (doc) {
-        writeReviewThreads(doc, next);
-      } else {
-        setThreads(next);
-      }
-    },
-    [doc],
-  );
-
   const commitFileStatus = useCallback(
-    (next: FileReviewStatusRecord[]) => {
+    (next: FileReviewStatusRecord) => {
       if (doc) {
-        writeFileReviewStatusRecords(doc, next);
+        writeFileReviewStatusRecord(doc, next);
       } else {
-        setFileStatusRecords(next);
+        setFileStatusRecords((prev) => setFileReviewStatus(prev, next.fileId, next.status, next.updatedBy ?? "system", next.updatedAt));
       }
     },
     [doc],
   );
 
-  const commitNavigation = useCallback(
-    (next: ReviewNavigationState) => {
-      if (doc) {
-        writeReviewNavigation(doc, next);
-      } else {
-        setNavigation(next);
-      }
-    },
-    [doc],
-  );
+  const commitNavigation = useCallback((next: ReviewNavigationState) => setNavigation(next), []);
 
   const createThread = useCallback(
     (params: {
@@ -138,42 +118,55 @@ export function useReview(
         resolvedAt: null,
         resolvedBy: null,
       };
-      commitThreads(createReviewThreadEntry(threads, thread));
+      if (doc) {
+        createReviewThreadDoc(doc, thread);
+      } else {
+        setThreads((prev) => createReviewThreadEntry(prev, thread));
+      }
       commitNavigation({ ...navigation, selectedThreadId: thread.id });
     },
-    [permissions.canCreate, identity, threads, commitThreads, navigation, commitNavigation],
+    [permissions.canCreate, identity, doc, navigation, commitNavigation],
   );
 
   const reply = useCallback(
     (threadId: string, body: string) => {
-      if (!permissions.canReply || !body.trim()) {
+      const trimmed = body.trim();
+      if (!permissions.canReply || !trimmed) {
         return;
       }
-      commitThreads(
-        appendReply(threads, threadId, {
-          id: `review-comment-${Date.now()}`,
-          authorId: identity.id,
-          authorIdentityType: identity.identityType,
-          authorInitials: identity.initials,
-          authorName: identity.name,
-          body: body.trim(),
-          tone: "default",
-          createdAt: new Date().toISOString(),
-          editedAt: null,
-        }),
-      );
+      const comment = {
+        id: `review-comment-${Date.now()}`,
+        authorId: identity.id,
+        authorIdentityType: identity.identityType,
+        authorInitials: identity.initials,
+        authorName: identity.name,
+        body: trimmed,
+        tone: "default" as const,
+        createdAt: new Date().toISOString(),
+        editedAt: null,
+      };
+      if (doc) {
+        appendReviewReply(doc, threadId, comment);
+      } else {
+        setThreads((prev) => appendReply(prev, threadId, comment));
+      }
     },
-    [permissions.canReply, threads, commitThreads, identity],
+    [permissions.canReply, doc, identity],
   );
 
   const edit = useCallback(
     (threadId: string, commentId: string, body: string) => {
-      if (!permissions.canEditOwn || !body.trim()) {
+      const trimmed = body.trim();
+      if (!permissions.canEditOwn || !trimmed) {
         return;
       }
-      commitThreads(editComment(threads, threadId, commentId, body.trim(), new Date().toISOString()));
+      if (doc) {
+        editReviewComment(doc, threadId, commentId, trimmed, new Date().toISOString());
+      } else {
+        setThreads((prev) => editComment(prev, threadId, commentId, trimmed, new Date().toISOString()));
+      }
     },
-    [permissions.canEditOwn, threads, commitThreads],
+    [permissions.canEditOwn, doc],
   );
 
   const remove = useCallback(
@@ -181,9 +174,13 @@ export function useReview(
       if (!permissions.canDeleteOwn && !permissions.canDeleteAny) {
         return;
       }
-      commitThreads(deleteComment(threads, threadId, commentId));
+      if (doc) {
+        deleteReviewComment(doc, threadId, commentId);
+      } else {
+        setThreads((prev) => deleteComment(prev, threadId, commentId));
+      }
     },
-    [permissions.canDeleteOwn, permissions.canDeleteAny, threads, commitThreads],
+    [permissions.canDeleteOwn, permissions.canDeleteAny, doc],
   );
 
   const removeThread = useCallback(
@@ -191,9 +188,13 @@ export function useReview(
       if (!permissions.canDeleteOwn && !permissions.canDeleteAny) {
         return;
       }
-      commitThreads(deleteThread(threads, threadId));
+      if (doc) {
+        deleteReviewThread(doc, threadId);
+      } else {
+        setThreads((prev) => deleteThread(prev, threadId));
+      }
     },
-    [permissions.canDeleteOwn, permissions.canDeleteAny, threads, commitThreads],
+    [permissions.canDeleteOwn, permissions.canDeleteAny, doc],
   );
 
   const resolve = useCallback(
@@ -201,9 +202,13 @@ export function useReview(
       if (!permissions.canResolve) {
         return;
       }
-      commitThreads(resolveThread(threads, threadId, identity.id, new Date().toISOString()));
+      if (doc) {
+        resolveReviewThread(doc, threadId, identity.id, new Date().toISOString());
+      } else {
+        setThreads((prev) => resolveThread(prev, threadId, identity.id, new Date().toISOString()));
+      }
     },
-    [permissions.canResolve, threads, commitThreads, identity],
+    [permissions.canResolve, doc, identity],
   );
 
   const reopen = useCallback(
@@ -211,9 +216,13 @@ export function useReview(
       if (!permissions.canReopen) {
         return;
       }
-      commitThreads(reopenThread(threads, threadId));
+      if (doc) {
+        reopenReviewThread(doc, threadId);
+      } else {
+        setThreads((prev) => reopenThread(prev, threadId));
+      }
     },
-    [permissions.canReopen, threads, commitThreads],
+    [permissions.canReopen, doc],
   );
 
   const setFileStatus = useCallback(
@@ -221,9 +230,9 @@ export function useReview(
       if (!permissions.canSetFileStatus) {
         return;
       }
-      commitFileStatus(setFileReviewStatus(fileStatusRecords, fileId, status, identity.id, new Date().toISOString()));
+      commitFileStatus({ fileId, status, updatedAt: new Date().toISOString(), updatedBy: identity.id });
     },
-    [permissions.canSetFileStatus, fileStatusRecords, commitFileStatus, identity],
+    [permissions.canSetFileStatus, commitFileStatus, identity],
   );
 
   const getFileStatusFor = useCallback((fileId: string) => getFileReviewStatus(fileStatusRecords, fileId), [fileStatusRecords]);

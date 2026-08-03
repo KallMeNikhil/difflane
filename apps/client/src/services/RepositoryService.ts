@@ -10,7 +10,6 @@ import * as githubClient from "../lib/github/githubClient";
 import { isFileSystemAccessSupported, pickLocalFolder, processFileList, type RawImportedFile } from "../lib/filesystem/localFolderImport";
 import { parseZipArchive } from "../lib/zip/zipImport";
 import { findDefaultActiveFileId, seedFromImport, type WorkspaceImportSeed } from "./WorkspaceFileSystemService";
-import { writeActiveFileId } from "./CollaborationService";
 
 export interface WorkspaceImportPayload {
   provider: "github" | "local" | "zip";
@@ -171,11 +170,7 @@ function toWorkspaceImportSeed(payload: WorkspaceImportPayload): WorkspaceImport
 
 export function applyWorkspaceImport(doc: Y.Doc, payload: WorkspaceImportPayload): string | null {
   seedFromImport(doc, toWorkspaceImportSeed(payload));
-  const defaultActiveFileId = findDefaultActiveFileId(payload.entries);
-  if (defaultActiveFileId) {
-    writeActiveFileId(doc, defaultActiveFileId);
-  }
-  return defaultActiveFileId;
+  return findDefaultActiveFileId(payload.entries);
 }
 
 export function applyImportResult(doc: Y.Doc, importResult: RepositoryImportResult): string | null {

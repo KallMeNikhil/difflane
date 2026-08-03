@@ -9,7 +9,7 @@ import { healthRouter } from "./routes/health.js";
 import { repositoryRouter } from "./routes/repository.js";
 import { authRouter } from "./routes/auth.js";
 import { userRouter } from "./routes/user.js";
-import { workspaceRouter } from "./routes/workspace.js";
+import { createWorkspaceRouter } from "./routes/workspace.js";
 import { createPersistenceRouter } from "./routes/persistence.js";
 import type { WorkspaceLifecycleManager } from "./workspaces/WorkspaceLifecycleManager.js";
 
@@ -32,7 +32,7 @@ export function createApp(lifecycleManager: WorkspaceLifecycleManager): Express 
   app.use(repositoryRouter);
   app.use(authRouter);
   app.use(userRouter);
-  app.use(workspaceRouter);
+  app.use(createWorkspaceRouter(lifecycleManager));
   app.use(createPersistenceRouter(lifecycleManager));
   app.use(errorHandler);
   return app;

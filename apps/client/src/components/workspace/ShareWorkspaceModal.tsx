@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Avatar, Button, Icon, IconButton } from "../common";
 import { useRoom } from "../../hooks/useRoom";
 import { useRepositoryInfo } from "../../hooks/useRepositoryInfo";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
-import { transferWorkspaceOwnership } from "../../lib/auth/authClient";
+import { useModalDialog } from "../../hooks/useModalDialog";
+import { transferWorkspaceOwnership, updateWorkspaceMemberRole } from "../../lib/auth/authClient";
 import { getImportSourceLabel, getMemberRoleLabel } from "../../utils/workspaceDisplay";
 
 interface ShareWorkspaceModalProps {
@@ -16,20 +17,13 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
   const [copiedField, setCopiedField] = useState<"code" | null>(null);
   const [transferringId, setTransferringId] = useState<string | null>(null);
   const [transferNotice, setTransferNotice] = useState<string | null>(null);
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
+  const [roleNotice, setRoleNotice] = useState<string | null>(null);
   const repositoryInfo = useRepositoryInfo(doc);
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose);
 
   const selfParticipant = participants.find((participant) => participant.userId === userId);
   const isSelfOwner = selfParticipant?.role === "owner";
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
 
   async function handleCopy(field: "code", value: string) {
     try {
@@ -58,12 +52,35 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
     }
   }
 
+  async function handleRoleChange(targetUserId: string, targetIdentityType: "user" | "guest", role: "editor" | "viewer") {
+    setUpdatingRoleId(targetUserId);
+    setRoleNotice(null);
+    try {
+      await updateWorkspaceMemberRole(
+        roomCode,
+        { targetIdentityId: targetUserId, targetIdentityType, role },
+        isAuthenticated ? null : guestId,
+      );
+    } catch {
+      setRoleNotice("Unable to update this member's role right now.");
+    } finally {
+      setUpdatingRoleId(null);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-md bg-black/40 backdrop-blur-sm">
-      <div className="relative w-full max-w-[750px] bg-surface rounded-xl border border-outline-variant shadow-2xl flex flex-col max-h-[90vh]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-workspace-title"
+        tabIndex={-1}
+        className="relative w-full max-w-[750px] bg-surface rounded-xl border border-outline-variant shadow-2xl flex flex-col max-h-[90vh] outline-none"
+      >
         <div className="flex items-start justify-between px-lg pt-lg pb-md border-b border-outline-variant/50 shrink-0">
           <div>
-            <h2 className="font-headline-md text-headline-md text-on-surface mb-xs">Share Workspace</h2>
+            <h2 id="share-workspace-title" className="font-headline-md text-headline-md text-on-surface mb-xs">Share Workspace</h2>
             <p className="font-body-sm text-body-sm text-on-surface-variant">Invite collaborators to join this live workspace session.</p>
           </div>
           <IconButton icon="close" aria-label="Close" shape="square" onClick={onClose} />
@@ -129,6 +146,12 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
                 <p className="font-body-sm text-body-sm text-on-surface">{transferNotice}</p>
               </div>
             )}
+            {roleNotice && (
+              <div className="flex items-start gap-sm bg-error/10 border border-error/30 rounded-lg px-md py-sm">
+                <Icon name="info" size={16} className="text-error mt-[2px]" />
+                <p className="font-body-sm text-body-sm text-on-surface">{roleNotice}</p>
+              </div>
+            )}
             {participants.map((participant) => (
               <div key={participant.connectionId} className="flex items-center justify-between p-sm rounded hover:bg-surface-variant/30 transition-colors group">
                 <div className="flex items-center gap-md">
@@ -157,6 +180,20 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
                   <span className="font-label-sm text-label-sm px-2 py-1 rounded text-on-surface-variant bg-surface-variant/50 border border-outline-variant">
                     {getMemberRoleLabel(participant.role)}
                   </span>
+                  {isSelfOwner && participant.role !== "owner" && (
+                    <select
+                      aria-label={`Change role for ${participant.displayName}`}
+                      value={participant.role}
+                      disabled={updatingRoleId === participant.userId}
+                      onChange={(event) =>
+                        handleRoleChange(participant.userId, participant.identityType, event.target.value as "editor" | "viewer")
+                      }
+                      className="font-label-sm text-label-sm bg-surface border border-outline-variant rounded px-2 py-1 text-on-surface disabled:opacity-50"
+                    >
+                      <option value="editor">Editor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                  )}
                 </div>
               </div>
             ))}

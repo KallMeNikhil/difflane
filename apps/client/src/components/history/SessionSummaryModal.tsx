@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { Avatar, Icon, IconButton } from "../common";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { SessionStatusPill } from "./SessionStatusPill";
 import { formatDateTimeLabel, formatDurationLabel } from "../../services/SessionHistoryService";
 import type { SessionRecord } from "../../types/session";
@@ -44,23 +44,17 @@ function SectionCard({ title, children }: { title: string; children: React.React
 }
 
 export function SessionSummaryModal({ record, onClose, onOpenWorkspace, onOpenHistory }: SessionSummaryModalProps) {
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-md bg-black/45 backdrop-blur-[10px]">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="session-summary-title"
-        className="relative w-full max-w-[860px] bg-surface rounded-xl border border-outline shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+        tabIndex={-1}
+        className="relative w-full max-w-[860px] bg-surface rounded-xl border border-outline shadow-2xl flex flex-col max-h-[90vh] overflow-hidden outline-none"
       >
         <div className="flex-shrink-0 flex items-start justify-between p-lg border-b border-outline">
           <div>

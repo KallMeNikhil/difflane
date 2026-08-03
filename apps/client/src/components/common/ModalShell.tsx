@@ -1,8 +1,9 @@
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { m } from "framer-motion";
 import { Icon } from "./Icon";
 import { IconButton } from "./IconButton";
 import { MODAL_IN } from "../../constants/motion";
+import { useModalDialog } from "../../hooks/useModalDialog";
 
 interface ModalShellProps {
   icon?: string;
@@ -23,23 +24,21 @@ export function ModalShell({
   footer,
   maxWidthClassName = "max-w-[740px]",
 }: ModalShellProps) {
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose);
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center bg-background bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.03)_0%,transparent_80%)] overflow-hidden px-md py-xl">
+    <div className="fixed inset-0 z-[60] w-full flex items-center justify-center bg-background bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.03)_0%,transparent_80%)] overflow-y-auto px-md py-xl">
       <m.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-shell-title"
+        aria-describedby="modal-shell-description"
+        tabIndex={-1}
         initial="hidden"
         animate="visible"
         variants={MODAL_IN}
-        className={`relative w-full ${maxWidthClassName} bg-surface border border-outline-variant rounded-2xl shadow-2xl shadow-black/80 flex flex-col max-h-[85vh] overflow-hidden z-10`}
+        className={`relative w-full ${maxWidthClassName} bg-surface border border-outline-variant rounded-2xl shadow-2xl shadow-black/80 flex flex-col max-h-[85vh] overflow-hidden z-10 outline-none`}
       >
         <div className="flex-shrink-0 px-lg py-md border-b border-outline-variant flex justify-between items-start gap-md">
           <div className="flex items-start gap-md">
@@ -49,8 +48,8 @@ export function ModalShell({
               </div>
             )}
             <div>
-              <h1 className="font-headline-md text-headline-md text-on-surface mb-xs">{title}</h1>
-              <p className="font-body-sm text-body-sm text-on-surface-variant max-w-md">{description}</p>
+              <h1 id="modal-shell-title" className="font-headline-md text-headline-md text-on-surface mb-xs">{title}</h1>
+              <p id="modal-shell-description" className="font-body-sm text-body-sm text-on-surface-variant max-w-md">{description}</p>
             </div>
           </div>
           <IconButton icon="close" aria-label="Close" shape="square" onClick={onClose} />

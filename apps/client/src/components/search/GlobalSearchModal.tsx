@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { m } from "framer-motion";
 import { Icon, PlaceholderNotice } from "../common";
 import { MODAL_IN } from "../../constants/motion";
+import { useBodyScrollLock } from "../../hooks/useModalDialog";
 import { SEARCH_CATEGORY_LABEL, SEARCH_FILTERS } from "../../types/search";
 import type { SearchFilter, SearchResultCategory, SearchResultItem } from "../../types/search";
 
@@ -30,6 +31,8 @@ export function GlobalSearchModal({
 }: GlobalSearchModalProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+
+  useBodyScrollLock();
 
   const flatResults = groupedResults.flatMap((group) => group.items);
 

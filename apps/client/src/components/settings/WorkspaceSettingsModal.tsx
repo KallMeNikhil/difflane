@@ -4,6 +4,7 @@ import { useRoom } from "../../hooks/useRoom";
 import { useRepositoryInfo } from "../../hooks/useRepositoryInfo";
 import { useWorkspaceMetadata } from "../../hooks/useWorkspaceMetadata";
 import { useWorkspaceLifecycle } from "../../hooks/useWorkspaceLifecycle";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { SnapshotManagementModal, WorkspaceExportModal, RestoreWorkspaceModal } from "../persistence";
 import {
   writeWorkspaceCollaborationPreference,
@@ -54,22 +55,13 @@ export function WorkspaceSettingsModal({ onClose }: WorkspaceSettingsModalProps)
   const [isSnapshotModalOpen, setSnapshotModalOpen] = useState(false);
   const [isExportModalOpen, setExportModalOpen] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<WorkspaceSnapshotSummary | null>(null);
+  const dialogRef = useModalDialog<HTMLDivElement>(onClose);
 
   useEffect(() => {
     if (section === "persistence") {
       void refreshSnapshots();
     }
   }, [section, refreshSnapshots]);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
 
   function handleNameChange(value: string) {
     if (doc) {
@@ -101,9 +93,16 @@ export function WorkspaceSettingsModal({ onClose }: WorkspaceSettingsModalProps)
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-md bg-black/40 backdrop-blur-sm">
-      <div className="relative w-full max-w-[860px] bg-surface rounded-xl border border-outline-variant shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="workspace-settings-title"
+        tabIndex={-1}
+        className="relative w-full max-w-[860px] bg-surface rounded-xl border border-outline-variant shadow-2xl flex flex-col max-h-[90vh] overflow-hidden outline-none"
+      >
         <div className="flex items-center justify-between px-lg py-md border-b border-outline-variant bg-surface-container-low shrink-0">
-          <h2 className="font-headline-md text-headline-md text-on-surface">Workspace Settings</h2>
+          <h2 id="workspace-settings-title" className="font-headline-md text-headline-md text-on-surface">Workspace Settings</h2>
           <IconButton icon="close" aria-label="Close" shape="square" onClick={onClose} />
         </div>
 

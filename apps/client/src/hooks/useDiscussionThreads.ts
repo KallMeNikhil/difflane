@@ -9,7 +9,16 @@ import {
   editComment,
   resolveThread,
 } from "../services/DiscussionService";
-import { readDiscussionFeed, subscribeDiscussionFeed, writeDiscussionFeed } from "../services/CollaborationService";
+import {
+  appendDiscussionReply,
+  createDiscussionThread,
+  deleteDiscussionComment,
+  deleteDiscussionThread,
+  editDiscussionComment,
+  readDiscussionFeed,
+  setDiscussionThreadStatus,
+  subscribeDiscussionFeed,
+} from "../services/CollaborationService";
 import type { DiscussionFeedItem, DiscussionThread } from "../types/workspace";
 
 export interface DiscussionAuthorIdentity {
@@ -34,51 +43,83 @@ export function useDiscussionThreads(
     return subscribeDiscussionFeed(doc, setLocalFeed);
   }, [doc]);
 
-  const commit = useCallback(
-    (nextFeed: DiscussionFeedItem[]) => {
+  const resolve = useCallback(
+    (threadId: string) => {
       if (doc) {
-        writeDiscussionFeed(doc, nextFeed);
+        setDiscussionThreadStatus(doc, threadId, "resolved");
       } else {
-        setLocalFeed(nextFeed);
+        setLocalFeed((prev) => resolveThread(prev, threadId));
       }
     },
     [doc],
   );
 
-  const resolve = useCallback((threadId: string) => commit(resolveThread(localFeed, threadId)), [commit, localFeed]);
-
   const reply = useCallback(
     (threadId: string, body: string) => {
-      if (!body.trim()) {
+      const trimmed = body.trim();
+      if (!trimmed) {
         return;
       }
-      commit(
-        appendReply(localFeed, threadId, {
-          id: `comment-${Date.now()}`,
-          authorInitials: author.initials,
-          authorName: author.name,
-          timestampLabel: "Just now",
-          body: body.trim(),
-          tone: "default",
-        }),
-      );
+      const comment = {
+        id: `comment-${Date.now()}`,
+        authorInitials: author.initials,
+        authorName: author.name,
+        timestampLabel: "Just now",
+        body: trimmed,
+        tone: "default" as const,
+      };
+      if (doc) {
+        appendDiscussionReply(doc, threadId, comment);
+      } else {
+        setLocalFeed((prev) => appendReply(prev, threadId, comment));
+      }
     },
-    [commit, localFeed, author],
+    [doc, author],
   );
 
-  const create = useCallback((thread: DiscussionThread) => commit(createThread(localFeed, thread)), [commit, localFeed]);
+  const create = useCallback(
+    (thread: DiscussionThread) => {
+      if (doc) {
+        createDiscussionThread(doc, thread);
+      } else {
+        setLocalFeed((prev) => createThread(prev, thread));
+      }
+    },
+    [doc],
+  );
 
   const edit = useCallback(
-    (threadId: string, commentId: string, body: string) => commit(editComment(localFeed, threadId, commentId, body)),
-    [commit, localFeed],
+    (threadId: string, commentId: string, body: string) => {
+      if (doc) {
+        editDiscussionComment(doc, threadId, commentId, body);
+      } else {
+        setLocalFeed((prev) => editComment(prev, threadId, commentId, body));
+      }
+    },
+    [doc],
   );
 
   const remove = useCallback(
-    (threadId: string, commentId: string) => commit(deleteComment(localFeed, threadId, commentId)),
-    [commit, localFeed],
+    (threadId: string, commentId: string) => {
+      if (doc) {
+        deleteDiscussionComment(doc, threadId, commentId);
+      } else {
+        setLocalFeed((prev) => deleteComment(prev, threadId, commentId));
+      }
+    },
+    [doc],
   );
 
-  const removeThread = useCallback((threadId: string) => commit(deleteThread(localFeed, threadId)), [commit, localFeed]);
+  const removeThread = useCallback(
+    (threadId: string) => {
+      if (doc) {
+        deleteDiscussionThread(doc, threadId);
+      } else {
+        setLocalFeed((prev) => deleteThread(prev, threadId));
+      }
+    },
+    [doc],
+  );
 
   return {
     feed: localFeed,

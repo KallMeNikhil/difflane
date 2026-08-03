@@ -14,6 +14,12 @@
     },
     "typecheck": {
       "dependsOn": ["^build"]
+    },
+    "@difflane/shared-types#typecheck": {
+      "dependsOn": ["^build", "build"]
+    },
+    "@difflane/shared-types#lint": {
+      "dependsOn": ["^build", "build"]
     }
   }
 }

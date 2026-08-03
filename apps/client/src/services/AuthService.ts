@@ -1,4 +1,4 @@
-import type { AuthSessionResponse, AuthUserProfile, WorkspaceDashboardResponse } from "@difflane/shared-types";
+import type { AuthSessionResponse, AuthUserProfile, SessionHistoryResponse, WorkspaceDashboardResponse } from "@difflane/shared-types";
 import * as authClient from "../lib/auth/authClient";
 import { setAccessToken } from "../lib/auth/tokenStore";
 
@@ -102,6 +102,10 @@ export function deleteAccount(): Promise<void> {
 
 export function fetchDashboard(guestId: string | null): Promise<WorkspaceDashboardResponse> {
   return authClient.fetchWorkspaceDashboard(guestId);
+}
+
+export function fetchSessionHistory(guestId: string | null): Promise<SessionHistoryResponse> {
+  return authClient.fetchSessionHistory(guestId);
 }
 
 export function createWorkspaceRecord(name: string, guestId: string | null) {

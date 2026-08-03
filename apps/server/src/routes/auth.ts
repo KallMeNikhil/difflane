@@ -22,10 +22,12 @@ import { handleRouteError as handleAuthError } from "../middleware/routeHelpers.
 
 export const authRouter = Router();
 
+const CROSS_SITE_COOKIE_SAME_SITE = env.isProduction ? "none" : "lax";
+
 function setRefreshCookie(res: Response, refreshToken: string): void {
   res.cookie(env.auth.refreshCookieName, refreshToken, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: CROSS_SITE_COOKIE_SAME_SITE,
     secure: env.isProduction,
     maxAge: env.auth.refreshTokenTtlSeconds * 1000,
     path: env.auth.refreshCookiePath,
@@ -33,13 +35,13 @@ function setRefreshCookie(res: Response, refreshToken: string): void {
 }
 
 function clearRefreshCookie(res: Response): void {
-  res.clearCookie(env.auth.refreshCookieName, { path: env.auth.refreshCookiePath });
+  res.clearCookie(env.auth.refreshCookieName, { path: env.auth.refreshCookiePath, sameSite: CROSS_SITE_COOKIE_SAME_SITE, secure: env.isProduction });
 }
 
 function setGuestCookie(res: Response, guestId: string): void {
   res.cookie(env.auth.guestCookieName, guestId, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: CROSS_SITE_COOKIE_SAME_SITE,
     secure: env.isProduction,
     maxAge: env.auth.refreshTokenTtlSeconds * 1000,
     path: env.auth.guestCookiePath,
@@ -47,7 +49,7 @@ function setGuestCookie(res: Response, guestId: string): void {
 }
 
 function clearGuestCookie(res: Response): void {
-  res.clearCookie(env.auth.guestCookieName, { path: env.auth.guestCookiePath });
+  res.clearCookie(env.auth.guestCookieName, { path: env.auth.guestCookiePath, sameSite: CROSS_SITE_COOKIE_SAME_SITE, secure: env.isProduction });
 }
 
 async function respondWithSession(res: Response, session: AuthSessionResult, status = 200): Promise<void> {

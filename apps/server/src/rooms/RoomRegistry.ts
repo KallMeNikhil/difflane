@@ -3,7 +3,7 @@ import { Awareness, removeAwarenessStates } from "y-protocols/awareness";
 import type { MemberRole, ParticipantIdentityType, RoomParticipant, RoomSnapshot } from "@difflane/shared-types";
 import type { ConnectionAwarenessTracker } from "../socket/ConnectionAwarenessTracker.js";
 
-interface Room {
+export interface Room {
   roomId: string;
   roomCode: string;
   workspaceId: string;
@@ -108,11 +108,12 @@ export class RoomRegistry {
     return participant;
   }
 
-  removeParticipant(roomId: string, connectionId: string, awarenessClientIds: number[]): void {
+  removeParticipant(roomId: string, connectionId: string, awarenessClientIds: number[]): RoomParticipant | undefined {
     const room = this.rooms.get(roomId);
     if (!room) {
-      return;
+      return undefined;
     }
+    const participant = room.participants.get(connectionId);
     room.participants.delete(connectionId);
     if (awarenessClientIds.length > 0) {
       removeAwarenessStates(room.awareness, awarenessClientIds, "connection-closed");
@@ -130,6 +131,7 @@ export class RoomRegistry {
       timer.unref?.();
       this.emptyRoomTimers.set(roomId, timer);
     }
+    return participant;
   }
 
   getSnapshot(roomId: string): RoomSnapshot | undefined {
@@ -142,5 +144,25 @@ export class RoomRegistry {
 
   getParticipant(roomId: string, connectionId: string): RoomParticipant | undefined {
     return this.rooms.get(roomId)?.participants.get(connectionId);
+  }
+
+  updateParticipantRole(
+    workspaceId: string,
+    userId: string,
+    identityType: ParticipantIdentityType,
+    role: MemberRole,
+  ): { roomId: string; participants: RoomParticipant[] } | undefined {
+    const room = this.getRoomByWorkspaceId(workspaceId);
+    if (!room) {
+      return undefined;
+    }
+    const updated: RoomParticipant[] = [];
+    for (const participant of room.participants.values()) {
+      if (participant.userId === userId && participant.identityType === identityType) {
+        participant.role = role;
+        updated.push(participant);
+      }
+    }
+    return { roomId: room.roomId, participants: updated };
   }
 }

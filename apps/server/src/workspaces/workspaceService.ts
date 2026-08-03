@@ -1,5 +1,5 @@
-import type { WorkspaceDashboardResponse, WorkspaceOwnershipSummary } from "@difflane/shared-types";
-import { identityStore } from "../db/index.js";
+import type { SessionHistoryEntry, WorkspaceDashboardResponse, WorkspaceOwnershipSummary } from "@difflane/shared-types";
+import { identityStore, workspaceStore } from "../db/index.js";
 import type { WorkspaceMembershipRecord, WorkspaceMemberRole, WorkspaceRecord } from "../db/models.js";
 import { AuthError } from "../auth/AuthError.js";
 
@@ -122,6 +122,38 @@ export async function getDashboard(identity: Identity): Promise<WorkspaceDashboa
   return { created, joined, recent, pinned, archived };
 }
 
+export async function getSessionHistory(identity: Identity): Promise<SessionHistoryEntry[]> {
+  const memberships = await identityStore.listMembershipsForIdentity(toIdentityKey(identity));
+  const workspaceIds = memberships.map((membership) => membership.workspaceId);
+  const workspaces = await identityStore.findWorkspacesByIds(workspaceIds);
+  const workspaceById = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
+
+  const records = await workspaceStore.listSessionsForWorkspaceIds(workspaceIds);
+
+  return records.map((record) => {
+    const workspace = workspaceById.get(record.workspaceId);
+    return {
+      id: record.id,
+      workspaceCode: workspace?.code ?? "",
+      workspaceName: workspace?.name ?? "Workspace",
+      roomCode: record.roomCode,
+      status: record.status,
+      fileCount: record.fileCount,
+      folderCount: record.folderCount,
+      participants: record.participants,
+      timeline: record.timeline.map((event) => ({
+        id: event.id,
+        actorName: event.actorName,
+        description: event.description,
+        occurredAt: event.occurredAt,
+      })),
+      startedAt: record.startedAt.toISOString(),
+      endedAt: record.endedAt ? record.endedAt.toISOString() : null,
+      lastActivityAt: record.lastActivityAt.toISOString(),
+    };
+  });
+}
+
 export async function requireMembership(identity: Identity, workspaceId: string): Promise<WorkspaceMembershipRecord> {
   const membership = await identityStore.findMembership(workspaceId, toIdentityKey(identity));
   if (!membership) {
@@ -161,7 +193,12 @@ export async function transferOwnership(identity: Identity, code: string, target
   await identityStore.transferWorkspaceOwnership(workspace.id, requesterMembership.id, targetMembership.id, toIdentityKey(target));
 }
 
-export async function updateMemberRole(identity: Identity, code: string, target: Identity, role: "editor" | "viewer"): Promise<void> {
+export async function updateMemberRole(
+  identity: Identity,
+  code: string,
+  target: Identity,
+  role: "editor" | "viewer",
+): Promise<{ workspaceId: string; targetUserId: string; targetIdentityType: "user" | "guest" }> {
   if (!isAssignableRole(role)) {
     throw new AuthError("unknown_error", "Role must be either 'editor' or 'viewer'.", 400);
   }
@@ -185,6 +222,7 @@ export async function updateMemberRole(identity: Identity, code: string, target:
     throw new AuthError("unknown_error", "Role must be either 'editor' or 'viewer'.", 400);
   }
   await identityStore.updateMembershipRole(targetMembership.id, nextRole);
+  return { workspaceId: workspace.id, targetUserId: target.id, targetIdentityType: target.type };
 }
 
 export async function deleteWorkspace(identity: Identity, code: string): Promise<void> {

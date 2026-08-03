@@ -9,18 +9,26 @@ import {
   type RoomJoinErrorPayload,
   type RoomJoinPayload,
   type RoomJoinedPayload,
+  type RoomParticipant,
   type RoomParticipantLeftPayload,
 } from "@difflane/shared-types";
-import { toRoomId, type RoomRegistry } from "../rooms/RoomRegistry.js";
+import { toRoomId, type Room, type RoomRegistry } from "../rooms/RoomRegistry.js";
 import type { ConnectionAwarenessTracker } from "./ConnectionAwarenessTracker.js";
 import { env } from "../config/env.js";
 import { verifyAccessTokenClaims } from "../auth/authService.js";
-import { identityStore } from "../db/index.js";
+import { identityStore, workspaceStore } from "../db/index.js";
 import { ensureWorkspace, isValidWorkspaceCode } from "../workspaces/workspaceService.js";
 import type { WorkspaceLifecycleManager } from "../workspaces/WorkspaceLifecycleManager.js";
 
 const DISPLAY_NAME_MAX_LENGTH = 60;
 const INITIALS_MAX_LENGTH = 4;
+
+class ExpiredJoinTokenError extends Error {
+  constructor() {
+    super("Your session has expired. Please refresh and try again.");
+    this.name = "ExpiredJoinTokenError";
+  }
+}
 
 function readGuestIdFromHandshake(socket: Socket): string | null {
   const rawCookie = socket.handshake.headers.cookie;
@@ -46,11 +54,21 @@ async function resolveJoinIdentity(
         return { identityId: user.id, identityType: "user", displayName: fallbackDisplayName, initials: fallbackInitials };
       }
     }
+    throw new ExpiredJoinTokenError();
   }
 
   const cookieGuestId = readGuestIdFromHandshake(socket);
   if (cookieGuestId) {
     const guest = await identityStore.findGuestSession(cookieGuestId);
+    if (guest) {
+      await identityStore.touchGuestSession(guest.id);
+      return { identityId: guest.id, identityType: "guest", displayName: fallbackDisplayName, initials: fallbackInitials };
+    }
+  }
+
+  const payloadGuestId = typeof payload.guestId === "string" ? payload.guestId : null;
+  if (payloadGuestId) {
+    const guest = await identityStore.findGuestSession(payloadGuestId);
     if (guest) {
       await identityStore.touchGuestSession(guest.id);
       return { identityId: guest.id, identityType: "guest", displayName: fallbackDisplayName, initials: fallbackInitials };
@@ -132,7 +150,12 @@ export function registerRoomHandlers(
 
         ack?.(response);
         socket.to(room.roomId).emit(SOCKET_EVENTS.ROOM_PARTICIPANT_JOINED, { participant });
+        void recordParticipantJoined(workspace.id, room.roomCode, participant);
       } catch (error) {
+        if (error instanceof ExpiredJoinTokenError) {
+          ack?.({ error: error.message, code: "expired_token" });
+          return;
+        }
         console.error("ROOM_JOIN failed:", error);
         ack?.({ error: "Unable to join this workspace. Please try again." });
       }
@@ -159,11 +182,62 @@ function leaveCurrentRoom(
   if (!roomId) {
     return;
   }
+  const room = registry.getRoom(roomId);
   const clientIds = awarenessTracker.consume(socket.id);
-  registry.removeParticipant(roomId, socket.id, clientIds);
+  const participant = registry.removeParticipant(roomId, socket.id, clientIds);
   socket.data.roomId = undefined;
   socket.leave(roomId);
 
   const payload: RoomParticipantLeftPayload = { connectionId: socket.id };
   io.to(roomId).emit(SOCKET_EVENTS.ROOM_PARTICIPANT_LEFT, payload);
+
+  if (room && participant) {
+    void recordParticipantLeft(room, participant);
+  }
+}
+
+async function recordParticipantJoined(workspaceId: string, roomCode: string, participant: RoomParticipant): Promise<void> {
+  try {
+    const state = await workspaceStore.getState(workspaceId);
+    await workspaceStore.startOrTouchSession({
+      workspaceId,
+      roomCode,
+      fileCount: state?.fileCount ?? 0,
+      folderCount: state?.folderCount ?? 0,
+      participant: {
+        userId: participant.userId,
+        identityType: participant.identityType,
+        displayName: participant.displayName,
+        initials: participant.initials,
+        role: participant.role,
+      },
+      event: {
+        actorName: participant.displayName,
+        description: `${participant.displayName} joined the session`,
+        occurredAt: new Date(),
+      },
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function recordParticipantLeft(room: Room, participant: RoomParticipant): Promise<void> {
+  try {
+    if (room.participants.size === 0) {
+      await workspaceStore.completeSession(room.workspaceId, room.roomCode, {
+        actorName: participant.displayName,
+        description: `${participant.displayName} left and the session ended`,
+        occurredAt: new Date(),
+      });
+    } else {
+      await workspaceStore.recordSessionEvent(room.workspaceId, room.roomCode, {
+        actorName: participant.displayName,
+        description: `${participant.displayName} left the session`,
+        occurredAt: new Date(),
+      });
+    }
+  } catch (error) {
+    console.error(error);
+  }
 }

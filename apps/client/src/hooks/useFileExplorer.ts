@@ -5,12 +5,9 @@ import {
   peekFileText,
   readDeletedFiles,
   readFileBaselines,
-  readWorkspaceState,
   subscribeDeletedFiles,
   subscribeFileBaselines,
   subscribeFileTextsChanged,
-  subscribeWorkspaceState,
-  writeActiveFileId,
 } from "../services/CollaborationService";
 import {
   buildDuplicateName,
@@ -52,25 +49,12 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
     setBaselines(readFileBaselines(doc));
     setDeletedFiles(readDeletedFiles(doc));
 
-    const shared = readWorkspaceState(doc).activeFileId;
-    if (shared) {
-      setActiveFileIdState(shared);
-    } else {
-      writeActiveFileId(doc, initialActiveFileId);
-    }
-
     const unsubscribeEntries = subscribeFileSystemEntries(doc, setEntries);
-    const unsubscribeState = subscribeWorkspaceState(doc, (state) => {
-      if (state.activeFileId) {
-        setActiveFileIdState(state.activeFileId);
-      }
-    });
     const unsubscribeBaselines = subscribeFileBaselines(doc, setBaselines);
     const unsubscribeContent = subscribeFileTextsChanged(doc, () => setContentVersion((version) => version + 1));
     const unsubscribeDeletedFiles = subscribeDeletedFiles(doc, setDeletedFiles);
     return () => {
       unsubscribeEntries();
-      unsubscribeState();
       unsubscribeBaselines();
       unsubscribeContent();
       unsubscribeDeletedFiles();
@@ -78,17 +62,10 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc]);
 
-  const setActiveFileId = useCallback(
-    (fileId: string) => {
-      setSelectedId(fileId);
-      if (doc) {
-        writeActiveFileId(doc, fileId);
-      } else {
-        setActiveFileIdState(fileId);
-      }
-    },
-    [doc],
-  );
+  const setActiveFileId = useCallback((fileId: string) => {
+    setSelectedId(fileId);
+    setActiveFileIdState(fileId);
+  }, []);
 
   const selectEntry = useCallback((id: string | null) => {
     setSelectedId(id);

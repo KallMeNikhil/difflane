@@ -6,6 +6,9 @@ import {
   type WorkspacePersistenceFailedPayload,
   type WorkspaceRestoredPayload,
   type WorkspaceExportPayload,
+  type MemberRole,
+  type ParticipantIdentityType,
+  type RoomRoleChangedPayload,
 } from "@difflane/shared-types";
 import type { RoomRegistry } from "../rooms/RoomRegistry.js";
 import type { SnapshotTrigger, WorkspaceSnapshotRecord } from "../db/models.js";
@@ -27,6 +30,64 @@ interface FileSystemEntryLike {
   type: "file" | "folder";
   order: number;
   language?: string;
+}
+
+function serializeDiscussionFeed(array: Y.Array<unknown>): unknown[] {
+  return array.toArray().map((item) => {
+    if (item instanceof Y.Map) {
+      return { kind: "thread", thread: item.toJSON() };
+    }
+    return item;
+  });
+}
+
+function serializeReviewThreads(array: Y.Array<unknown>): unknown[] {
+  return array.toArray().map((item) => (item instanceof Y.Map ? item.toJSON() : item));
+}
+
+function deserializeDiscussionFeedItem(raw: unknown): Y.Map<unknown> | Record<string, unknown> | null {
+  if (typeof raw !== "object" || raw === null) {
+    return null;
+  }
+  const record = raw as Record<string, unknown>;
+  if (record.kind === "event") {
+    return record;
+  }
+  const thread = (record.kind === "thread" ? record.thread : record) as Record<string, unknown> | undefined;
+  if (!thread || typeof thread !== "object") {
+    return null;
+  }
+  const threadMap = new Y.Map<unknown>();
+  threadMap.set("id", thread.id);
+  threadMap.set("status", thread.status);
+  threadMap.set("anchor", thread.anchor ?? null);
+  const comments = new Y.Array<unknown>();
+  if (Array.isArray(thread.comments)) {
+    comments.push(thread.comments);
+  }
+  threadMap.set("comments", comments);
+  return threadMap;
+}
+
+function deserializeReviewThread(raw: unknown): Y.Map<unknown> | null {
+  if (typeof raw !== "object" || raw === null) {
+    return null;
+  }
+  const thread = raw as Record<string, unknown>;
+  const threadMap = new Y.Map<unknown>();
+  threadMap.set("id", thread.id);
+  threadMap.set("fileId", thread.fileId);
+  threadMap.set("anchor", thread.anchor);
+  threadMap.set("status", thread.status);
+  threadMap.set("createdAt", thread.createdAt);
+  threadMap.set("resolvedAt", thread.resolvedAt ?? null);
+  threadMap.set("resolvedBy", thread.resolvedBy ?? null);
+  const comments = new Y.Array<unknown>();
+  if (Array.isArray(thread.comments)) {
+    comments.push(thread.comments);
+  }
+  threadMap.set("comments", comments);
+  return threadMap;
 }
 
 function decodeDoc(stateBytes: Uint8Array): Y.Doc {
@@ -97,6 +158,17 @@ export class WorkspaceLifecycleManager {
         willRetry: true,
       };
       this.io.to(roomId).emit(SOCKET_EVENTS.WORKSPACE_PERSISTENCE_FAILED, payload);
+    }
+  }
+
+  notifyRoleChanged(workspaceId: string, userId: string, identityType: ParticipantIdentityType, role: MemberRole): void {
+    const result = this.registry.updateParticipantRole(workspaceId, userId, identityType, role);
+    if (!result) {
+      return;
+    }
+    for (const participant of result.participants) {
+      const payload: RoomRoleChangedPayload = { roomId: result.roomId, connectionId: participant.connectionId, role };
+      this.io.to(result.roomId).emit(SOCKET_EVENTS.ROOM_ROLE_CHANGED, payload);
     }
   }
 
@@ -214,10 +286,10 @@ export class WorkspaceLifecycleManager {
 
     const metadataMap = doc.getMap(WORKSPACE_METADATA_KEY);
     const repositoryMap = doc.getMap(REPOSITORY_INFO_KEY);
-    const discussions = doc.getArray(DISCUSSION_FEED_KEY).toArray();
-    const reviews = doc.getArray(REVIEW_THREADS_KEY).toArray();
-    const reviewStateMap = doc.getMap(REVIEW_STATE_KEY);
-    const fileReviewStatus = (reviewStateMap.get("fileReviewStatus") as unknown[] | undefined) ?? [];
+    const discussions = serializeDiscussionFeed(doc.getArray(DISCUSSION_FEED_KEY));
+    const reviews = serializeReviewThreads(doc.getArray(REVIEW_THREADS_KEY));
+    const reviewStateMap = doc.getMap<unknown>(REVIEW_STATE_KEY);
+    const fileReviewStatus = Array.from(reviewStateMap.values());
     const reviewCommentCount = reviews.reduce((total: number, thread) => {
       const comments = (thread as { comments?: unknown[] }).comments;
       return total + (Array.isArray(comments) ? comments.length : 0);
@@ -288,15 +360,30 @@ export class WorkspaceLifecycleManager {
       }
 
       if (Array.isArray(payload.discussions) && payload.discussions.length > 0) {
-        discussionArray.insert(0, payload.discussions);
+        const items = payload.discussions
+          .map((raw) => deserializeDiscussionFeedItem(raw))
+          .filter((item): item is Y.Map<unknown> | Record<string, unknown> => item !== null);
+        if (items.length > 0) {
+          discussionArray.insert(0, items);
+        }
       }
 
       if (Array.isArray(payload.reviews) && payload.reviews.length > 0) {
-        reviewArray.insert(0, payload.reviews);
+        const items = payload.reviews
+          .map((raw) => deserializeReviewThread(raw))
+          .filter((item): item is Y.Map<unknown> => item !== null);
+        if (items.length > 0) {
+          reviewArray.insert(0, items);
+        }
       }
 
       if (Array.isArray(payload.fileReviewStatus) && payload.fileReviewStatus.length > 0) {
-        reviewStateMap.set("fileReviewStatus", payload.fileReviewStatus);
+        for (const raw of payload.fileReviewStatus) {
+          if (typeof raw === "object" && raw !== null && typeof (raw as { fileId?: unknown }).fileId === "string") {
+            const record = raw as { fileId: string };
+            reviewStateMap.set(record.fileId, record);
+          }
+        }
       }
     });
 

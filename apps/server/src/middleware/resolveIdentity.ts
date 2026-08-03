@@ -14,6 +14,8 @@ declare global {
   }
 }
 
+const GUEST_ID_HEADER = "x-guest-id";
+
 async function resolveIdentityHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization;
   const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
@@ -29,16 +31,31 @@ async function resolveIdentityHandler(req: Request, res: Response, next: NextFun
     return;
   }
 
-  const guestId = req.cookies?.[env.auth.guestCookieName] as string | undefined;
-  if (guestId) {
-    const guest = await identityStore.findGuestSession(guestId);
-    if (!guest) {
-      res.status(401).json({ code: "invalid_token", message: "Guest session is no longer active." });
+  const cookieGuestId = req.cookies?.[env.auth.guestCookieName] as string | undefined;
+  if (cookieGuestId) {
+    const guest = await identityStore.findGuestSession(cookieGuestId);
+    if (guest) {
+      await identityStore.touchGuestSession(cookieGuestId);
+      req.identity = { type: "guest", id: cookieGuestId };
+      next();
       return;
     }
-    await identityStore.touchGuestSession(guestId);
-    req.identity = { type: "guest", id: guestId };
-    next();
+  }
+
+  const headerGuestId = req.headers[GUEST_ID_HEADER];
+  const candidateGuestId = typeof headerGuestId === "string" ? headerGuestId : undefined;
+  if (candidateGuestId) {
+    const guest = await identityStore.findGuestSession(candidateGuestId);
+    if (guest) {
+      await identityStore.touchGuestSession(candidateGuestId);
+      req.identity = { type: "guest", id: candidateGuestId };
+      next();
+      return;
+    }
+  }
+
+  if (cookieGuestId || candidateGuestId) {
+    res.status(401).json({ code: "invalid_token", message: "Guest session is no longer active." });
     return;
   }
 

@@ -25,6 +25,11 @@ enum SnapshotTrigger {
   BEFORE_DESTRUCTIVE
 }
 
+enum SessionRecordStatus {
+  ACTIVE
+  COMPLETED
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -119,6 +124,7 @@ model Workspace {
   members   WorkspaceMembership[]
   state     WorkspaceState?
   snapshots WorkspaceSnapshot[]
+  sessions  SessionHistoryRecord[]
 
   @@map("workspaces")
 }
@@ -170,4 +176,23 @@ model WorkspaceMembership {
   @@index([userId])
   @@index([guestId])
   @@map("workspace_memberships")
+}
+
+model SessionHistoryRecord {
+  id             String              @id @default(uuid())
+  workspaceId    String
+  workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  roomCode       String
+  status         SessionRecordStatus @default(ACTIVE)
+  fileCount      Int                 @default(0)
+  folderCount    Int                 @default(0)
+  participants   Json
+  timeline       Json
+  startedAt      DateTime            @default(now())
+  endedAt        DateTime?
+  lastActivityAt DateTime            @default(now())
+
+  @@index([workspaceId, startedAt])
+  @@index([workspaceId, roomCode, status])
+  @@map("session_history_records")
 }

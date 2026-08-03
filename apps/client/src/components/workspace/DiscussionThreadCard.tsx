@@ -8,10 +8,25 @@ interface DiscussionThreadCardProps {
   onSubmitReply: (threadId: string, body: string) => void;
 }
 
+function CommentEntry({ authorInitials, authorName, body }: { authorInitials: string; authorName: string; body: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <div className="w-5 h-5 shrink-0 rounded-full bg-surface-container-high flex items-center justify-center text-[9px] font-bold text-on-surface-variant">
+        {authorInitials}
+      </div>
+      <div className="flex flex-col">
+        <span className="font-body-sm text-[11px] font-medium text-on-surface leading-tight">{authorName}</span>
+        <p className="font-body-sm text-[13px] text-on-surface leading-snug">{body}</p>
+      </div>
+    </div>
+  );
+}
+
 export function DiscussionThreadCard({ thread, onResolve, onSubmitReply }: DiscussionThreadCardProps) {
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
   const primaryComment = thread.comments[0];
+  const replies = thread.comments.slice(1);
   const isResolved = thread.status === "resolved";
 
   function handleSend() {
@@ -35,7 +50,12 @@ export function DiscussionThreadCard({ thread, onResolve, onSubmitReply }: Discu
           </div>
           <Icon name="check_circle" size={16} className="text-success-mint" filled />
         </div>
-        <p className="font-body-sm text-[13px] text-on-surface-variant line-clamp-2">{primaryComment.body}</p>
+        <div className="flex flex-col gap-2">
+          <p className="font-body-sm text-[13px] text-on-surface-variant line-clamp-2">{primaryComment.body}</p>
+          {replies.map((comment) => (
+            <CommentEntry key={comment.id} authorInitials={comment.authorInitials} authorName={comment.authorName} body={comment.body} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -66,10 +86,9 @@ export function DiscussionThreadCard({ thread, onResolve, onSubmitReply }: Discu
       )}
 
       <div className="flex flex-col gap-2 mb-3">
-        {thread.comments.map((comment) => (
-          <p key={comment.id} className="font-body-sm text-[13px] text-on-surface">
-            {comment.body}
-          </p>
+        <p className="font-body-sm text-[13px] text-on-surface">{primaryComment.body}</p>
+        {replies.map((comment) => (
+          <CommentEntry key={comment.id} authorInitials={comment.authorInitials} authorName={comment.authorName} body={comment.body} />
         ))}
       </div>
 

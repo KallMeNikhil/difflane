@@ -1,4 +1,4 @@
-import type { RoomParticipant } from "@difflane/shared-types";
+import type { MemberRole, RoomParticipant, SessionHistoryEntry } from "@difflane/shared-types";
 import type {
   SessionDateRangeFilter,
   SessionHistoryFilters,
@@ -7,217 +7,46 @@ import type {
 } from "../types/session";
 import type { Collaborator, WorkspaceMetadata, WorkspaceRepositoryInfo } from "../types/workspace";
 import { getMemberRoleLabel } from "../utils/workspaceDisplay";
+import { fetchSessionHistory } from "./AuthService";
+import { DEFAULT_WORKSPACE_METADATA } from "./WorkspaceFileSystemService";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-function hoursAgo(hours: number): string {
-  return new Date(Date.now() - hours * HOUR).toISOString();
+function toSessionRecord(entry: SessionHistoryEntry): SessionRecord {
+  return {
+    id: entry.id,
+    roomCode: entry.roomCode,
+    title: entry.workspaceName,
+    status: entry.status,
+    workspace: { ...DEFAULT_WORKSPACE_METADATA, name: entry.workspaceName },
+    fileSystem: { type: "Virtual FS", folderCount: entry.folderCount, fileCount: entry.fileCount },
+    counts: { filesImported: entry.fileCount, filesReviewed: 0, discussionsCreated: 0, discussionsResolved: 0 },
+    participants: entry.participants.map((participant) => ({
+      id: participant.userId,
+      initials: participant.initials,
+      name: participant.displayName,
+      role: getMemberRoleLabel(participant.role as MemberRole),
+      presence: "offline",
+    })),
+    timeline: entry.timeline.map((event) => ({
+      id: event.id,
+      actorName: event.actorName,
+      description: event.description,
+      timestampLabel: formatDateTimeLabel(event.occurredAt),
+    })),
+    outcomes: entry.status === "completed" ? ["Session completed successfully"] : ["Session in progress"],
+    startedAt: entry.startedAt,
+    endedAt: entry.endedAt,
+    lastActivityAt: entry.lastActivityAt,
+  };
 }
 
-function daysAgo(days: number): string {
-  return new Date(Date.now() - days * DAY).toISOString();
+export async function fetchSessionRecords(guestId: string | null): Promise<SessionRecord[]> {
+  const response = await fetchSessionHistory(guestId);
+  return response.sessions.map(toSessionRecord);
 }
 
-const CURRENT_USER_PARTICIPANT = { id: "participant-me", initials: "ME", name: "You", role: "Editor · Host", presence: "offline" as const };
-
-const SESSION_RECORDS: SessionRecord[] = [
-  {
-    id: "session-auth-review",
-    roomCode: "auth-review",
-    title: "Authentication Review",
-    status: "active",
-    workspace: {
-      name: "Frontend Core Migration",
-      description: "Shared workspace for the frontend authentication and session-handling migration.",
-      collaboration: { cursorPresence: true, inlineDiscussions: true, sharedNavigation: true },
-    },
-    repository: {
-      provider: "github",
-      owner: "org",
-      name: "frontend-core",
-      branch: "main",
-      fileCount: 148,
-      lastSyncedAt: hoursAgo(2),
-    },
-    fileSystem: { type: "Virtual FS", folderCount: 12, fileCount: 148 },
-    counts: { filesImported: 32, filesReviewed: 3, discussionsCreated: 10, discussionsResolved: 8 },
-    participants: [
-      CURRENT_USER_PARTICIPANT,
-      { id: "participant-lead-architect", initials: "L", name: "Lead Architect", role: "Reviewer · Collaborator", presence: "online" },
-      { id: "participant-frontend-engineer", initials: "F", name: "Frontend Engineer", role: "Editor · Collaborator", presence: "online" },
-      { id: "participant-backend-engineer", initials: "B", name: "Backend Engineer", role: "Viewer · Collaborator", presence: "offline" },
-    ],
-    timeline: [
-      { id: "event-1", actorName: "System", description: "Workspace created", timestampLabel: "Oct 24, 08:45 AM" },
-      { id: "event-2", actorName: "System", description: "Repository imported", timestampLabel: "Oct 24, 08:48 AM" },
-      { id: "event-3", actorName: "System", description: "Participants joined", timestampLabel: "Oct 24, 08:50 AM" },
-      { id: "event-4", actorName: "Lead Architect", description: "Discussion created", timestampLabel: "Oct 24, 09:15 AM" },
-      { id: "event-5", actorName: "You", description: "Discussion resolved", timestampLabel: "Oct 25, 02:15 PM" },
-    ],
-    outcomes: [
-      "Workspace successfully initialized",
-      "Repository imported successfully",
-      "Workspace synchronized",
-      "2 discussions still awaiting resolution",
-    ],
-    startedAt: hoursAgo(27),
-    endedAt: null,
-    lastActivityAt: hoursAgo(2),
-  },
-  {
-    id: "session-rate-limiting",
-    roomCode: "rate-limiting",
-    title: "Rate Limiting Implementation",
-    status: "completed",
-    workspace: {
-      name: "API Gateway",
-      description: "Shared workspace for API gateway request-handling and throttling changes.",
-      collaboration: { cursorPresence: true, inlineDiscussions: true, sharedNavigation: false },
-    },
-    repository: {
-      provider: "github",
-      owner: "org",
-      name: "api-gateway",
-      branch: "main",
-      fileCount: 64,
-      lastSyncedAt: daysAgo(20),
-    },
-    fileSystem: { type: "Virtual FS", folderCount: 6, fileCount: 64 },
-    counts: { filesImported: 18, filesReviewed: 3, discussionsCreated: 2, discussionsResolved: 2 },
-    participants: [
-      { id: "participant-backend-engineer-2", initials: "B", name: "Backend Engineer", role: "Editor · Host", presence: "offline" },
-      { id: "participant-lead-architect-2", initials: "L", name: "Lead Architect", role: "Reviewer · Collaborator", presence: "offline" },
-    ],
-    timeline: [
-      { id: "event-1", actorName: "System", description: "Workspace created", timestampLabel: "Oct 20, 09:40 AM" },
-      { id: "event-2", actorName: "System", description: "Repository imported", timestampLabel: "Oct 20, 09:42 AM" },
-      { id: "event-3", actorName: "Backend Engineer", description: "Discussion created", timestampLabel: "Oct 20, 10:05 AM" },
-      { id: "event-4", actorName: "Lead Architect", description: "Discussion resolved", timestampLabel: "Oct 20, 10:20 AM" },
-      { id: "event-5", actorName: "System", description: "Session completed", timestampLabel: "Oct 20, 10:25 AM" },
-    ],
-    outcomes: [
-      "Workspace successfully initialized",
-      "Repository imported successfully",
-      "Workspace synchronized",
-      "All blocking discussions resolved",
-      "Session completed successfully",
-    ],
-    startedAt: daysAgo(20),
-    endedAt: daysAgo(20),
-    lastActivityAt: daysAgo(20),
-  },
-  {
-    id: "session-ui-polish",
-    roomCode: "ui-polish",
-    title: "UI Polish Session",
-    status: "completed",
-    workspace: {
-      name: "Frontend Core Migration",
-      description: "Shared workspace for the frontend authentication and session-handling migration.",
-      collaboration: { cursorPresence: true, inlineDiscussions: true, sharedNavigation: true },
-    },
-    repository: {
-      provider: "github",
-      owner: "org",
-      name: "frontend-core",
-      branch: "main",
-      fileCount: 148,
-      lastSyncedAt: daysAgo(3),
-    },
-    fileSystem: { type: "Virtual FS", folderCount: 12, fileCount: 148 },
-    counts: { filesImported: 12, filesReviewed: 5, discussionsCreated: 4, discussionsResolved: 4 },
-    participants: [
-      CURRENT_USER_PARTICIPANT,
-      { id: "participant-frontend-engineer-2", initials: "F", name: "Frontend Engineer", role: "Reviewer · Collaborator", presence: "offline" },
-    ],
-    timeline: [
-      { id: "event-1", actorName: "System", description: "Workspace created", timestampLabel: "3 days ago" },
-      { id: "event-2", actorName: "You", description: "Discussion created", timestampLabel: "3 days ago" },
-      { id: "event-3", actorName: "Frontend Engineer", description: "Discussion resolved", timestampLabel: "3 days ago" },
-      { id: "event-4", actorName: "System", description: "Session completed", timestampLabel: "3 days ago" },
-    ],
-    outcomes: [
-      "Workspace successfully initialized",
-      "Workspace synchronized",
-      "All blocking discussions resolved",
-      "Session completed successfully",
-    ],
-    startedAt: daysAgo(3),
-    endedAt: daysAgo(3),
-    lastActivityAt: daysAgo(3),
-  },
-  {
-    id: "session-db-refactor",
-    roomCode: "db-refactor",
-    title: "Database Refactor",
-    status: "completed",
-    workspace: {
-      name: "API Gateway",
-      description: "Shared workspace for API gateway request-handling and throttling changes.",
-      collaboration: { cursorPresence: true, inlineDiscussions: false, sharedNavigation: false },
-    },
-    repository: {
-      provider: "github",
-      owner: "org",
-      name: "api-gateway",
-      branch: "main",
-      fileCount: 64,
-      lastSyncedAt: daysAgo(1),
-    },
-    fileSystem: { type: "Virtual FS", folderCount: 6, fileCount: 64 },
-    counts: { filesImported: 9, filesReviewed: 2, discussionsCreated: 3, discussionsResolved: 1 },
-    participants: [
-      CURRENT_USER_PARTICIPANT,
-      { id: "participant-backend-engineer-3", initials: "B", name: "Backend Engineer", role: "Reviewer · Collaborator", presence: "offline" },
-    ],
-    timeline: [
-      { id: "event-1", actorName: "System", description: "Workspace created", timestampLabel: "Yesterday" },
-      { id: "event-2", actorName: "You", description: "Discussion created", timestampLabel: "Yesterday" },
-      { id: "event-3", actorName: "System", description: "Session completed", timestampLabel: "Yesterday" },
-    ],
-    outcomes: [
-      "Workspace successfully initialized",
-      "Repository imported successfully",
-      "2 discussions still awaiting resolution",
-    ],
-    startedAt: daysAgo(1),
-    endedAt: daysAgo(1),
-    lastActivityAt: daysAgo(1),
-  },
-  {
-    id: "session-legacy-auth-cleanup",
-    roomCode: "legacy-auth-cleanup",
-    title: "Legacy Auth Cleanup",
-    status: "archived",
-    workspace: {
-      name: "Frontend Core Migration",
-      description: "Shared workspace for the frontend authentication and session-handling migration.",
-      collaboration: { cursorPresence: true, inlineDiscussions: true, sharedNavigation: true },
-    },
-    fileSystem: { type: "Virtual FS", folderCount: 12, fileCount: 148 },
-    counts: { filesImported: 21, filesReviewed: 6, discussionsCreated: 6, discussionsResolved: 6 },
-    participants: [{ id: "participant-lead-architect-3", initials: "L", name: "Lead Architect", role: "Editor · Host", presence: "offline" }],
-    timeline: [
-      { id: "event-1", actorName: "System", description: "Workspace created", timestampLabel: "Aug 12, 11:00 AM" },
-      { id: "event-2", actorName: "Lead Architect", description: "Discussion resolved", timestampLabel: "Aug 12, 04:30 PM" },
-      { id: "event-3", actorName: "System", description: "Session completed", timestampLabel: "Aug 12, 04:45 PM" },
-    ],
-    outcomes: [
-      "Workspace successfully initialized",
-      "Workspace synchronized",
-      "All blocking discussions resolved",
-      "Session archived",
-    ],
-    startedAt: daysAgo(60),
-    endedAt: daysAgo(60),
-    lastActivityAt: daysAgo(60),
-  },
-];
-
-export async function fetchSessionRecords(): Promise<SessionRecord[]> {
-  return Promise.resolve(SESSION_RECORDS.map((record) => ({ ...record })));
-}
 
 export function getSessionRecordById(records: SessionRecord[], id: string): SessionRecord | undefined {
   return records.find((record) => record.id === id);
@@ -252,7 +81,7 @@ function matchesDateRange(record: SessionRecord, range: SessionDateRangeFilter):
   return now - startedAt <= 365 * DAY;
 }
 
-export function filterSessionRecords(records: SessionRecord[], filters: SessionHistoryFilters): SessionRecord[] {
+export function filterSessionRecords(records: SessionRecord[], filters: SessionHistoryFilters, currentUserId?: string): SessionRecord[] {
   return records.filter((record) => {
     if (filters.status !== "all" && record.status !== filters.status) {
       return false;
@@ -260,7 +89,7 @@ export function filterSessionRecords(records: SessionRecord[], filters: SessionH
     if (filters.workspaceName !== "all" && record.workspace.name !== filters.workspaceName) {
       return false;
     }
-    if (filters.participant === "me" && !record.participants.some((participant) => participant.id === CURRENT_USER_PARTICIPANT.id)) {
+    if (filters.participant === "me" && !record.participants.some((participant) => participant.id === currentUserId)) {
       return false;
     }
     if (!matchesDateRange(record, filters.dateRange)) {

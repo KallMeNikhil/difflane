@@ -79,153 +79,149 @@ export function RegisterModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <form onSubmit={handleSubmit} noValidate>
-        <ModalShell
-          icon="person_add"
-          title="Create Account"
-          description="Own and manage workspaces across every device."
-          onClose={onClose}
-          maxWidthClassName="max-w-[480px]"
-          footer={
-            <div className="flex flex-col gap-sm items-center">
+    <form onSubmit={handleSubmit} noValidate>
+      <ModalShell
+        icon="person_add"
+        title="Create Account"
+        description="Own and manage workspaces across every device."
+        onClose={onClose}
+        maxWidthClassName="max-w-[480px]"
+        footer={
+          <div className="flex flex-col gap-sm items-center">
+            <button
+              type="submit"
+              className={`${PRIMARY_BUTTON} w-full`}
+              disabled={status === "submitting"}
+            >
+              {status === "submitting" ? "Creating account…" : "Create Account"}
+            </button>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              Already have an account?{" "}
               <button
-                type="submit"
-                className={`${PRIMARY_BUTTON} w-full`}
-                disabled={status === "submitting"}
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => navigate(ROUTES.signIn)}
               >
-                {status === "submitting"
-                  ? "Creating account…"
-                  : "Create Account"}
+                Sign In
               </button>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  className="text-primary hover:underline"
-                  onClick={() => navigate(ROUTES.signIn)}
-                >
-                  Sign In
-                </button>
+            </p>
+          </div>
+        }
+      >
+        <div className="p-lg space-y-md">
+          {authError && (
+            <div className="flex items-start gap-sm bg-error/10 border border-error/30 rounded-lg px-md py-sm">
+              <Icon name="error" size={18} className="text-error mt-[2px]" />
+              <p className="font-body-sm text-body-sm text-error">
+                {authError}
               </p>
             </div>
-          }
-        >
-          <div className="p-lg space-y-md">
-            {authError && (
-              <div className="flex items-start gap-sm bg-error/10 border border-error/30 rounded-lg px-md py-sm">
-                <Icon name="error" size={18} className="text-error mt-[2px]" />
-                <p className="font-body-sm text-body-sm text-error">
-                  {authError}
-                </p>
-              </div>
-            )}
+          )}
 
-            <div className="grid grid-cols-1 gap-sm">
-              <button
-                type="button"
-                className={`${SECONDARY_BUTTON} w-full justify-center`}
-                onClick={() => handleOAuth("google")}
-              >
-                <Icon name="account_circle" size={18} />
-                Continue with Google
-              </button>
-              <button
-                type="button"
-                className={`${SECONDARY_BUTTON} w-full justify-center`}
-                onClick={() => handleOAuth("github")}
-              >
-                <Icon name="code" size={18} />
-                Continue with GitHub
-              </button>
-            </div>
+          <div className="grid grid-cols-1 gap-sm">
+            <button
+              type="button"
+              className={`${SECONDARY_BUTTON} w-full justify-center`}
+              onClick={() => handleOAuth("google")}
+            >
+              <Icon name="account_circle" size={18} />
+              Continue with Google
+            </button>
+            <button
+              type="button"
+              className={`${SECONDARY_BUTTON} w-full justify-center`}
+              onClick={() => handleOAuth("github")}
+            >
+              <Icon name="code" size={18} />
+              Continue with GitHub
+            </button>
+          </div>
 
-            <div className="flex items-center gap-sm">
-              <hr className="flex-1 border-outline-variant" />
-              <span className="font-body-sm text-body-sm text-on-surface-variant">
-                or create an account with email
-              </span>
-              <hr className="flex-1 border-outline-variant" />
-            </div>
+          <div className="flex items-center gap-sm">
+            <hr className="flex-1 border-outline-variant" />
+            <span className="font-body-sm text-body-sm text-on-surface-variant">
+              or create an account with email
+            </span>
+            <hr className="flex-1 border-outline-variant" />
+          </div>
 
+          <TextField
+            label="Display Name"
+            required
+            placeholder="Jane Doe"
+            value={displayName}
+            error={fieldErrors.displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+          />
+          <TextField
+            label="Username"
+            required
+            placeholder="janedoe123"
+            value={username}
+            error={fieldErrors.username}
+            onChange={(event) => setUsername(event.target.value)}
+          />
+          <TextField
+            label="Email Address"
+            type="email"
+            required
+            placeholder="jane@example.com"
+            value={email}
+            error={fieldErrors.email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <div className="relative">
             <TextField
-              label="Display Name"
-              required
-              placeholder="Jane Doe"
-              value={displayName}
-              error={fieldErrors.displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-            />
-            <TextField
-              label="Username"
-              required
-              placeholder="janedoe123"
-              value={username}
-              error={fieldErrors.username}
-              onChange={(event) => setUsername(event.target.value)}
-            />
-            <TextField
-              label="Email Address"
-              type="email"
-              required
-              placeholder="jane@example.com"
-              value={email}
-              error={fieldErrors.email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-            <div className="relative">
-              <TextField
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                required
-                placeholder="••••••••"
-                value={password}
-                error={fieldErrors.password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="pr-10"
-              />
-              <IconButton
-                icon={showPassword ? "visibility" : "visibility_off"}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                shape="square"
-                className="absolute right-1 top-[34px]"
-                onClick={() => setShowPassword((prev) => !prev)}
-              />
-            </div>
-            <TextField
-              label="Confirm Password"
+              label="Password"
               type={showPassword ? "text" : "password"}
               required
               placeholder="••••••••"
-              value={confirmPassword}
-              error={fieldErrors.confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              value={password}
+              error={fieldErrors.password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="pr-10"
             />
-
-            <div className="bg-surface-container-high border border-outline-variant rounded-lg p-md space-y-xs">
-              <p className="font-label-md text-label-md text-on-surface">
-                With a Difflane account you can:
-              </p>
-              <ul className="space-y-xs">
-                {BENEFITS.map((benefit) => (
-                  <li
-                    key={benefit}
-                    className="flex items-center gap-sm font-body-sm text-body-sm text-on-surface-variant"
-                  >
-                    <Icon
-                      name="check_circle"
-                      size={16}
-                      className="text-success"
-                      filled
-                    />
-                    {benefit}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <IconButton
+              icon={showPassword ? "visibility" : "visibility_off"}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              shape="square"
+              className="absolute right-1 top-[34px]"
+              onClick={() => setShowPassword((prev) => !prev)}
+            />
           </div>
-        </ModalShell>
-      </form>
-    </div>
+          <TextField
+            label="Confirm Password"
+            type={showPassword ? "text" : "password"}
+            required
+            placeholder="••••••••"
+            value={confirmPassword}
+            error={fieldErrors.confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+          />
+
+          <div className="bg-surface-container-high border border-outline-variant rounded-lg p-md space-y-xs">
+            <p className="font-label-md text-label-md text-on-surface">
+              With a Difflane account you can:
+            </p>
+            <ul className="space-y-xs">
+              {BENEFITS.map((benefit) => (
+                <li
+                  key={benefit}
+                  className="flex items-center gap-sm font-body-sm text-body-sm text-on-surface-variant"
+                >
+                  <Icon
+                    name="check_circle"
+                    size={16}
+                    className="text-success"
+                    filled
+                  />
+                  {benefit}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </ModalShell>
+    </form>
   );
 }

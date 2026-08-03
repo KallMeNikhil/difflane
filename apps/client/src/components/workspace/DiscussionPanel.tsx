@@ -1,18 +1,24 @@
 import { useState } from "react";
-import { Icon, IconButton } from "../common";
+import { ComingSoonBadge, Icon, IconButton } from "../common";
 import { DiscussionThreadCard } from "./DiscussionThreadCard";
 import type { DiscussionFeedItem, DiscussionThread } from "../../types/workspace";
 import type { DiscussionFeedStats } from "../../services/DiscussionService";
 
+interface DiscussionPanelAuthor {
+  name: string;
+  initials: string;
+}
+
 interface DiscussionPanelProps {
   feed: DiscussionFeedItem[];
   stats: DiscussionFeedStats;
+  author: DiscussionPanelAuthor;
   onResolve: (threadId: string) => void;
   onSubmitReply: (threadId: string, body: string) => void;
   onCreateThread: (thread: DiscussionThread) => void;
 }
 
-export function DiscussionPanel({ feed, stats, onResolve, onSubmitReply, onCreateThread }: DiscussionPanelProps) {
+export function DiscussionPanel({ feed, stats, author, onResolve, onSubmitReply, onCreateThread }: DiscussionPanelProps) {
   const [isComposing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -27,8 +33,8 @@ export function DiscussionPanel({ feed, stats, onResolve, onSubmitReply, onCreat
       comments: [
         {
           id: `comment-${Date.now()}`,
-          authorInitials: "ME",
-          authorName: "You",
+          authorInitials: author.initials,
+          authorName: author.name,
           timestampLabel: "Just now",
           body,
           tone: "default",
@@ -55,9 +61,6 @@ export function DiscussionPanel({ feed, stats, onResolve, onSubmitReply, onCreat
             onClick={() => setComposing((prev) => !prev)}
             className="w-8 h-8"
           />
-          <button type="button" aria-label="Collapse panel" className="text-on-surface-variant hover:text-on-surface transition-colors">
-            <Icon name="close_fullscreen" size={20} />
-          </button>
         </div>
       </div>
 
@@ -121,10 +124,14 @@ export function DiscussionPanel({ feed, stats, onResolve, onSubmitReply, onCreat
       <div className="p-md border-t border-outline-variant">
         <button
           type="button"
-          className="w-full py-2 rounded border border-outline-variant text-on-surface hover:bg-surface-container transition-colors font-body-sm text-body-sm font-medium flex items-center justify-center gap-sm"
+          disabled
+          aria-disabled="true"
+          title="Generate Summary is coming soon"
+          className="w-full py-2 rounded border border-outline-variant text-on-surface-variant cursor-not-allowed transition-colors font-body-sm text-body-sm font-medium flex items-center justify-center gap-sm opacity-60"
         >
           <Icon name="summarize" size={16} />
           Generate Summary
+          <ComingSoonBadge />
         </button>
       </div>
     </aside>

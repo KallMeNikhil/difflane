@@ -129,7 +129,6 @@ function WorkspaceContent() {
     activeFileId,
     setActiveFileId,
     selectedId,
-    resolveCreateParentId,
     toggleFolder,
     collapseAll,
     createFile,
@@ -144,7 +143,6 @@ function WorkspaceContent() {
   const { openTabs, activeTabId, setActiveTabId, openTab, closeTab } = useEditorTabs(
     EMPTY_INITIAL_TABS,
     EMPTY_ACTIVE_FILE_ID,
-    doc,
     tree,
   );
 
@@ -215,6 +213,8 @@ function WorkspaceContent() {
   }
 
   const activeNode = findNodeById(tree, activeFileId);
+  const lastKnownActiveFileIdRef = useRef<string | null>(null);
+  const locallyRemovedFileIdsRef = useRef<Set<string>>(new Set());
   const breadcrumbPath = activeNode ? buildBreadcrumbPath(tree, activeNode.id) ?? [activeNode.name] : [];
   const [viewingDeletedFileId, setViewingDeletedFileId] = useState<string | null>(null);
   const [diffPreviewFileId, setDiffPreviewFileId] = useState<string | null>(null);
@@ -355,6 +355,9 @@ function WorkspaceContent() {
     setActiveTopTab("files");
   }
 
+  const handleSelectFileRef = useRef(handleSelectFile);
+  handleSelectFileRef.current = handleSelectFile;
+
   function handleSelectChangedFile(node: FileNode) {
     if (node.status === "deleted") {
       setDiffPreviewFileId(null);
@@ -378,6 +381,7 @@ function WorkspaceContent() {
 
   function handleDeleteEntry(id: string) {
     const removedIds = deleteEntry(id);
+    removedIds.forEach((removedId) => locallyRemovedFileIdsRef.current.add(removedId));
     if (removedIds.includes(activeFileId)) {
       const fallback = tree.find((node) => node.type === "file" && !removedIds.includes(node.id));
       if (fallback) {
@@ -386,6 +390,33 @@ function WorkspaceContent() {
     }
     removedIds.forEach((removedId) => closeTab(removedId));
   }
+
+  useEffect(() => {
+    if (activeNode) {
+      lastKnownActiveFileIdRef.current = activeNode.id;
+      return;
+    }
+    if (!activeFileId || activeFileId !== lastKnownActiveFileIdRef.current) {
+      return;
+    }
+    lastKnownActiveFileIdRef.current = null;
+    if (locallyRemovedFileIdsRef.current.has(activeFileId)) {
+      locallyRemovedFileIdsRef.current.delete(activeFileId);
+      return;
+    }
+    const fallback = tree.find((node) => node.type === "file");
+    if (fallback) {
+      handleSelectFileRef.current(fallback);
+    }
+    addNotification({
+      category: "workspace",
+      icon: "delete",
+      tone: "warning",
+      message: "A collaborator deleted the file you had open",
+      targetLabel: workspaceMetadata.name,
+      roomCode,
+    });
+  }, [activeNode, activeFileId, tree, workspaceMetadata.name, roomCode, addNotification]);
 
   function handleResolveThread(threadId: string) {
     const match = feed.find((item) => item.kind === "thread" && item.thread.id === threadId);
@@ -506,7 +537,6 @@ function WorkspaceContent() {
           tree={tree}
           activeFileId={activeFileId}
           selectedId={selectedId}
-          resolveCreateParentId={resolveCreateParentId}
           repositoryInfo={repositoryInfo}
           notice={notice}
           onDismissNotice={() => setNotice(null)}
@@ -648,7 +678,14 @@ function WorkspaceContent() {
           )}
         </section>
 
-        <DiscussionPanel feed={feed} stats={stats} onResolve={handleResolveThread} onSubmitReply={reply} onCreateThread={create} />
+        <DiscussionPanel
+          feed={feed}
+          stats={stats}
+          author={authorIdentity}
+          onResolve={handleResolveThread}
+          onSubmitReply={reply}
+          onCreateThread={create}
+        />
       </main>
 
       <WorkspaceStatusBar />
