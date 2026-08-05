@@ -18,6 +18,11 @@ export function WorkspaceStatusBar() {
   const syncIcon = persistenceStatus === "failed" ? "cloud_off" : "sync";
   const syncColorClass = persistenceStatus === "failed" ? "text-error" : undefined;
 
+  const typingCount = collaborators.filter((collaborator) => collaborator.activityState === "typing").length;
+  const editingCount = collaborators.filter(
+    (collaborator) => collaborator.activityState === "typing" || collaborator.activityState === "editing",
+  ).length;
+
   return (
     <footer className="h-[26px] bg-surface-container-lowest border-t border-outline-variant flex items-center px-sm gap-4 text-[11px] font-code text-on-surface-variant flex-shrink-0 z-50">
       <div className="flex items-center gap-1.5">
@@ -29,9 +34,21 @@ export function WorkspaceStatusBar() {
         <Icon name={syncIcon} size={13} />
         <span>{syncLabel}</span>
       </div>
+      {typingCount > 0 && (
+        <div className="flex items-center gap-1 text-primary">
+          <Icon name="keyboard" size={13} />
+          <span>{typingCount} Typing</span>
+        </div>
+      )}
+      {editingCount > 0 && (
+        <div className="flex items-center gap-1">
+          <Icon name="edit" size={13} />
+          <span>{editingCount} Editing</span>
+        </div>
+      )}
       <div className="ml-auto flex items-center gap-1">
         <Icon name="group" size={13} />
-        <span>{collaborators.length} collaborators editing</span>
+        <span>{collaborators.length} Collaborators</span>
       </div>
     </footer>
   );

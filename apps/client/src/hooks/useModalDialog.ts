@@ -32,7 +32,16 @@ export function useBodyScrollLock(): void {
  */
 export function useModalDialog<T extends HTMLElement>(onClose: () => void) {
   const containerRef = useRef<T | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
+  // Intentionally runs once per mount only. Re-running this effect on every
+  // render (e.g. because callers pass a new `onClose` function identity each
+  // time, such as an inline arrow function recreated on every keystroke)
+  // previously caused focus to be reset to the first focusable element on
+  // every state update, making text inputs inside the dialog lose focus
+  // after a single character. The latest `onClose` is still always invoked
+  // via the ref below.
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const previousBodyOverflow = document.body.style.overflow;
@@ -43,7 +52,7 @@ export function useModalDialog<T extends HTMLElement>(onClose: () => void) {
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") {
@@ -71,7 +80,7 @@ export function useModalDialog<T extends HTMLElement>(onClose: () => void) {
       document.body.style.overflow = previousBodyOverflow;
       previouslyFocused?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   return containerRef;
 }

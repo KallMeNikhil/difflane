@@ -23,6 +23,8 @@ interface CodeEditorProps {
   reviewMarkers?: ReviewGutterMarker[];
   onReviewMarkerClick?: (threadId: string, top: number) => void;
   onReviewGutterClick?: (lineNumber: number, top: number) => void;
+  onTypingActivity?: () => void;
+  readOnly?: boolean;
 }
 
 const THEME_NAME = "difflane-slate";
@@ -53,6 +55,8 @@ export function CodeEditor({
   reviewMarkers = [],
   onReviewMarkerClick,
   onReviewGutterClick,
+  onTypingActivity,
+  readOnly = false,
 }: CodeEditorProps) {
   const { preferences } = useEditorPreferences();
   const { monacoLanguage, isCollaborative, handleMount } = useMonacoYjsBinding({
@@ -61,6 +65,7 @@ export function CodeEditor({
     language,
     doc,
     awareness,
+    onLocalEdit: onTypingActivity,
   });
 
   const editorRef = useRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null);
@@ -78,6 +83,10 @@ export function CodeEditor({
   useEffect(() => {
     onReviewGutterClickRef.current = onReviewGutterClick;
   }, [onReviewGutterClick]);
+
+  useEffect(() => {
+    editorRef.current?.updateOptions({ readOnly, readOnlyMessage: readOnly ? { value: "You have view-only access to this workspace." } : undefined });
+  }, [readOnly]);
 
   useEffect(() => {
     const editorInstance = editorRef.current;
@@ -116,7 +125,8 @@ export function CodeEditor({
 
   return (
     <Editor
-      key={`${fileId}:${isCollaborative ? "collab" : "local"}`}
+      path={fileId}
+      keepCurrentModel
       value={isCollaborative ? undefined : value}
       defaultValue={isCollaborative ? value : undefined}
       language={monacoLanguage}
@@ -135,6 +145,8 @@ export function CodeEditor({
         automaticLayout: true,
         glyphMargin: true,
         padding: { top: 16 },
+        readOnly,
+        readOnlyMessage: readOnly ? { value: "You have view-only access to this workspace." } : undefined,
       }}
     />
   );

@@ -82,6 +82,7 @@ export const env = {
     roomJoinMax: readNumber("SOCKET_RATE_LIMIT_ROOM_JOIN_MAX", 10),
     docUpdateMax: readNumber("SOCKET_RATE_LIMIT_DOC_UPDATE_MAX", 120),
     awarenessUpdateMax: readNumber("SOCKET_RATE_LIMIT_AWARENESS_UPDATE_MAX", 240),
+    attentionRequestMax: readNumber("SOCKET_RATE_LIMIT_ATTENTION_REQUEST_MAX", 6),
   },
 };
 

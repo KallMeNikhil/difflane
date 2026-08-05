@@ -1,12 +1,20 @@
 
 import type {
+  ActivityState,
   MemberRole,
   WorkspaceCollaborationPreferences,
   WorkspaceFileSystemEntry,
   WorkspaceMetadata,
   WorkspaceRepositoryInfo,
 } from "@difflane/shared-types";
-export type { MemberRole, WorkspaceFileSystemEntry, WorkspaceRepositoryInfo, WorkspaceCollaborationPreferences, WorkspaceMetadata };
+export type {
+  ActivityState,
+  MemberRole,
+  WorkspaceFileSystemEntry,
+  WorkspaceRepositoryInfo,
+  WorkspaceCollaborationPreferences,
+  WorkspaceMetadata,
+};
 
 export type FileNodeType = "file" | "folder";
 
@@ -97,6 +105,12 @@ export interface Collaborator {
   name: string;
   role: string;
   presence: PresenceStatus;
+  connectionClientId?: number;
+  roleValue?: MemberRole;
+  activeFileId?: string | null;
+  activityState?: ActivityState;
+  lastActiveAt?: string;
+  color?: string;
 }
 
 export type CommentTone = "default" | "blocking";

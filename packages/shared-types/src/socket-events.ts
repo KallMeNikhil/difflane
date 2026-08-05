@@ -13,6 +13,9 @@ export const SOCKET_EVENTS = {
   WORKSPACE_PERSISTED: "workspace:persisted",
   WORKSPACE_PERSISTENCE_FAILED: "workspace:persistence-failed",
   WORKSPACE_RESTORED: "workspace:restored",
+  ATTENTION_REQUEST: "attention:request",
+  ATTENTION_RECEIVED: "attention:received",
+  ATTENTION_ERROR: "attention:error",
 } as const;
 
 export type SocketEventName = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];
@@ -78,4 +81,25 @@ export interface WorkspacePersistenceFailedPayload {
 
 export interface WorkspaceRestoredPayload {
   roomId: string;
+}
+
+export interface AttentionRequestPayload {
+  roomId: string;
+  targetConnectionId: string;
+  fileId: string | null;
+  fileLabel: string | null;
+}
+
+export interface AttentionReceivedPayload {
+  fromConnectionId: string;
+  fromUserId: string;
+  fromDisplayName: string;
+  fromInitials: string;
+  fileId: string | null;
+  fileLabel: string | null;
+  receivedAt: string;
+}
+
+export interface AttentionErrorPayload {
+  message: string;
 }

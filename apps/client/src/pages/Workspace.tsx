@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useMonaco } from "@monaco-editor/react";
 import { CodeEditor, DiffViewer, EditorTabsBar, EditorToolbar } from "../components/editor";
 import type { ReviewGutterMarker } from "../components/editor/CodeEditor";
+import { disposeMonacoModelForFile } from "../lib/monaco/monacoBinding";
 import {
   ChangesFileList,
   FileExplorerPanel,
@@ -13,6 +15,7 @@ import {
   WorkspaceIconRail,
   WorkspaceStatusBar,
   WorkspaceTopNav,
+  AttentionRequestToast,
 } from "../components/workspace";
 import {
   FileReviewStatusBadge,
@@ -23,7 +26,7 @@ import {
   countReviewedFiles,
   getNextFileReviewStatus,
 } from "../components/review";
-import { PlaceholderNotice } from "../components/common";
+import { PlaceholderNotice, StatusBadge } from "../components/common";
 import { GlobalSearchModal } from "../components/search";
 import { WorkspaceSettingsModal } from "../components/settings";
 import { SessionSummaryModal } from "../components/history";
@@ -93,10 +96,16 @@ function WorkspaceContent() {
     awareness,
     roomCode,
     participants,
+    collaborators,
     selfRole,
     setActiveFileId: publishActiveFileId,
+    markTyping,
     persistenceStatus,
     persistenceErrorMessage,
+    followedUserId,
+    requestAttention,
+    incomingAttention,
+    dismissIncomingAttention,
   } = useRoom();
   const { userId, displayName, initials, isAuthenticated } = useCurrentUser();
   const navigate = useNavigate();
@@ -140,10 +149,18 @@ function WorkspaceContent() {
     deletedFiles: deletedFileRecords,
   } = useFileExplorer(seed, EMPTY_ACTIVE_FILE_ID, doc);
 
-  const { openTabs, activeTabId, setActiveTabId, openTab, closeTab } = useEditorTabs(
+  const { openTabs, activeTabId, setActiveTabId, openTab, closeTab: closeTabInternal } = useEditorTabs(
     EMPTY_INITIAL_TABS,
     EMPTY_ACTIVE_FILE_ID,
     tree,
+  );
+  const monaco = useMonaco();
+  const closeTab = useCallback(
+    (id: string) => {
+      closeTabInternal(id);
+      disposeMonacoModelForFile(monaco, id);
+    },
+    [closeTabInternal, monaco],
   );
 
   const authorIdentity = useMemo(() => ({ name: displayName, initials }), [displayName, initials]);
@@ -337,6 +354,58 @@ function WorkspaceContent() {
     publishActiveFileId(activeFileId);
   }, [activeFileId, publishActiveFileId]);
 
+  useEffect(() => {
+    if (!followedUserId) {
+      return;
+    }
+    const followed = collaborators.find((collaborator) => collaborator.id === followedUserId);
+    if (!followed || !followed.activeFileId || followed.activeFileId === activeFileId) {
+      return;
+    }
+    const node = findNodeById(tree, followed.activeFileId);
+    if (node) {
+      handleSelectFileRef.current(node);
+    }
+  }, [followedUserId, collaborators, activeFileId, tree]);
+
+  function handleJumpToUser(userId: string) {
+    const target = collaborators.find((collaborator) => collaborator.id === userId);
+    if (!target || !target.activeFileId) {
+      return;
+    }
+    const node = findNodeById(tree, target.activeFileId);
+    if (node) {
+      handleSelectFile(node);
+    }
+  }
+
+  function handleRequestAttention(targetConnectionId: string) {
+    requestAttention(targetConnectionId, { fileId: activeFileId || null, fileLabel: activeNode?.name ?? null });
+  }
+
+  function getFileNameById(fileId: string | null): string | null {
+    if (!fileId) {
+      return null;
+    }
+    return findNodeById(tree, fileId)?.name ?? null;
+  }
+
+  function getFilePresence(fileId: string): { viewing: number; editing: number } {
+    let viewing = 0;
+    let editing = 0;
+    for (const collaborator of collaborators) {
+      if (collaborator.activeFileId !== fileId) {
+        continue;
+      }
+      if (collaborator.activityState === "editing" || collaborator.activityState === "typing") {
+        editing += 1;
+      } else {
+        viewing += 1;
+      }
+    }
+    return { viewing, editing };
+  }
+
   const anchorThread = useMemo(() => {
     if (!activeNode) {
       return undefined;
@@ -522,6 +591,9 @@ function WorkspaceContent() {
         onOpenSessionSummary={() => setSessionSummaryOpen(true)}
         onExportWorkspace={handleExportWorkspace}
         isExporting={isExporting}
+        onJumpToUser={handleJumpToUser}
+        onRequestAttention={handleRequestAttention}
+        fileNameById={getFileNameById}
       />
 
       <main className="flex-1 flex overflow-hidden w-full relative">
@@ -552,6 +624,7 @@ function WorkspaceContent() {
           onSync={handleSync}
           isSyncing={isSyncing}
           getReviewStatus={review.getFileStatusFor}
+          getFilePresence={getFilePresence}
         />
 
         <section className="flex-1 flex flex-col h-full min-w-0 z-20">
@@ -567,6 +640,9 @@ function WorkspaceContent() {
                 rightSlot={
                   !activeDiff && (
                     <div className="flex items-center gap-sm">
+                      {selfRole === "viewer" && (
+                        <StatusBadge label="Viewer · Read-only" tone="neutral" />
+                      )}
                       <ReviewNavigationControls
                         count={activeFileReviewThreads.length}
                         onPrevious={() => review.goToAdjacentThread(activeNode.id, "previous")}
@@ -596,6 +672,8 @@ function WorkspaceContent() {
                     reviewMarkers={reviewMarkers}
                     onReviewMarkerClick={handleReviewMarkerClick}
                     onReviewGutterClick={handleReviewGutterClick}
+                    onTypingActivity={markTyping}
+                    readOnly={selfRole === "viewer"}
                   />
                   {openReviewThread && (
                     <InlineReviewThread
@@ -740,6 +818,9 @@ function WorkspaceContent() {
           onSelectResult={handleSelectSearchResult}
           onClose={search.close}
         />
+      )}
+      {incomingAttention && (
+        <AttentionRequestToast request={incomingAttention} onJumpToUser={handleJumpToUser} onDismiss={dismissIncomingAttention} />
       )}
     </div>
   );

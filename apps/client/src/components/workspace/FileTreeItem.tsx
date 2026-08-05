@@ -23,6 +23,7 @@ interface FileTreeItemProps {
   onCommitPendingCreate: (name: string) => void;
   onCancelPendingCreate: () => void;
   getReviewStatus?: (fileId: string) => FileReviewStatus;
+  getFilePresence?: (fileId: string) => { viewing: number; editing: number };
 }
 
 const REVIEW_DOT_CLASSES: Record<FileReviewStatus, string> = {
@@ -72,6 +73,7 @@ export function FileTreeItem({
   onCommitPendingCreate,
   onCancelPendingCreate,
   getReviewStatus,
+  getFilePresence,
 }: FileTreeItemProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useCloseOnOutsideClick(menuOpen, () => setMenuOpen(false));
@@ -198,6 +200,7 @@ export function FileTreeItem({
                 onCommitPendingCreate={onCommitPendingCreate}
                 onCancelPendingCreate={onCancelPendingCreate}
                 getReviewStatus={getReviewStatus}
+                getFilePresence={getFilePresence}
               />
             ))}
             {pendingCreate?.parentId === node.id && (
@@ -249,6 +252,28 @@ export function FileTreeItem({
                 return null;
               }
               return <span title={reviewStatus === "reviewed" ? "Reviewed" : "In Review"} className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${REVIEW_DOT_CLASSES[reviewStatus]}`} />;
+            })()}
+            {(() => {
+              const presence = getFilePresence?.(node.id);
+              if (!presence || (presence.viewing === 0 && presence.editing === 0)) {
+                return null;
+              }
+              return (
+                <span className="flex items-center gap-1 shrink-0 font-body-sm text-[10px] text-[#A7AFBF]">
+                  {presence.editing > 0 && (
+                    <span title={`${presence.editing} editing`} className="flex items-center gap-0.5 text-tertiary">
+                      <Icon name="edit" size={11} />
+                      {presence.editing}
+                    </span>
+                  )}
+                  {presence.viewing > 0 && (
+                    <span title={`${presence.viewing} viewing`} className="flex items-center gap-0.5">
+                      <Icon name="visibility" size={11} />
+                      {presence.viewing}
+                    </span>
+                  )}
+                </span>
+              );
             })()}
             <button
               type="button"

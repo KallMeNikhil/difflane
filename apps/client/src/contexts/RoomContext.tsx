@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import type { Socket } from "socket.io-client";
 import {
   SOCKET_EVENTS,
+  type AttentionReceivedPayload,
   type RoomParticipant,
   type RoomRoleChangedPayload,
   type WorkspacePersistedPayload,
@@ -11,11 +12,16 @@ import { RoomJoinError, connectSocket, disconnectSocket, joinRoom, leaveRoom, on
 import { useYjsDoc } from "../hooks/useYjsDoc";
 import { usePresence } from "../hooks/usePresence";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useNotifications } from "../hooks/useNotifications";
 import { getAccessToken } from "../lib/auth/tokenStore";
 import * as AuthService from "../services/AuthService";
 import type { RejoinResult } from "../lib/yjs/YjsSocketProvider";
-import { RoomContext, type RoomContextValue, type WorkspacePersistenceStatus } from "../hooks/useRoom";
+import { RoomContext, type IncomingAttentionRequest, type RoomContextValue, type WorkspacePersistenceStatus } from "../hooks/useRoom";
 import type { RoomJoinPayload, RoomJoinedPayload } from "@difflane/shared-types";
+
+const PARTICIPANT_LEAVE_GRACE_MS = 4000;
+const ATTENTION_COOLDOWN_MS = 10_000;
+const ATTENTION_TOAST_DURATION_MS = 8000;
 
 async function joinRoomWithFreshToken(
   socket: Socket,
@@ -50,9 +56,13 @@ interface RoomProviderProps {
 
 export function RoomProvider({ roomCode, children }: RoomProviderProps) {
   const identity = useCurrentUser();
+  const { addNotification } = useNotifications();
   const [connection, setConnection] = useState<JoinedConnection | null>(null);
   const [participants, setParticipants] = useState<RoomParticipant[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const participantsRef = useRef<RoomParticipant[]>(participants);
+  participantsRef.current = participants;
+  const pendingLeftRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   useEffect(() => {
     // Guest Lifecycle Fix / OAuth Runtime Fix: wait for identity resolution
@@ -112,17 +122,61 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
     if (!connection) {
       return;
     }
+    const pendingLeft = pendingLeftRef.current;
     const offJoined = onParticipantJoined(connection.socket, (participant) => {
       setParticipants((prev) => [...prev.filter((existing) => existing.connectionId !== participant.connectionId), participant]);
+      const pendingTimeout = pendingLeft.get(participant.userId);
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        pendingLeft.delete(participant.userId);
+        addNotification({
+          category: "system",
+          icon: "sync",
+          tone: "success",
+          actorName: participant.displayName,
+          actorInitials: participant.initials,
+          message: "reconnected",
+          roomCode,
+        });
+      } else {
+        addNotification({
+          category: "system",
+          icon: "person_add",
+          tone: "success",
+          actorName: participant.displayName,
+          actorInitials: participant.initials,
+          message: "joined the workspace",
+          roomCode,
+        });
+      }
     });
     const offLeft = onParticipantLeft(connection.socket, ({ connectionId }) => {
+      const leaving = participantsRef.current.find((participant) => participant.connectionId === connectionId);
       setParticipants((prev) => prev.filter((participant) => participant.connectionId !== connectionId));
+      if (!leaving) {
+        return;
+      }
+      const timeout = setTimeout(() => {
+        pendingLeft.delete(leaving.userId);
+        addNotification({
+          category: "system",
+          icon: "person_remove",
+          tone: "accent",
+          actorName: leaving.displayName,
+          actorInitials: leaving.initials,
+          message: "left the workspace",
+          roomCode,
+        });
+      }, PARTICIPANT_LEAVE_GRACE_MS);
+      pendingLeft.set(leaving.userId, timeout);
     });
     return () => {
       offJoined();
       offLeft();
+      pendingLeft.forEach((timeout) => clearTimeout(timeout));
+      pendingLeft.clear();
     };
-  }, [connection]);
+  }, [connection, addNotification, roomCode]);
 
   if (!connection) {
     const value: RoomContextValue = {
@@ -133,12 +187,21 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
       participants,
       collaborators: [],
       selfRole: "viewer",
+      selfConnectionId: null,
       doc: null,
       awareness: null,
       setActiveFileId: () => {},
+      markTyping: () => {},
       persistenceStatus: "pending",
       lastPersistedAt: null,
       persistenceErrorMessage: null,
+      followedUserId: null,
+      followUser: () => {},
+      unfollowUser: () => {},
+      requestAttention: () => {},
+      attentionCooldownIds: [],
+      incomingAttention: null,
+      dismissIncomingAttention: () => {},
     };
     return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;
   }
@@ -164,6 +227,7 @@ function ConnectedRoom({
   children: ReactNode;
 }) {
   const identity = useCurrentUser();
+  const { addNotification } = useNotifications();
   const [selfColor, setSelfColor] = useState(connection.selfColor);
   const [selfRole, setSelfRole] = useState(connection.selfRole);
   const rejoin = useCallback(async (): Promise<RejoinResult> => {
@@ -231,6 +295,16 @@ function ConnectedRoom({
       }
       if (payload.connectionId === connection.selfConnectionId) {
         setSelfRole(payload.role);
+        addNotification({
+          category: "workspace",
+          icon: payload.role === "viewer" ? "visibility" : "edit",
+          tone: payload.role === "viewer" ? "warning" : "success",
+          message:
+            payload.role === "viewer"
+              ? "You no longer have edit permission. Your role is now Viewer."
+              : `You can now edit this workspace. Your role is now ${payload.role === "owner" ? "Owner" : "Editor"}.`,
+          roomCode,
+        });
       }
       setParticipants((prev) =>
         prev.map((participant) =>
@@ -249,7 +323,7 @@ function ConnectedRoom({
       socket.off(SOCKET_EVENTS.WORKSPACE_RESTORED, handleRestored);
       socket.off(SOCKET_EVENTS.ROOM_ROLE_CHANGED, handleRoleChanged);
     };
-  }, [connection.socket, connection.roomId, connection.selfConnectionId, setParticipants]);
+  }, [connection.socket, connection.roomId, connection.selfConnectionId, setParticipants, addNotification, roomCode]);
 
   const localIdentity = useMemo(
     () => ({
@@ -262,7 +336,82 @@ function ConnectedRoom({
     }),
     [identity.userId, identity.isAuthenticated, identity.displayName, identity.initials, selfColor, selfRole],
   );
-  const { collaborators, setActiveFileId } = usePresence(awareness, localIdentity);
+  const { collaborators, setActiveFileId, markTyping } = usePresence(awareness, localIdentity);
+
+  const [followedUserId, setFollowedUserId] = useState<string | null>(null);
+  const followUser = useCallback((userId: string) => setFollowedUserId(userId), []);
+  const unfollowUser = useCallback(() => setFollowedUserId(null), []);
+
+  useEffect(() => {
+    if (followedUserId && !collaborators.some((collaborator) => collaborator.id === followedUserId)) {
+      setFollowedUserId(null);
+    }
+  }, [followedUserId, collaborators]);
+
+  const attentionCooldownRef = useRef(new Map<string, number>());
+  const [attentionCooldownIds, setAttentionCooldownIds] = useState<string[]>([]);
+
+  const requestAttention = useCallback(
+    (targetConnectionId: string, context: { fileId: string | null; fileLabel: string | null }) => {
+      const now = Date.now();
+      const lastSentAt = attentionCooldownRef.current.get(targetConnectionId) ?? 0;
+      if (now - lastSentAt < ATTENTION_COOLDOWN_MS) {
+        return;
+      }
+      attentionCooldownRef.current.set(targetConnectionId, now);
+      setAttentionCooldownIds(
+        Array.from(attentionCooldownRef.current.entries())
+          .filter(([, sentAt]) => now - sentAt < ATTENTION_COOLDOWN_MS)
+          .map(([connectionId]) => connectionId),
+      );
+      connection.socket.emit(SOCKET_EVENTS.ATTENTION_REQUEST, {
+        roomId: connection.roomId,
+        targetConnectionId,
+        fileId: context.fileId,
+        fileLabel: context.fileLabel,
+      });
+    },
+    [connection.socket, connection.roomId],
+  );
+
+  const [incomingAttention, setIncomingAttention] = useState<IncomingAttentionRequest | null>(null);
+  const incomingAttentionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismissIncomingAttention = useCallback(() => {
+    setIncomingAttention(null);
+    if (incomingAttentionTimeoutRef.current) {
+      clearTimeout(incomingAttentionTimeoutRef.current);
+      incomingAttentionTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const socket = connection.socket;
+    function handleAttentionReceived(payload: AttentionReceivedPayload) {
+      setIncomingAttention({
+        id: `${payload.fromConnectionId}-${payload.receivedAt}`,
+        fromConnectionId: payload.fromConnectionId,
+        fromUserId: payload.fromUserId,
+        fromDisplayName: payload.fromDisplayName,
+        fromInitials: payload.fromInitials,
+        fileId: payload.fileId,
+        fileLabel: payload.fileLabel,
+        receivedAt: payload.receivedAt,
+      });
+      if (incomingAttentionTimeoutRef.current) {
+        clearTimeout(incomingAttentionTimeoutRef.current);
+      }
+      incomingAttentionTimeoutRef.current = setTimeout(() => setIncomingAttention(null), ATTENTION_TOAST_DURATION_MS);
+    }
+    socket.on(SOCKET_EVENTS.ATTENTION_RECEIVED, handleAttentionReceived);
+    return () => {
+      socket.off(SOCKET_EVENTS.ATTENTION_RECEIVED, handleAttentionReceived);
+      if (incomingAttentionTimeoutRef.current) {
+        clearTimeout(incomingAttentionTimeoutRef.current);
+        incomingAttentionTimeoutRef.current = null;
+      }
+    };
+  }, [connection.socket]);
 
   const value = useMemo<RoomContextValue>(
     () => ({
@@ -273,12 +422,21 @@ function ConnectedRoom({
       participants,
       collaborators,
       selfRole,
+      selfConnectionId: connection.selfConnectionId,
       doc,
       awareness,
       setActiveFileId,
+      markTyping,
       persistenceStatus,
       lastPersistedAt,
       persistenceErrorMessage,
+      followedUserId,
+      followUser,
+      unfollowUser,
+      requestAttention,
+      attentionCooldownIds,
+      incomingAttention,
+      dismissIncomingAttention,
     }),
     [
       roomCode,
@@ -286,12 +444,21 @@ function ConnectedRoom({
       participants,
       collaborators,
       selfRole,
+      connection.selfConnectionId,
       doc,
       awareness,
       setActiveFileId,
+      markTyping,
       persistenceStatus,
       lastPersistedAt,
       persistenceErrorMessage,
+      followedUserId,
+      followUser,
+      unfollowUser,
+      requestAttention,
+      attentionCooldownIds,
+      incomingAttention,
+      dismissIncomingAttention,
     ],
   );
 

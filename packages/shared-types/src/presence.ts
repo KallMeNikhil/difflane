@@ -2,6 +2,8 @@ import type { MemberRole, ParticipantIdentityType } from "./room.js";
 
 export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 
+export type ActivityState = "typing" | "editing" | "viewing" | "idle";
+
 export interface AwarenessState {
   userId: string;
   identityType: ParticipantIdentityType;
@@ -10,4 +12,7 @@ export interface AwarenessState {
   color: string;
   role: MemberRole;
   activeFileId: string | null;
+  isTyping: boolean;
+  lastEditedAt: string | null;
+  lastActiveAt: string;
 }

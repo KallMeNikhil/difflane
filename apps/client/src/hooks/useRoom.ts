@@ -8,6 +8,17 @@ import type { YjsSocketProviderStatus } from "../lib/yjs/YjsSocketProvider";
 export type RoomConnectionStatus = "joining" | "ready" | "error";
 export type WorkspacePersistenceStatus = "pending" | "saved" | "failed";
 
+export interface IncomingAttentionRequest {
+  id: string;
+  fromConnectionId: string;
+  fromUserId: string;
+  fromDisplayName: string;
+  fromInitials: string;
+  fileId: string | null;
+  fileLabel: string | null;
+  receivedAt: string;
+}
+
 export interface RoomContextValue {
   status: RoomConnectionStatus;
   errorMessage: string | null;
@@ -16,12 +27,21 @@ export interface RoomContextValue {
   participants: RoomParticipant[];
   collaborators: Collaborator[];
   selfRole: MemberRole;
+  selfConnectionId: string | null;
   doc: Y.Doc | null;
   awareness: Awareness | null;
   setActiveFileId: (fileId: string | null) => void;
+  markTyping: () => void;
   persistenceStatus: WorkspacePersistenceStatus;
   lastPersistedAt: string | null;
   persistenceErrorMessage: string | null;
+  followedUserId: string | null;
+  followUser: (userId: string) => void;
+  unfollowUser: () => void;
+  requestAttention: (targetConnectionId: string, context: { fileId: string | null; fileLabel: string | null }) => void;
+  attentionCooldownIds: string[];
+  incomingAttention: IncomingAttentionRequest | null;
+  dismissIncomingAttention: () => void;
 }
 
 export const RoomContext = createContext<RoomContextValue | undefined>(undefined);

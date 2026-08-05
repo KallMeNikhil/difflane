@@ -1,4 +1,5 @@
-import { Avatar, Button, Icon, IconButton } from "../common";
+import { Button, Icon, IconButton } from "../common";
+import { ParticipantPresencePopover } from "./ParticipantPresencePopover";
 import { useRoom } from "../../hooks/useRoom";
 import { useWorkspaceMetadata } from "../../hooks/useWorkspaceMetadata";
 import type { WorkspaceTopTab } from "../../types/workspace";
@@ -11,6 +12,9 @@ interface WorkspaceTopNavProps {
   onOpenSessionSummary: () => void;
   onExportWorkspace: () => void;
   isExporting: boolean;
+  onJumpToUser: (userId: string) => void;
+  onRequestAttention: (targetConnectionId: string) => void;
+  fileNameById: (fileId: string | null) => string | null;
 }
 
 const TABS: { id: WorkspaceTopTab; label: string }[] = [
@@ -20,8 +24,6 @@ const TABS: { id: WorkspaceTopTab; label: string }[] = [
   { id: "review", label: "Review" },
 ];
 
-const MAX_VISIBLE_PRESENCE_DOTS = 3;
-
 export function WorkspaceTopNav({
   activeTab,
   onTabChange,
@@ -30,11 +32,12 @@ export function WorkspaceTopNav({
   onOpenSessionSummary,
   onExportWorkspace,
   isExporting,
+  onJumpToUser,
+  onRequestAttention,
+  fileNameById,
 }: WorkspaceTopNavProps) {
-  const { collaborators, doc } = useRoom();
+  const { collaborators, participants, doc, followedUserId, followUser, unfollowUser, attentionCooldownIds } = useRoom();
   const metadata = useWorkspaceMetadata(doc);
-  const visibleCollaborators = collaborators.slice(0, MAX_VISIBLE_PRESENCE_DOTS);
-  const overflowCount = collaborators.length - visibleCollaborators.length;
 
   return (
     <header className="flex justify-between items-center w-full px-lg h-16 bg-surface-container-lowest border-b border-outline-variant flex-shrink-0 z-50">
@@ -67,24 +70,17 @@ export function WorkspaceTopNav({
       </nav>
 
       <div className="flex items-center gap-md ml-auto">
-        {visibleCollaborators.length > 0 && (
-          <div className="hidden lg:flex items-center -space-x-sm mr-sm">
-            {visibleCollaborators.map((collaborator) => (
-              <Avatar
-                key={collaborator.id}
-                initials={collaborator.initials}
-                presence={collaborator.presence}
-                tone="neutral"
-                className="[&>div:first-child]:border-2 [&>div:first-child]:border-surface-container-lowest"
-              />
-            ))}
-            {overflowCount > 0 && (
-              <div className="relative w-8 h-8 rounded-full border-2 border-surface-container-lowest bg-surface-container flex items-center justify-center">
-                <span className="font-label-sm text-label-sm text-on-surface-variant">+{overflowCount}</span>
-              </div>
-            )}
-          </div>
-        )}
+        <ParticipantPresencePopover
+          collaborators={collaborators}
+          participants={participants}
+          followedUserId={followedUserId}
+          onFollow={followUser}
+          onUnfollow={unfollowUser}
+          onJumpToUser={onJumpToUser}
+          onRequestAttention={onRequestAttention}
+          attentionCooldownIds={attentionCooldownIds}
+          fileNameById={fileNameById}
+        />
 
         <IconButton icon="settings" aria-label="Settings" onClick={onOpenSettings} />
         <IconButton

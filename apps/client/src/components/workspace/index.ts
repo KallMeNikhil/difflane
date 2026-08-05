@@ -10,3 +10,5 @@ export { ImportProjectModal } from "./ImportProjectModal";
 export { ChangesFileList } from "./ChangesFileList";
 export { DiscussionFullView } from "./DiscussionFullView";
 export { WorkspaceEmptyState } from "./WorkspaceEmptyState";
+export { ParticipantPresencePopover } from "./ParticipantPresencePopover";
+export { AttentionRequestToast } from "./AttentionRequestToast";

@@ -30,6 +30,7 @@ interface FileExplorerPanelProps {
   onSync: () => void;
   isSyncing: boolean;
   getReviewStatus?: (fileId: string) => FileReviewStatus;
+  getFilePresence?: (fileId: string) => { viewing: number; editing: number };
 }
 
 export function FileExplorerPanel({
@@ -51,6 +52,7 @@ export function FileExplorerPanel({
   onSync,
   isSyncing,
   getReviewStatus,
+  getFilePresence,
 }: FileExplorerPanelProps) {
   const [pendingCreate, setPendingCreate] = useState<PendingCreate | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -192,6 +194,7 @@ export function FileExplorerPanel({
               onCommitPendingCreate={commitPendingCreate}
               onCancelPendingCreate={() => setPendingCreate(null)}
               getReviewStatus={getReviewStatus}
+              getFilePresence={getFilePresence}
             />
           ))}
         </ul>

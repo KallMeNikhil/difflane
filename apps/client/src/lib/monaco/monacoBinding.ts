@@ -1,11 +1,39 @@
 import * as Y from "yjs";
 import { MonacoBinding } from "y-monaco";
 import type { Awareness } from "y-protocols/awareness";
-import type { editor } from "monaco-editor";
+import type { editor, Uri } from "monaco-editor";
 import type { AwarenessState } from "@difflane/shared-types";
 
 export interface MonacoYjsBinding {
   destroy: () => void;
+}
+
+interface MonacoNamespaceLike {
+  editor: {
+    getModel: (uri: Uri) => editor.ITextModel | null;
+  };
+  Uri: {
+    parse: (value: string) => Uri;
+  };
+}
+
+/**
+ * Disposes the cached Monaco model for a given file, if one exists.
+ *
+ * CodeEditor keeps per-file Monaco models alive across tab/file switches
+ * (via the `path` + `keepCurrentModel` props) so that Monaco's native
+ * undo/redo stack, cursor position and scroll state survive switching
+ * away from and back to a file. Because those models are intentionally
+ * NOT disposed on remount, callers must explicitly dispose a file's model
+ * here once it is genuinely gone (tab closed, file deleted) to avoid
+ * leaking models for the lifetime of the page.
+ */
+export function disposeMonacoModelForFile(monacoInstance: MonacoNamespaceLike | null | undefined, fileId: string): void {
+  if (!monacoInstance) {
+    return;
+  }
+  const model = monacoInstance.editor.getModel(monacoInstance.Uri.parse(fileId));
+  model?.dispose();
 }
 
 const STYLE_ELEMENT_ID = "difflane-yjs-remote-selection-styles";
@@ -53,15 +81,28 @@ export function bindMonacoToYText(
   model: editor.ITextModel,
   editorInstance: editor.IStandaloneCodeEditor,
   awareness: Awareness,
+  onLocalEdit?: () => void,
 ): MonacoYjsBinding {
   const binding = new MonacoBinding(yText, model, new Set([editorInstance]), awareness);
   const handleAwarenessChange = () => renderAwarenessStyles(awareness, awareness.doc.clientID);
   awareness.on("change", handleAwarenessChange);
   handleAwarenessChange();
 
+  const handleTextChange = (_event: Y.YTextEvent, transaction: Y.Transaction) => {
+    if (transaction.local) {
+      onLocalEdit?.();
+    }
+  };
+  if (onLocalEdit) {
+    yText.observe(handleTextChange);
+  }
+
   return {
     destroy: () => {
       awareness.off("change", handleAwarenessChange);
+      if (onLocalEdit) {
+        yText.unobserve(handleTextChange);
+      }
       binding.destroy();
     },
   };
