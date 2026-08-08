@@ -110,16 +110,16 @@ export async function getDashboard(identity: Identity): Promise<WorkspaceDashboa
 
   const summaries = entries.map((entry) => toSummary(entry.workspace, entry.membership, memberCounts[entry.workspace.id] ?? 0));
 
-  const created = summaries.filter((summary) => summary.isOwner);
+  const all = summaries.filter((summary) => !summary.archived);
+  const created = summaries.filter((summary) => summary.isOwner && !summary.archived);
   const joined = summaries.filter((summary) => !summary.isOwner && !summary.archived);
-  const recent = [...summaries]
-    .filter((summary) => !summary.archived)
+  const recent = [...all]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 8);
   const pinned = summaries.filter((summary) => summary.pinned && !summary.archived);
   const archived = summaries.filter((summary) => summary.archived);
 
-  return { created, joined, recent, pinned, archived };
+  return { created, joined, recent, pinned, archived, all };
 }
 
 export async function getSessionHistory(identity: Identity): Promise<SessionHistoryEntry[]> {
@@ -176,7 +176,11 @@ export async function requireRole(
 
 export { MUTATING_ROLES };
 
-export async function transferOwnership(identity: Identity, code: string, target: Identity): Promise<void> {
+export async function transferOwnership(
+  identity: Identity,
+  code: string,
+  target: Identity,
+): Promise<{ workspaceId: string; previousOwner: Identity; newOwner: Identity }> {
   const workspace = await getWorkspaceByCode(code);
   if (!workspace) {
     throw new AuthError("unknown_error", "Workspace not found.", 404);
@@ -191,6 +195,7 @@ export async function transferOwnership(identity: Identity, code: string, target
   }
 
   await identityStore.transferWorkspaceOwnership(workspace.id, requesterMembership.id, targetMembership.id, toIdentityKey(target));
+  return { workspaceId: workspace.id, previousOwner: identity, newOwner: target };
 }
 
 export async function updateMemberRole(
@@ -223,6 +228,50 @@ export async function updateMemberRole(
   }
   await identityStore.updateMembershipRole(targetMembership.id, nextRole);
   return { workspaceId: workspace.id, targetUserId: target.id, targetIdentityType: target.type };
+}
+
+export async function leaveWorkspace(identity: Identity, code: string): Promise<{ workspaceId: string }> {
+  const workspace = await getWorkspaceByCode(code);
+  if (!workspace) {
+    throw new AuthError("unknown_error", "Workspace not found.", 404);
+  }
+  const membership = await requireMembership(identity, workspace.id);
+  if (membership.role === "OWNER") {
+    throw new AuthError(
+      "unknown_error",
+      "Transfer ownership to another member before leaving this workspace.",
+      409,
+    );
+  }
+  await identityStore.deleteMembership(membership.id);
+  return { workspaceId: workspace.id };
+}
+
+export async function removeMember(
+  identity: Identity,
+  code: string,
+  target: Identity,
+): Promise<{ workspaceId: string }> {
+  const workspace = await getWorkspaceByCode(code);
+  if (!workspace) {
+    throw new AuthError("unknown_error", "Workspace not found.", 404);
+  }
+  const requesterMembership = await requireMembership(identity, workspace.id);
+  if (requesterMembership.role !== "OWNER") {
+    throw new AuthError("unknown_error", "Only the workspace owner can remove members.", 403);
+  }
+  if (identity.type === target.type && identity.id === target.id) {
+    throw new AuthError("unknown_error", "Use Leave Workspace to remove yourself.", 400);
+  }
+  const targetMembership = await identityStore.findMembership(workspace.id, toIdentityKey(target));
+  if (!targetMembership) {
+    throw new AuthError("unknown_error", "Target member is not part of this workspace.", 404);
+  }
+  if (targetMembership.role === "OWNER") {
+    throw new AuthError("unknown_error", "Transfer ownership before removing the current owner.", 400);
+  }
+  await identityStore.deleteMembership(targetMembership.id);
+  return { workspaceId: workspace.id };
 }
 
 export async function deleteWorkspace(identity: Identity, code: string): Promise<void> {

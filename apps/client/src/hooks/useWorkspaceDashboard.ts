@@ -3,7 +3,7 @@ import type { WorkspaceDashboardResponse } from "@difflane/shared-types";
 import * as AuthService from "../services/AuthService";
 import { useCurrentUser } from "./useCurrentUser";
 
-const EMPTY_DASHBOARD: WorkspaceDashboardResponse = { created: [], joined: [], recent: [], pinned: [], archived: [] };
+const EMPTY_DASHBOARD: WorkspaceDashboardResponse = { created: [], joined: [], recent: [], pinned: [], archived: [], all: [] };
 
 export function useWorkspaceDashboard() {
   const { status, guestId } = useCurrentUser();

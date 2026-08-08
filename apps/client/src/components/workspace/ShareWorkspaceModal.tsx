@@ -1,17 +1,20 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Avatar, Button, Icon, IconButton } from "../common";
 import { useRoom } from "../../hooks/useRoom";
 import { useRepositoryInfo } from "../../hooks/useRepositoryInfo";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { useModalDialog } from "../../hooks/useModalDialog";
-import { transferWorkspaceOwnership, updateWorkspaceMemberRole } from "../../lib/auth/authClient";
+import { leaveWorkspaceRecord, removeWorkspaceMember, transferWorkspaceOwnership, updateWorkspaceMemberRole } from "../../lib/auth/authClient";
 import { getImportSourceLabel, getMemberRoleLabel } from "../../utils/workspaceDisplay";
+import { ROUTES } from "../../constants/routes";
 
 interface ShareWorkspaceModalProps {
   onClose: () => void;
 }
 
 export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
+  const navigate = useNavigate();
   const { roomCode, participants, doc } = useRoom();
   const { userId, isAuthenticated, guestId } = useCurrentUser();
   const [copiedField, setCopiedField] = useState<"code" | null>(null);
@@ -19,6 +22,9 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
   const [transferNotice, setTransferNotice] = useState<string | null>(null);
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [roleNotice, setRoleNotice] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeNotice, setRemoveNotice] = useState<string | null>(null);
+  const [isLeaving, setIsLeaving] = useState(false);
   const repositoryInfo = useRepositoryInfo(doc);
   const dialogRef = useModalDialog<HTMLDivElement>(onClose);
 
@@ -44,7 +50,7 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
         { targetIdentityId: targetUserId, targetIdentityType },
         isAuthenticated ? null : guestId,
       );
-      setTransferNotice("Ownership transferred. This updates for everyone the next time they rejoin.");
+      setTransferNotice("Ownership transferred. Permissions update immediately for everyone in this workspace.");
     } catch {
       setTransferNotice("Unable to transfer ownership right now.");
     } finally {
@@ -65,6 +71,34 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
       setRoleNotice("Unable to update this member's role right now.");
     } finally {
       setUpdatingRoleId(null);
+    }
+  }
+
+  async function handleRemoveMember(targetUserId: string, targetIdentityType: "user" | "guest") {
+    setRemovingId(targetUserId);
+    setRemoveNotice(null);
+    try {
+      await removeWorkspaceMember(
+        roomCode,
+        { targetIdentityId: targetUserId, targetIdentityType },
+        isAuthenticated ? null : guestId,
+      );
+    } catch {
+      setRemoveNotice("Unable to remove this member right now.");
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
+  async function handleLeaveWorkspace() {
+    setIsLeaving(true);
+    try {
+      await leaveWorkspaceRecord(roomCode, isAuthenticated ? null : guestId);
+      onClose();
+      navigate(ROUTES.dashboard);
+    } catch {
+      setRemoveNotice("Unable to leave this workspace right now.");
+      setIsLeaving(false);
     }
   }
 
@@ -152,6 +186,12 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
                 <p className="font-body-sm text-body-sm text-on-surface">{roleNotice}</p>
               </div>
             )}
+            {removeNotice && (
+              <div className="flex items-start gap-sm bg-error/10 border border-error/30 rounded-lg px-md py-sm">
+                <Icon name="info" size={16} className="text-error mt-[2px]" />
+                <p className="font-body-sm text-body-sm text-on-surface">{removeNotice}</p>
+              </div>
+            )}
             {participants.map((participant) => (
               <div key={participant.connectionId} className="flex items-center justify-between p-sm rounded hover:bg-surface-variant/30 transition-colors group">
                 <div className="flex items-center gap-md">
@@ -194,6 +234,16 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
                       <option value="viewer">Viewer</option>
                     </select>
                   )}
+                  {isSelfOwner && participant.role !== "owner" && (
+                    <IconButton
+                      icon="person_remove"
+                      aria-label={`Remove ${participant.displayName}`}
+                      shape="square"
+                      disabled={removingId === participant.userId}
+                      onClick={() => handleRemoveMember(participant.userId, participant.identityType)}
+                      className="text-error hover:bg-error/10"
+                    />
+                  )}
                 </div>
               </div>
             ))}
@@ -201,10 +251,22 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
         </div>
 
         <div className="flex items-center justify-between px-lg py-md border-t border-outline-variant/50 bg-surface-container-lowest rounded-b-xl shrink-0">
-          <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-xs">
-            <Icon name="info" size={16} />
-            Changes are applied instantly.
-          </span>
+          {selfParticipant && !isSelfOwner ? (
+            <button
+              type="button"
+              onClick={handleLeaveWorkspace}
+              disabled={isLeaving}
+              className="font-label-sm text-label-sm text-error hover:underline disabled:opacity-50 flex items-center gap-xs"
+            >
+              <Icon name="logout" size={16} />
+              {isLeaving ? "Leaving…" : "Leave Workspace"}
+            </button>
+          ) : (
+            <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-xs">
+              <Icon name="info" size={16} />
+              Changes are applied instantly.
+            </span>
+          )}
           <div className="flex items-center gap-sm">
             <Button type="button" variant="secondary" size="md" onClick={onClose}>
               Cancel

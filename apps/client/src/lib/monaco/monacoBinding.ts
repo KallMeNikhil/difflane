@@ -82,9 +82,16 @@ export function bindMonacoToYText(
   editorInstance: editor.IStandaloneCodeEditor,
   awareness: Awareness,
   onLocalEdit?: () => void,
+  cursorPresenceEnabled = true,
 ): MonacoYjsBinding {
   const binding = new MonacoBinding(yText, model, new Set([editorInstance]), awareness);
-  const handleAwarenessChange = () => renderAwarenessStyles(awareness, awareness.doc.clientID);
+  const handleAwarenessChange = () => {
+    if (!cursorPresenceEnabled) {
+      getOrCreateStyleElement().textContent = "";
+      return;
+    }
+    renderAwarenessStyles(awareness, awareness.doc.clientID);
+  };
   awareness.on("change", handleAwarenessChange);
   handleAwarenessChange();
 

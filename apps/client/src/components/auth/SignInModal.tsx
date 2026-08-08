@@ -16,7 +16,7 @@ const SECONDARY_BUTTON = getButtonClasses("secondary", "md");
 export function SignInModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const { login, beginOAuthFlow, authError, clearAuthError } = useCurrentUser();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
@@ -26,7 +26,7 @@ export function SignInModal({ onClose }: { onClose: () => void }) {
     clearAuthError();
     setStatus("submitting");
     try {
-      await login(email, password);
+      await login(identifier, password);
       onClose();
       navigate(ROUTES.dashboard);
     } catch {
@@ -116,12 +116,13 @@ export function SignInModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <TextField
-            label="Email Address"
-            type="email"
+            label="Email or Username"
+            type="text"
             required
-            placeholder="you@example.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="username"
+            placeholder="you@example.com or username"
+            value={identifier}
+            onChange={(event) => setIdentifier(event.target.value)}
           />
 
           <div className="space-y-sm">

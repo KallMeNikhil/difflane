@@ -1,6 +1,8 @@
 import { Icon } from "../common";
 import { useRoom } from "../../hooks/useRoom";
 import { describeConnectionStatus } from "../../services/PresenceService";
+import { EDITOR_LANGUAGE_OPTIONS, getLanguageLabel } from "../../utils/workspaceDisplay";
+import type { EditorLanguage } from "../../types/workspace";
 
 const STATUS_DOT_CLASSES: Record<string, string> = {
   connected: "bg-success-mint",
@@ -9,7 +11,17 @@ const STATUS_DOT_CLASSES: Record<string, string> = {
   disconnected: "bg-error",
 };
 
-export function WorkspaceStatusBar() {
+interface WorkspaceStatusBarProps {
+  activeFileLanguage?: EditorLanguage;
+  onChangeActiveFileLanguage?: (language: EditorLanguage) => void;
+  canEditLanguage?: boolean;
+}
+
+export function WorkspaceStatusBar({
+  activeFileLanguage,
+  onChangeActiveFileLanguage,
+  canEditLanguage = false,
+}: WorkspaceStatusBarProps) {
   const { connectionStatus, collaborators, persistenceStatus } = useRoom();
   const status = connectionStatus ?? "connecting";
   const isConnected = status === "connected";
@@ -46,6 +58,30 @@ export function WorkspaceStatusBar() {
           <span>{editingCount} Editing</span>
         </div>
       )}
+      {activeFileLanguage &&
+        (canEditLanguage && onChangeActiveFileLanguage ? (
+          <div className="flex items-center gap-1">
+            <Icon name="code" size={13} />
+            <select
+              aria-label="File language"
+              value={activeFileLanguage}
+              onChange={(event) => onChangeActiveFileLanguage(event.target.value as EditorLanguage)}
+              className="bg-transparent text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer"
+            >
+              {EDITOR_LANGUAGE_OPTIONS.map((language) => (
+                <option key={language} value={language} className="bg-surface-container-lowest text-on-surface">
+                  {getLanguageLabel(language)}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <Icon name="code" size={13} />
+            <span>{getLanguageLabel(activeFileLanguage)}</span>
+          </div>
+        ))}
+
       <div className="ml-auto flex items-center gap-1">
         <Icon name="group" size={13} />
         <span>{collaborators.length} Collaborators</span>

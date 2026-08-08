@@ -11,6 +11,7 @@ interface DiscussionPanelAuthor {
 
 interface DiscussionPanelProps {
   feed: DiscussionFeedItem[];
+  discussionsEnabled: boolean;
   stats: DiscussionFeedStats;
   author: DiscussionPanelAuthor;
   onResolve: (threadId: string) => void;
@@ -18,13 +19,21 @@ interface DiscussionPanelProps {
   onCreateThread: (thread: DiscussionThread) => void;
 }
 
-export function DiscussionPanel({ feed, stats, author, onResolve, onSubmitReply, onCreateThread }: DiscussionPanelProps) {
+export function DiscussionPanel({
+  feed,
+  discussionsEnabled,
+  stats,
+  author,
+  onResolve,
+  onSubmitReply,
+  onCreateThread,
+}: DiscussionPanelProps) {
   const [isComposing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
 
   function handleCreate() {
     const body = draft.trim();
-    if (!body) {
+    if (!body || !discussionsEnabled) {
       return;
     }
     onCreateThread({
@@ -58,7 +67,9 @@ export function DiscussionPanel({ feed, stats, author, onResolve, onSubmitReply,
             aria-label="New Discussion"
             size={18}
             shape="square"
-            onClick={() => setComposing((prev) => !prev)}
+            disabled={!discussionsEnabled}
+            title={discussionsEnabled ? undefined : "Inline discussions are disabled for this workspace"}
+            onClick={() => discussionsEnabled && setComposing((prev) => !prev)}
             className="w-8 h-8"
           />
         </div>
@@ -72,7 +83,7 @@ export function DiscussionPanel({ feed, stats, author, onResolve, onSubmitReply,
         <span className="text-[11px] text-secondary">{stats.pendingCount} Pending</span>
       </div>
 
-      {isComposing && (
+      {isComposing && discussionsEnabled && (
         <div className="p-md border-b border-outline-variant/50 flex flex-col gap-sm bg-surface-container/30">
           <span className="font-label-sm text-label-sm text-on-surface-variant tracking-wider">NEW DISCUSSION</span>
           <textarea

@@ -8,6 +8,7 @@ export const SOCKET_EVENTS = {
   ROOM_PARTICIPANT_JOINED: "room:participant-joined",
   ROOM_PARTICIPANT_LEFT: "room:participant-left",
   ROOM_ROLE_CHANGED: "room:role-changed",
+  ROOM_MEMBER_REMOVED: "room:member-removed",
   DOC_UPDATE: "doc:update",
   AWARENESS_UPDATE: "awareness:update",
   WORKSPACE_PERSISTED: "workspace:persisted",
@@ -37,7 +38,7 @@ export interface RoomJoinedPayload {
 
 export interface RoomJoinErrorPayload {
   error: string;
-  code?: "expired_token";
+  code?: "expired_token" | "guest_required";
 }
 
 export interface RoomParticipantJoinedPayload {
@@ -52,6 +53,12 @@ export interface RoomRoleChangedPayload {
   roomId: string;
   connectionId: string;
   role: MemberRole;
+}
+
+export interface RoomMemberRemovedPayload {
+  roomId: string;
+  connectionId: string;
+  reason: "removed" | "left";
 }
 
 export interface RoomErrorPayload {

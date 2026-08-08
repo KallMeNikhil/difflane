@@ -59,7 +59,7 @@ async function resolveIdentityHandler(req: Request, res: Response, next: NextFun
     return;
   }
 
-  res.status(401).json({ code: "invalid_token", message: "Authentication or a guest session is required." });
+  res.status(401).json({ code: "invalid_token", message: "Authentication is required." });
 }
 
 export const resolveIdentity: RequestHandler = asyncHandler(resolveIdentityHandler);

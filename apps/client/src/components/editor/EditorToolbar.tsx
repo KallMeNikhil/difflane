@@ -8,6 +8,7 @@ interface EditorToolbarProps {
   statusLabel?: string;
   diffViewMode?: DiffViewMode;
   onChangeDiffViewMode?: (mode: DiffViewMode) => void;
+  onFormatDocument?: () => void;
   rightSlot?: ReactNode;
 }
 
@@ -17,6 +18,7 @@ export function EditorToolbar({
   statusLabel,
   diffViewMode,
   onChangeDiffViewMode,
+  onFormatDocument,
   rightSlot,
 }: EditorToolbarProps) {
   const isDiffMode = diffViewMode !== undefined && onChangeDiffViewMode !== undefined;
@@ -47,9 +49,10 @@ export function EditorToolbar({
       <div className="flex items-center gap-sm">
         <button
           type="button"
-          title={isDiffMode ? "Unified View" : "Format Document"}
-          onClick={isDiffMode ? () => onChangeDiffViewMode!("unified") : undefined}
-          className={`p-1 rounded transition-colors ${
+          title={isDiffMode ? "Unified View" : onFormatDocument ? "Format Document" : "Format Document — unavailable in read-only mode"}
+          onClick={isDiffMode ? () => onChangeDiffViewMode!("unified") : onFormatDocument}
+          disabled={!isDiffMode && !onFormatDocument}
+          className={`p-1 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
             isDiffMode && diffViewMode === "unified"
               ? "text-primary bg-primary-container/10"
               : "text-on-surface-variant hover:text-on-surface hover:bg-surface"
@@ -59,9 +62,10 @@ export function EditorToolbar({
         </button>
         <button
           type="button"
-          title={isDiffMode ? "Split View" : "Split Editor"}
+          title={isDiffMode ? "Split View" : "Split Editor — Coming Soon"}
           onClick={isDiffMode ? () => onChangeDiffViewMode!("split") : undefined}
-          className={`p-1 rounded transition-colors ${
+          disabled={!isDiffMode}
+          className={`p-1 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
             isDiffMode && diffViewMode === "split"
               ? "text-primary bg-primary-container/10"
               : "text-on-surface-variant hover:text-on-surface hover:bg-surface"

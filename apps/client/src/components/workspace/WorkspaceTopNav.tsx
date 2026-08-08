@@ -7,11 +7,13 @@ import type { WorkspaceTopTab } from "../../types/workspace";
 interface WorkspaceTopNavProps {
   activeTab: WorkspaceTopTab;
   onTabChange: (tab: WorkspaceTopTab) => void;
+  onNavigateHome: () => void;
   onOpenShare: () => void;
   onOpenSettings: () => void;
   onOpenSessionSummary: () => void;
-  onExportWorkspace: () => void;
-  isExporting: boolean;
+  onDownloadZip: () => void;
+  isDownloadingZip: boolean;
+  onOpenWorkspaceExport: () => void;
   onJumpToUser: (userId: string) => void;
   onRequestAttention: (targetConnectionId: string) => void;
   fileNameById: (fileId: string | null) => string | null;
@@ -27,11 +29,13 @@ const TABS: { id: WorkspaceTopTab; label: string }[] = [
 export function WorkspaceTopNav({
   activeTab,
   onTabChange,
+  onNavigateHome,
   onOpenShare,
   onOpenSettings,
   onOpenSessionSummary,
-  onExportWorkspace,
-  isExporting,
+  onDownloadZip,
+  isDownloadingZip,
+  onOpenWorkspaceExport,
   onJumpToUser,
   onRequestAttention,
   fileNameById,
@@ -42,9 +46,14 @@ export function WorkspaceTopNav({
   return (
     <header className="flex justify-between items-center w-full px-lg h-16 bg-surface-container-lowest border-b border-outline-variant flex-shrink-0 z-50">
       <div className="flex items-center gap-md min-w-0">
-        <span className="font-headline-md text-headline-md font-bold text-primary tracking-tight text-[22px] flex-shrink-0">
+        <button
+          type="button"
+          onClick={onNavigateHome}
+          aria-label="Go to Dashboard"
+          className="font-headline-md text-headline-md font-bold text-primary tracking-tight text-[22px] flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+        >
           DIFFLANE
-        </span>
+        </button>
         <div className="h-6 w-px bg-outline-variant mx-sm hidden sm:block" />
         <div className="hidden sm:flex items-center gap-sm bg-surface-container-lowest px-md py-1 rounded-full border border-outline-variant/50 min-w-0">
           <Icon name="meeting_room" size={16} className="text-on-surface-variant flex-shrink-0" />
@@ -92,10 +101,18 @@ export function WorkspaceTopNav({
         />
 
         <IconButton
-          icon={isExporting ? "sync" : "download"}
+          icon={isDownloadingZip ? "sync" : "download"}
+          aria-label="Download ZIP"
+          title="Download ZIP"
+          onClick={onDownloadZip}
+          disabled={isDownloadingZip}
+          className="hidden sm:inline-flex"
+        />
+        <IconButton
+          icon="folder_zip"
           aria-label="Export Workspace"
-          onClick={onExportWorkspace}
-          disabled={isExporting}
+          title="Export Workspace"
+          onClick={onOpenWorkspaceExport}
           className="hidden sm:inline-flex"
         />
         <Button type="button" variant="secondary" size="sm" onClick={onOpenShare} className="hidden sm:inline-flex">

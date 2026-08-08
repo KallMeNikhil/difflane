@@ -9,6 +9,7 @@ import {
   type MemberRole,
   type ParticipantIdentityType,
   type RoomRoleChangedPayload,
+  type RoomMemberRemovedPayload,
 } from "@difflane/shared-types";
 import type { RoomRegistry } from "../rooms/RoomRegistry.js";
 import type { SnapshotTrigger, WorkspaceSnapshotRecord } from "../db/models.js";
@@ -169,6 +170,24 @@ export class WorkspaceLifecycleManager {
     for (const participant of result.participants) {
       const payload: RoomRoleChangedPayload = { roomId: result.roomId, connectionId: participant.connectionId, role };
       this.io.to(result.roomId).emit(SOCKET_EVENTS.ROOM_ROLE_CHANGED, payload);
+    }
+  }
+
+  notifyMemberRemoved(
+    workspaceId: string,
+    userId: string,
+    identityType: ParticipantIdentityType,
+    reason: "removed" | "left",
+  ): void {
+    const result = this.registry.findParticipantConnectionsByUser(workspaceId, userId, identityType);
+    if (!result) {
+      return;
+    }
+    for (const connectionId of result.connectionIds) {
+      const payload: RoomMemberRemovedPayload = { roomId: result.roomId, connectionId, reason };
+      this.io.to(connectionId).emit(SOCKET_EVENTS.ROOM_MEMBER_REMOVED, payload);
+      const socket = this.io.sockets.sockets.get(connectionId);
+      socket?.disconnect(true);
     }
   }
 

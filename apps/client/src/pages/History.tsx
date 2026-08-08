@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconButton, PlaceholderNotice } from "../components/common";
-import { SessionHistoryCard, SessionHistoryToolbar, SessionInfoPanel, SessionSummaryModal } from "../components/history";
+import { SessionHistoryGroup, SessionHistoryToolbar, SessionInfoPanel, SessionSummaryModal } from "../components/history";
 import { useSessionHistory } from "../hooks/useSessionHistory";
 import { getSessionRecordById } from "../services/SessionHistoryService";
 import { buildWorkspacePath } from "../constants/routes";
 import type { SessionRecord } from "../types/session";
+
+interface SessionHistoryGroupData {
+  roomCode: string;
+  workspaceName: string;
+  records: SessionRecord[];
+}
 
 export default function History() {
   const navigate = useNavigate();
@@ -25,6 +31,25 @@ export default function History() {
   }, [visibleRecords]);
 
   const selectedRecord = selectedId ? getSessionRecordById(visibleRecords, selectedId) ?? null : null;
+
+  const groupedRecords = useMemo<SessionHistoryGroupData[]>(() => {
+    const order: string[] = [];
+    const byRoomCode = new Map<string, SessionHistoryGroupData>();
+    for (const record of visibleRecords) {
+      const existing = byRoomCode.get(record.roomCode);
+      if (existing) {
+        existing.records.push(record);
+        continue;
+      }
+      order.push(record.roomCode);
+      byRoomCode.set(record.roomCode, {
+        roomCode: record.roomCode,
+        workspaceName: record.workspace.name,
+        records: [record],
+      });
+    }
+    return order.map((roomCode) => byRoomCode.get(roomCode)!);
+  }, [visibleRecords]);
 
   function openWorkspace(record: SessionRecord) {
     navigate(buildWorkspacePath(record.roomCode));
@@ -76,15 +101,18 @@ export default function History() {
 
       {status === "ready" && visibleRecords.length > 0 && (
         <div className="flex-1 flex flex-col lg:flex-row gap-md items-start">
-          <div className="flex-1 w-full flex flex-col gap-md">
-            {visibleRecords.map((record) => (
-              <SessionHistoryCard
-                key={record.id}
-                record={record}
-                isSelected={record.id === selectedId}
-                onSelect={() => setSelectedId(record.id)}
-                onViewSummary={() => setSummaryRecord(record)}
-                onOpenWorkspace={() => openWorkspace(record)}
+          <div className="flex-1 w-full flex flex-col gap-lg">
+            {groupedRecords.map((group) => (
+              <SessionHistoryGroup
+                key={group.roomCode}
+                roomCode={group.roomCode}
+                workspaceName={group.workspaceName}
+                records={group.records}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onViewSummary={setSummaryRecord}
+                onOpenWorkspace={openWorkspace}
+                defaultExpanded={groupedRecords.length <= 1}
               />
             ))}
           </div>

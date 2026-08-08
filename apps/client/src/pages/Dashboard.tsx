@@ -54,7 +54,7 @@ export default function Dashboard() {
   }
 
   const recentRooms: RecentRoom[] = useMemo(() => dashboard.recent.map((workspace) => toRecentRoom(workspace)), [dashboard.recent]);
-  const totalWorkspaceCount = dashboard.created.length + dashboard.joined.length;
+  const totalWorkspaceCount = dashboard.all.length;
 
   return (
     <div className="max-w-7xl mx-auto flex flex-col gap-lg md:gap-xl">
@@ -109,6 +109,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-md md:gap-lg items-start">
         <div className="xl:col-span-2 flex flex-col gap-md md:gap-lg">
           <WorkspaceOwnershipCard
+            all={dashboard.all}
             created={dashboard.created}
             joined={dashboard.joined}
             pinned={dashboard.pinned}

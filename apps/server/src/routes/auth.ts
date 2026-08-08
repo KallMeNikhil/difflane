@@ -83,12 +83,12 @@ authRouter.post("/api/auth/register", strictRateLimit, async (req: Request, res:
 
 authRouter.post("/api/auth/login", strictRateLimit, async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body as { email?: string; password?: string };
-    if (!email || !password) {
-      res.status(400).json({ code: "invalid_credentials", message: "Email and password are required." });
+    const { identifier, password } = req.body as { identifier?: string; password?: string };
+    if (!identifier || !password) {
+      res.status(400).json({ code: "invalid_credentials", message: "Email/username and password are required." });
       return;
     }
-    const session = await login(email, password);
+    const session = await login(identifier, password);
     await respondWithSession(res, session);
   } catch (error) {
     handleAuthError(error, res);

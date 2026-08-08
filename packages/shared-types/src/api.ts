@@ -37,7 +37,7 @@ export interface RegisterRequest {
 }
 
 export interface LoginRequest {
-  email: string;
+  identifier: string;
   password: string;
 }
 
@@ -114,6 +114,7 @@ export interface WorkspaceDashboardResponse {
   recent: WorkspaceOwnershipSummary[];
   pinned: WorkspaceOwnershipSummary[];
   archived: WorkspaceOwnershipSummary[];
+  all: WorkspaceOwnershipSummary[];
 }
 
 export interface TransferOwnershipRequest {
@@ -125,4 +126,9 @@ export interface UpdateMemberRoleRequest {
   targetIdentityId: string;
   targetIdentityType: "user" | "guest";
   role: Exclude<MemberRole, "owner">;
+}
+
+export interface RemoveMemberRequest {
+  targetIdentityId: string;
+  targetIdentityType: "user" | "guest";
 }

@@ -17,6 +17,7 @@ export interface IncomingAttentionRequest {
   fileId: string | null;
   fileLabel: string | null;
   receivedAt: string;
+  expiresAt: string;
 }
 
 export interface RoomContextValue {

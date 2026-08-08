@@ -165,4 +165,22 @@ export class RoomRegistry {
     }
     return { roomId: room.roomId, participants: updated };
   }
+
+  findParticipantConnectionsByUser(
+    workspaceId: string,
+    userId: string,
+    identityType: ParticipantIdentityType,
+  ): { roomId: string; connectionIds: string[] } | undefined {
+    const room = this.getRoomByWorkspaceId(workspaceId);
+    if (!room) {
+      return undefined;
+    }
+    const connectionIds: string[] = [];
+    for (const [connectionId, participant] of room.participants.entries()) {
+      if (participant.userId === userId && participant.identityType === identityType) {
+        connectionIds.push(connectionId);
+      }
+    }
+    return { roomId: room.roomId, connectionIds };
+  }
 }

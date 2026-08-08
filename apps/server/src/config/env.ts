@@ -63,6 +63,9 @@ export const env = {
       redirectUri: process.env.GITHUB_OAUTH_REDIRECT_URI ?? "",
     },
   },
+  githubApi: {
+    token: process.env.GITHUB_API_TOKEN ?? "",
+  },
   rateLimit: {
     strict: {
       windowMs: readNumber("RATE_LIMIT_STRICT_WINDOW_MS", 15 * 60 * 1000),

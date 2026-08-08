@@ -27,6 +27,7 @@ export interface RepositoryImportResult {
   files: Record<string, string>;
   fileCount: number;
   detectedLanguage: string;
+  truncated: boolean;
 }
 
 export interface RepositoryApiErrorPayload {

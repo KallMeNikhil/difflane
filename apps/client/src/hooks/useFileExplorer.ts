@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { buildFileTree } from "../services/FileTreeService";
 import {
@@ -20,9 +20,10 @@ import {
   readFileSystemEntries,
   renameEntry as renameFileSystemEntry,
   resolveCreateParentId as resolveCreateParentIdEntry,
+  setFileLanguage as setFileLanguageEntry,
   subscribeFileSystemEntries,
 } from "../services/WorkspaceFileSystemService";
-import type { DeletedFileRecord, FileStatus, WorkspaceFileSystemEntry } from "../types/workspace";
+import type { DeletedFileRecord, EditorLanguage, FileStatus, WorkspaceFileSystemEntry } from "../types/workspace";
 
 interface UseFileExplorerSeed {
   entries: WorkspaceFileSystemEntry[];
@@ -39,6 +40,24 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
   const [baselines, setBaselines] = useState<Record<string, string>>({});
   const [contentVersion, setContentVersion] = useState(0);
   const [deletedFiles, setDeletedFiles] = useState<DeletedFileRecord[]>([]);
+  const knownFolderIdsRef = useRef<Set<string>>(
+    new Set(seed.entries.filter((entry) => entry.type === "folder").map((entry) => entry.id)),
+  );
+
+  useEffect(() => {
+    const currentFolderIds = entries.filter((entry) => entry.type === "folder").map((entry) => entry.id);
+    const newFolderIds = currentFolderIds.filter((id) => !knownFolderIdsRef.current.has(id));
+    if (newFolderIds.length > 0) {
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        for (const id of newFolderIds) {
+          next.add(id);
+        }
+        return next;
+      });
+    }
+    knownFolderIdsRef.current = new Set(currentFolderIds);
+  }, [entries]);
 
   useEffect(() => {
     if (!doc) {
@@ -131,6 +150,19 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
     [doc],
   );
 
+  const setFileLanguage = useCallback(
+    (id: string, language: EditorLanguage) => {
+      if (!doc) {
+        setEntries((prev) =>
+          prev.map((entry) => (entry.id === id ? { ...entry, language, languageManuallySet: true } : entry)),
+        );
+        return;
+      }
+      setFileLanguageEntry(doc, id, language);
+    },
+    [doc],
+  );
+
   const deleteEntry = useCallback(
     (id: string) => {
       if (!doc) {
@@ -207,6 +239,7 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
     createFile,
     createFolder,
     renameEntry,
+    setFileLanguage,
     deleteEntry,
     duplicateEntry,
     baselines,

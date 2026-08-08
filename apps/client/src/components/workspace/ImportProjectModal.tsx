@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { getLanguageDisplayName } from "@difflane/shared-types";
 import { Icon } from "../common";
 import { useRepository, IMPORT_PROGRESS_STEPS, type ImportSourceTab, type ImportSuccessSummary } from "../../hooks/useRepository";
 import { useRoom } from "../../hooks/useRoom";
@@ -493,7 +494,7 @@ function SuccessView({
             <span className="font-label-md text-label-md text-[#7B8496]">Detected Language</span>
             <div className="flex items-center gap-xs">
               <span className="w-2 h-2 rounded-full bg-[#4F6EF7]" />
-              <span className="font-label-md text-label-md text-[#F3F4F6] font-semibold">{summary.detectedLanguage}</span>
+              <span className="font-label-md text-label-md text-[#F3F4F6] font-semibold">{getLanguageDisplayName(summary.detectedLanguage)}</span>
             </div>
           </div>
           <div className="flex flex-col gap-xs pt-xs">
@@ -503,6 +504,14 @@ function SuccessView({
               <span className="font-code text-code text-[#A7AFBF] truncate">{summary.sourceLabel}</span>
             </div>
           </div>
+          {summary.truncated && (
+            <div className="flex items-start gap-sm bg-amber-500/10 border border-amber-500/30 rounded-lg px-sm py-sm mt-xs">
+              <Icon name="warning" size={16} className="text-amber-500 mt-[2px]" />
+              <p className="font-body-sm text-body-sm text-[#A7AFBF]">
+                This repository is large. Only the first {summary.fileCount} files were imported.
+              </p>
+            </div>
+          )}
         </div>
       </div>
       <div className="p-lg bg-[#111318] border-t border-[#2A3140] flex justify-end gap-md">

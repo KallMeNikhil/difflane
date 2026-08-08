@@ -21,7 +21,7 @@ function handleGitHubError(error: unknown, res: Response): void {
     res.status(error.status).json({ message: error.message });
     return;
   }
-  if (error instanceof Error && (error.message.startsWith("Enter a valid repository") || error.message.startsWith("Enter a repository"))) {
+  if (error instanceof Error && error.message.length > 0 && error.message.length < 200) {
     res.status(400).json({ message: error.message });
     return;
   }

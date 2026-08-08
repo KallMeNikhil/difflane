@@ -1,8 +1,14 @@
+import { useNavigate } from "react-router-dom";
 import { Avatar, Card, Icon, getButtonClasses } from "../components/common";
+import { SessionStatusPill } from "../components/history";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useUserSettingsModal } from "../hooks/useUserSettingsModal";
 import { useAuthModal } from "../hooks/useAuthModal";
 import { useWorkspaceDashboard } from "../hooks/useWorkspaceDashboard";
+import { useSessionHistory } from "../hooks/useSessionHistory";
+import { formatRelativeTimeLabel } from "../services/SessionHistoryService";
+import { getMemberRoleLabel } from "../utils/workspaceDisplay";
+import { ROUTES } from "../constants/routes";
 
 const PRIMARY_BUTTON = getButtonClasses("primary", "md");
 const SECONDARY_BUTTON = getButtonClasses("secondary", "md");
@@ -12,15 +18,27 @@ const PROVIDER_META: Record<string, { label: string; icon: string }> = {
   github: { label: "GitHub", icon: "code" },
 };
 
+const RECENT_ACTIVITY_LIMIT = 5;
+
 export default function Profile() {
-  const { isAuthenticated, displayName, initials, user } = useCurrentUser();
+  const navigate = useNavigate();
+  const { isAuthenticated, displayName, initials, user, userId } = useCurrentUser();
   const { openUserSettings } = useUserSettingsModal();
   const { openGuestUpgrade } = useAuthModal();
   const { dashboard, isLoading } = useWorkspaceDashboard();
+  const { records: sessionRecords, status: sessionStatus } = useSessionHistory();
 
   const ownedCount = dashboard.created.length;
   const joinedCount = dashboard.joined.length;
-  const activeCount = dashboard.recent.length;
+  const pinnedCount = dashboard.pinned.length;
+  const archivedCount = dashboard.archived.length;
+  const sessionsParticipatedCount = sessionRecords.length;
+  const recentSessions = [...sessionRecords]
+    .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime())
+    .slice(0, RECENT_ACTIVITY_LIMIT);
+  const ownerSessionCount = sessionRecords.filter((record) =>
+    record.participants.some((participant) => participant.id === userId && participant.role === getMemberRoleLabel("owner")),
+  ).length;
 
   return (
     <div className="max-w-4xl mx-auto space-y-lg">
@@ -32,11 +50,16 @@ export default function Profile() {
             <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
               {isAuthenticated ? `@${user?.username} · ${user?.email}` : "Guest Session"}
             </p>
-            {isAuthenticated && user && (
-              <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">
-                Member since {new Date(user.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
-              </p>
-            )}
+            <div className="flex items-center gap-sm mt-xs flex-wrap">
+              <span className="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-variant/50 border border-outline-variant text-on-surface-variant">
+                {isAuthenticated ? "Registered Account" : "Guest Account"}
+              </span>
+              {isAuthenticated && user && (
+                <span className="font-body-sm text-body-sm text-on-surface-variant">
+                  Member since {new Date(user.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+                </span>
+              )}
+            </div>
           </div>
           <button type="button" className={SECONDARY_BUTTON} onClick={openUserSettings}>
             <Icon name="edit" size={18} />
@@ -45,20 +68,89 @@ export default function Profile() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-md">
         <Card className="p-lg text-center">
           <p className="font-headline-md text-headline-md text-on-surface">{isLoading ? "…" : ownedCount}</p>
-          <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">Workspaces Owned</p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">Owned</p>
         </Card>
         <Card className="p-lg text-center">
           <p className="font-headline-md text-headline-md text-on-surface">{isLoading ? "…" : joinedCount}</p>
-          <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">Workspaces Joined</p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">Joined</p>
         </Card>
         <Card className="p-lg text-center">
-          <p className="font-headline-md text-headline-md text-on-surface">{isLoading ? "…" : activeCount}</p>
-          <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">Recently Active</p>
+          <p className="font-headline-md text-headline-md text-on-surface">{isLoading ? "…" : pinnedCount}</p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">Pinned</p>
+        </Card>
+        <Card className="p-lg text-center">
+          <p className="font-headline-md text-headline-md text-on-surface">{isLoading ? "…" : archivedCount}</p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">Archived</p>
+        </Card>
+        <Card className="p-lg text-center">
+          <p className="font-headline-md text-headline-md text-on-surface">
+            {sessionStatus === "loading" ? "…" : sessionsParticipatedCount}
+          </p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-xs">Sessions</p>
         </Card>
       </div>
+
+      <Card className="p-lg">
+        <div className="flex items-center justify-between mb-md">
+          <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider">Recent Activity</h2>
+          {sessionRecords.length > 0 && (
+            <button
+              type="button"
+              onClick={() => navigate(ROUTES.history)}
+              className="font-label-sm text-label-sm text-primary hover:underline"
+            >
+              View All
+            </button>
+          )}
+        </div>
+        {sessionStatus === "loading" ? (
+          <p className="font-body-sm text-body-sm text-on-surface-variant">Loading activity…</p>
+        ) : recentSessions.length === 0 ? (
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
+            No collaborative sessions yet. Join or create a workspace to get started.
+          </p>
+        ) : (
+          <div className="flex flex-col divide-y divide-outline-variant/50">
+            {recentSessions.map((record) => (
+              <button
+                key={record.id}
+                type="button"
+                onClick={() => navigate(ROUTES.history)}
+                className="flex items-center justify-between gap-md py-sm text-left hover:bg-surface-variant/20 transition-colors rounded px-xs -mx-xs"
+              >
+                <div className="min-w-0">
+                  <p className="font-label-sm text-label-sm text-on-surface truncate">{record.workspace.name}</p>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant">{formatRelativeTimeLabel(record.lastActivityAt)}</p>
+                </div>
+                <SessionStatusPill status={record.status} />
+              </button>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-lg">
+        <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider mb-md">Collaboration Summary</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-md">
+          <div>
+            <p className="font-headline-sm text-headline-sm text-on-surface">{sessionStatus === "loading" ? "…" : ownerSessionCount}</p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">Sessions as Owner</p>
+          </div>
+          <div>
+            <p className="font-headline-sm text-headline-sm text-on-surface">
+              {sessionStatus === "loading" ? "…" : sessionsParticipatedCount - ownerSessionCount}
+            </p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">Sessions as Collaborator</p>
+          </div>
+          <div>
+            <p className="font-headline-sm text-headline-sm text-on-surface">{isLoading ? "…" : ownedCount + joinedCount}</p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">Active Workspaces</p>
+          </div>
+        </div>
+      </Card>
 
       <Card className="p-lg">
         <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider mb-md">Connected Accounts</h2>

@@ -25,6 +25,8 @@ interface CodeEditorProps {
   onReviewGutterClick?: (lineNumber: number, top: number) => void;
   onTypingActivity?: () => void;
   readOnly?: boolean;
+  cursorPresenceEnabled?: boolean;
+  onEditorMount?: (instance: MonacoEditorNamespace.IStandaloneCodeEditor) => void;
 }
 
 const THEME_NAME = "difflane-slate";
@@ -57,6 +59,8 @@ export function CodeEditor({
   onReviewGutterClick,
   onTypingActivity,
   readOnly = false,
+  cursorPresenceEnabled = true,
+  onEditorMount,
 }: CodeEditorProps) {
   const { preferences } = useEditorPreferences();
   const { monacoLanguage, isCollaborative, handleMount } = useMonacoYjsBinding({
@@ -66,6 +70,7 @@ export function CodeEditor({
     doc,
     awareness,
     onLocalEdit: onTypingActivity,
+    cursorPresenceEnabled,
   });
 
   const editorRef = useRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null);
@@ -107,6 +112,7 @@ export function CodeEditor({
     handleMount(editorInstance, monaco);
     editorRef.current = editorInstance;
     decorationIdsRef.current = [];
+    onEditorMount?.(editorInstance);
     editorInstance.onMouseDown((event) => {
       if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || !event.target.position) {
         return;

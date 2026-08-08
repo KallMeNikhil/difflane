@@ -426,5 +426,8 @@ export function createPrismaIdentityStore(): IdentityStore {
       const membership = await prisma.workspaceMembership.update({ where: { id: membershipId }, data: patch });
       return toMembershipRecord(membership);
     },
+    async deleteMembership(membershipId) {
+      await prisma.workspaceMembership.delete({ where: { id: membershipId } });
+    },
   };
 }

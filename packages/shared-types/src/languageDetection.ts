@@ -1,17 +1,48 @@
 export const LANGUAGE_BY_EXTENSION: Record<string, string> = {
-  ts: "TypeScript",
-  tsx: "TypeScript",
-  js: "JavaScript",
-  jsx: "JavaScript",
+  ts: "typescript",
+  tsx: "typescript",
+  js: "javascript",
+  jsx: "javascript",
+  json: "json",
+  css: "css",
+  html: "html",
+  md: "markdown",
+  py: "python",
+  go: "go",
+  rs: "rust",
+  java: "java",
+  cpp: "cpp",
+  cc: "cpp",
+  cxx: "cpp",
+  hpp: "cpp",
+  c: "c",
+  h: "c",
+  cs: "csharp",
+  yml: "yaml",
+  yaml: "yaml",
+};
+
+export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
+  typescript: "TypeScript",
+  javascript: "JavaScript",
   json: "JSON",
   css: "CSS",
   html: "HTML",
-  md: "Markdown",
-  py: "Python",
+  markdown: "Markdown",
+  python: "Python",
   go: "Go",
-  rs: "Rust",
+  rust: "Rust",
   java: "Java",
+  cpp: "C++",
+  c: "C",
+  csharp: "C#",
+  yaml: "YAML",
+  plaintext: "Plain Text",
 };
+
+export function getLanguageDisplayName(languageId: string): string {
+  return LANGUAGE_DISPLAY_NAMES[languageId] ?? languageId;
+}
 
 export const BINARY_FILE_EXTENSIONS = new Set([
   "png", "jpg", "jpeg", "gif", "webp", "ico", "pdf", "zip", "gz", "tar",
@@ -45,5 +76,5 @@ export function detectDominantLanguage(paths: string[]): string {
     }
   }
   const [top] = [...tally.entries()].sort((a, b) => b[1] - a[1]);
-  return top?.[0] ?? "Plain Text";
+  return top?.[0] ?? "plaintext";
 }

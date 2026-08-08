@@ -49,6 +49,8 @@ export const DEFAULT_WORKSPACE_METADATA: WorkspaceMetadata = {
   name: "Untitled Workspace",
   description: "",
   collaboration: DEFAULT_WORKSPACE_COLLABORATION_PREFERENCES,
+  defaultLanguage: "plaintext",
+  maxParticipants: null,
 };
 
 function getFileSystemMap(doc: Y.Doc): Y.Map<WorkspaceFileSystemEntry> {
@@ -106,7 +108,10 @@ export function createFile(doc: Y.Doc, parentId: string | null, name: string): W
     name,
     type: "file",
     order: nextOrder(doc, parentId),
-    language: detectLanguageForPath(name),
+    // Priority order: extension/filename convention (detectLanguageForPath)
+    // first, then the workspace's configured default language, per the
+    // canonical language-detection priority.
+    language: detectLanguageForPath(name) ?? readWorkspaceMetadata(doc).defaultLanguage,
   };
   getFileSystemMap(doc).set(entry.id, entry);
   seedFileTextIfEmpty(doc, entry.id, "");
@@ -132,8 +137,20 @@ export function renameEntry(doc: Y.Doc, id: string, name: string): void {
   if (!existing || !trimmed) {
     return;
   }
-  const language = existing.type === "file" ? detectLanguageForPath(trimmed) : existing.language;
+  const language =
+    existing.type === "file" && !existing.languageManuallySet
+      ? detectLanguageForPath(trimmed)
+      : existing.language;
   map.set(id, { ...existing, name: trimmed, language });
+}
+
+export function setFileLanguage(doc: Y.Doc, id: string, language: EditorLanguage): void {
+  const map = getFileSystemMap(doc);
+  const existing = map.get(id);
+  if (!existing || existing.type !== "file") {
+    return;
+  }
+  map.set(id, { ...existing, language, languageManuallySet: true });
 }
 
 export function collectDescendantIds(entries: WorkspaceFileSystemEntry[], rootId: string): string[] {
@@ -322,7 +339,32 @@ export function readWorkspaceMetadata(doc: Y.Doc): WorkspaceMetadata {
     name: (map.get("name") as string | undefined) ?? DEFAULT_WORKSPACE_METADATA.name,
     description: (map.get("description") as string | undefined) ?? DEFAULT_WORKSPACE_METADATA.description,
     collaboration: collaboration ?? DEFAULT_WORKSPACE_COLLABORATION_PREFERENCES,
+    defaultLanguage: (map.get("defaultLanguage") as string | undefined) ?? DEFAULT_WORKSPACE_METADATA.defaultLanguage,
+    maxParticipants: (map.get("maxParticipants") as number | null | undefined) ?? DEFAULT_WORKSPACE_METADATA.maxParticipants,
   };
+}
+
+/**
+ * Seeds workspace metadata (name, description, default language, max
+ * participants, collaboration preferences) exactly once — at the moment a
+ * newly created workspace's Yjs doc is first initialized — from the values
+ * chosen in the Create Workspace form. A no-op for any workspace whose
+ * metadata has already been written (e.g. a rejoin, or a workspace someone
+ * has already customized via Workspace Settings), mirroring the same
+ * "only if empty" guard used by initializeFileSystemIfEmpty.
+ */
+export function initializeWorkspaceMetadataIfEmpty(doc: Y.Doc, metadata: Partial<WorkspaceMetadata>): void {
+  const map = getWorkspaceMetadataMap(doc);
+  if (map.size > 0) {
+    return;
+  }
+  doc.transact(() => {
+    if (metadata.name !== undefined) map.set("name", metadata.name);
+    if (metadata.description !== undefined) map.set("description", metadata.description);
+    if (metadata.defaultLanguage !== undefined) map.set("defaultLanguage", metadata.defaultLanguage);
+    if (metadata.maxParticipants !== undefined) map.set("maxParticipants", metadata.maxParticipants);
+    if (metadata.collaboration !== undefined) map.set("collaboration", metadata.collaboration);
+  });
 }
 
 export function writeWorkspaceName(doc: Y.Doc, name: string): void {

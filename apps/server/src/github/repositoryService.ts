@@ -8,7 +8,7 @@ import {
   type RepositorySummary,
   type WorkspaceFileSystemEntry,
 } from "@difflane/shared-types";
-import { fetchBranches, fetchFileContent, fetchRepository, fetchTree, type GitHubTreeEntry } from "./githubClient.js";
+import { fetchBranches, fetchFileContent, fetchRepository, fetchTree, GitHubRequestError, type GitHubTreeEntry } from "./githubClient.js";
 
 const CONTENT_FETCH_CONCURRENCY = 8;
 const GITHUB_OWNER_PATTERN = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/;
@@ -127,7 +127,21 @@ async function fetchContentsWithConcurrency(
 }
 
 export async function importRepository(owner: string, repo: string, branch: string): Promise<RepositoryImportResult> {
-  const [repository, tree] = await Promise.all([fetchRepository(owner, repo), fetchTree(owner, repo, branch)]);
+  const repository = await fetchRepository(owner, repo);
+
+  let tree: Awaited<ReturnType<typeof fetchTree>>;
+  try {
+    tree = await fetchTree(owner, repo, branch);
+  } catch (error) {
+    if (error instanceof GitHubRequestError && error.status === 404) {
+      throw new Error("This repository (or branch) has no files to import yet.");
+    }
+    throw error;
+  }
+
+  if (tree.tree.length === 0) {
+    throw new Error("This repository (or branch) has no files to import yet.");
+  }
 
   const { entries, fileEntriesByPath } = buildEntries(tree.tree);
 
@@ -150,6 +164,8 @@ export async function importRepository(owner: string, repo: string, branch: stri
 
   const detectedLanguage = detectDominantLanguage(importablePaths);
   const fileCount = entries.filter((entry) => entry.type === "file").length;
+  const totalBlobCount = tree.tree.filter((item) => item.type === "blob").length;
+  const truncated = tree.truncated || totalBlobCount > IMPORT_LIMITS.maxFiles;
 
   return {
     repository: {
@@ -166,5 +182,6 @@ export async function importRepository(owner: string, repo: string, branch: stri
     files,
     fileCount,
     detectedLanguage,
+    truncated,
   };
 }

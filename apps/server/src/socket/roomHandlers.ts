@@ -30,6 +30,13 @@ class ExpiredJoinTokenError extends Error {
   }
 }
 
+class GuestIdentityRequiredError extends Error {
+  constructor() {
+    super("A guest session is required before joining a workspace.");
+    this.name = "GuestIdentityRequiredError";
+  }
+}
+
 function readGuestIdFromHandshake(socket: Socket): string | null {
   const rawCookie = socket.handshake.headers.cookie;
   if (!rawCookie) {
@@ -75,8 +82,7 @@ async function resolveJoinIdentity(
     }
   }
 
-  const guest = await identityStore.createGuestSession(fallbackDisplayName);
-  return { identityId: guest.id, identityType: "guest", displayName: fallbackDisplayName, initials: fallbackInitials };
+  throw new GuestIdentityRequiredError();
 }
 
 interface JoinRateState {
@@ -154,6 +160,10 @@ export function registerRoomHandlers(
       } catch (error) {
         if (error instanceof ExpiredJoinTokenError) {
           ack?.({ error: error.message, code: "expired_token" });
+          return;
+        }
+        if (error instanceof GuestIdentityRequiredError) {
+          ack?.({ error: error.message, code: "guest_required" });
           return;
         }
         console.error("ROOM_JOIN failed:", error);

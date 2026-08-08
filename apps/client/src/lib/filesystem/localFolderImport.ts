@@ -6,6 +6,26 @@ export interface RawImportedFile {
   size: number;
 }
 
+const IGNORED_DIRECTORY_NAMES = new Set([
+  ".git",
+  "node_modules",
+  "dist",
+  "build",
+  ".next",
+  ".turbo",
+  ".cache",
+  "coverage",
+]);
+
+function isIgnoredDirectoryName(name: string): boolean {
+  return IGNORED_DIRECTORY_NAMES.has(name);
+}
+
+function containsIgnoredDirectorySegment(relativePath: string): boolean {
+  const segments = relativePath.split("/");
+  return segments.slice(1, -1).some(isIgnoredDirectoryName);
+}
+
 export function isFileSystemAccessSupported(): boolean {
   return typeof window !== "undefined" && "showDirectoryPicker" in window;
 }
@@ -32,10 +52,13 @@ async function walkDirectory(
   results: RawImportedFile[],
 ): Promise<void> {
   for await (const [name, handle] of directoryHandle.entries()) {
-    const path = prefix ? `${prefix}/${name}` : name;
     if (results.length >= IMPORT_LIMITS.maxFiles) {
       return;
     }
+    if (handle.kind === "directory" && isIgnoredDirectoryName(name)) {
+      continue;
+    }
+    const path = prefix ? `${prefix}/${name}` : name;
     if (handle.kind === "file") {
       const entry = await readFileEntry(handle, path);
       if (entry) {
@@ -75,7 +98,7 @@ export async function processFileList(fileList: FileList): Promise<{ folderName:
     if (index === 0) {
       folderName = relativePath.split("/")[0] || folderName;
     }
-    if (isBinaryPath(relativePath) || file.size > IMPORT_LIMITS.maxFileSizeBytes) {
+    if (containsIgnoredDirectorySegment(relativePath) || isBinaryPath(relativePath) || file.size > IMPORT_LIMITS.maxFileSizeBytes) {
       continue;
     }
     const content = await file.text();

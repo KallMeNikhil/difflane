@@ -6,6 +6,7 @@ export interface WorkspaceFileSystemEntry {
   name: string;
   type: WorkspaceFileSystemNodeType;
   language?: string;
+  languageManuallySet?: boolean;
   order: number;
 }
 
@@ -30,4 +31,6 @@ export interface WorkspaceMetadata {
   name: string;
   description: string;
   collaboration: WorkspaceCollaborationPreferences;
+  defaultLanguage: string;
+  maxParticipants: number | null;
 }

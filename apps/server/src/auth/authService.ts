@@ -103,14 +103,17 @@ export async function register(email: string, username: string, displayName: str
   return issueSession(user);
 }
 
-export async function login(email: string, password: string): Promise<AuthSessionResult> {
-  const user = await identityStore.findUserByEmail(email);
+export async function login(identifier: string, password: string): Promise<AuthSessionResult> {
+  const trimmedIdentifier = identifier.trim();
+  const user = EMAIL_PATTERN.test(trimmedIdentifier)
+    ? await identityStore.findUserByEmail(trimmedIdentifier)
+    : await identityStore.findUserByUsername(trimmedIdentifier);
   if (!user || !user.passwordHash) {
-    throw new AuthError("invalid_credentials", "Invalid email or password.", 401);
+    throw new AuthError("invalid_credentials", "Invalid email/username or password.", 401);
   }
   const isValid = await verifyPassword(password, user.passwordHash);
   if (!isValid) {
-    throw new AuthError("invalid_credentials", "Invalid email or password.", 401);
+    throw new AuthError("invalid_credentials", "Invalid email/username or password.", 401);
   }
   return issueSession(user);
 }

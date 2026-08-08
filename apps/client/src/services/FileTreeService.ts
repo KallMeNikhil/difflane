@@ -31,6 +31,7 @@ export function buildFileTree(
       name: entry.name,
       type: "file",
       language: (entry.language?.toLowerCase() as EditorLanguage | undefined) ?? "plaintext",
+      languageManuallySet: entry.languageManuallySet,
       status: statusByFileId[entry.id] ?? "unmodified",
     };
   }
@@ -54,7 +55,15 @@ export function flattenToSeedEntries(tree: FileNode[]): {
         }
         return;
       }
-      entries.push({ id: node.id, parentId, name: node.name, type: "file", language: node.language, order: index });
+      entries.push({
+        id: node.id,
+        parentId,
+        name: node.name,
+        type: "file",
+        language: node.language,
+        languageManuallySet: node.languageManuallySet,
+        order: index,
+      });
       if (node.status && node.status !== "unmodified") {
         statusByFileId[node.id] = node.status;
       }

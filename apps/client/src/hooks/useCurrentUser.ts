@@ -16,7 +16,7 @@ export interface CurrentUserContextValue extends CurrentUserIdentity {
   user: AuthUserProfile | null;
   authError: string | null;
   setDisplayName: (displayName: string) => void;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   registerAccount: (email: string, username: string, displayName: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   upgradeGuest: (email: string, username: string, displayName: string, password: string) => Promise<void>;
@@ -24,6 +24,7 @@ export interface CurrentUserContextValue extends CurrentUserIdentity {
   completeOAuthLogin: (provider: "google" | "github", code: string, state: string) => Promise<void>;
   updateAccountProfile: (patch: { displayName?: string; username?: string }) => Promise<void>;
   clearAuthError: () => void;
+  ensureGuestSession: () => Promise<string>;
 }
 
 export const CurrentUserContext = createContext<CurrentUserContextValue | undefined>(undefined);

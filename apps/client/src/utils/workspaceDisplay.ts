@@ -7,8 +7,34 @@ const LANGUAGE_LABELS: Record<EditorLanguage, string> = {
   css: "CSS",
   html: "HTML",
   markdown: "Markdown",
+  python: "Python",
+  go: "Go",
+  rust: "Rust",
+  java: "Java",
+  cpp: "C++",
+  c: "C",
+  csharp: "C#",
+  yaml: "YAML",
   plaintext: "Plain Text",
 };
+
+export const EDITOR_LANGUAGE_OPTIONS: EditorLanguage[] = [
+  "typescript",
+  "javascript",
+  "python",
+  "java",
+  "go",
+  "rust",
+  "cpp",
+  "c",
+  "csharp",
+  "yaml",
+  "json",
+  "css",
+  "html",
+  "markdown",
+  "plaintext",
+];
 
 export function getLanguageLabel(language: EditorLanguage): string {
   return LANGUAGE_LABELS[language];

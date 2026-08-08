@@ -65,6 +65,16 @@ export function CurrentUserProvider({ children, initialDisplayName = "You" }: { 
 
   const clearAuthError = useCallback(() => setAuthError(null), []);
 
+  const ensureGuestSession = useCallback(async (): Promise<string> => {
+    if (guestId) {
+      return guestId;
+    }
+    const bootstrap = await AuthService.bootstrapGuest(readStoredDisplayName() ?? guestDisplayName);
+    setGuestId(bootstrap.identity.guest.id);
+    setGuestDisplayName(bootstrap.identity.guest.displayName);
+    return bootstrap.identity.guest.id;
+  }, [guestId, guestDisplayName]);
+
   const setDisplayName = useCallback(
     (next: string) => {
       if (status === "authenticated" && user) {
@@ -78,10 +88,10 @@ export function CurrentUserProvider({ children, initialDisplayName = "You" }: { 
     [status, user],
   );
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (identifier: string, password: string) => {
     setAuthError(null);
     try {
-      const session = await AuthService.login(email, password);
+      const session = await AuthService.login(identifier, password);
       if (session.identity.kind === "authenticated") {
         setUser(session.identity.user);
         setStatus("authenticated");
@@ -209,6 +219,7 @@ export function CurrentUserProvider({ children, initialDisplayName = "You" }: { 
         completeOAuthLogin,
         updateAccountProfile,
         clearAuthError,
+        ensureGuestSession,
       };
     }
     return {
@@ -229,8 +240,9 @@ export function CurrentUserProvider({ children, initialDisplayName = "You" }: { 
       completeOAuthLogin,
       updateAccountProfile,
       clearAuthError,
+      ensureGuestSession,
     };
-  }, [status, user, guestId, guestDisplayName, authError, setDisplayName, login, registerAccount, logout, upgradeGuest, beginOAuthFlow, completeOAuthLogin, updateAccountProfile, clearAuthError]);
+  }, [status, user, guestId, guestDisplayName, authError, setDisplayName, login, registerAccount, logout, upgradeGuest, beginOAuthFlow, completeOAuthLogin, updateAccountProfile, clearAuthError, ensureGuestSession]);
 
   return <CurrentUserContext.Provider value={value}>{children}</CurrentUserContext.Provider>;
 }

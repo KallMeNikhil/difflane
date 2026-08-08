@@ -1,3 +1,5 @@
+import { env } from "../config/env.js";
+
 const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_RAW_BASE = "https://raw.githubusercontent.com";
 const GITHUB_FETCH_TIMEOUT_MS = 15000;
@@ -33,11 +35,19 @@ interface GitHubTreeResponse {
   truncated: boolean;
 }
 
+function githubHeaders(accept: string): Record<string, string> {
+  const headers: Record<string, string> = { Accept: accept };
+  if (env.githubApi.token) {
+    headers.Authorization = `Bearer ${env.githubApi.token}`;
+  }
+  return headers;
+}
+
 async function githubFetch<T>(path: string): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${GITHUB_API_BASE}${path}`, {
-      headers: { Accept: "application/vnd.github+json" },
+      headers: githubHeaders("application/vnd.github+json"),
       signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS),
     });
   } catch (error) {
@@ -48,10 +58,23 @@ async function githubFetch<T>(path: string): Promise<T> {
   }
 
   if (response.status === 404) {
-    throw new GitHubRequestError("Repository or resource not found.", 404);
+    throw new GitHubRequestError(
+      "Repository not found. It may be private, misspelled, or does not exist.",
+      404,
+    );
+  }
+  if (response.status === 401) {
+    throw new GitHubRequestError("GitHub rejected the configured import credentials.", 401);
   }
   if (response.status === 403) {
-    throw new GitHubRequestError("GitHub API rate limit exceeded. Please try again later.", 403);
+    const remaining = response.headers.get("x-ratelimit-remaining");
+    if (remaining === "0") {
+      const resetHeader = response.headers.get("x-ratelimit-reset");
+      const resetDate = resetHeader ? new Date(Number(resetHeader) * 1000) : null;
+      const resetLabel = resetDate ? ` Try again after ${resetDate.toLocaleTimeString()}.` : " Please try again later.";
+      throw new GitHubRequestError(`GitHub API rate limit exceeded.${resetLabel}`, 403);
+    }
+    throw new GitHubRequestError("GitHub denied access to this repository.", 403);
   }
   if (!response.ok) {
     throw new GitHubRequestError(`GitHub API request failed with status ${response.status}.`, response.status);
@@ -80,10 +103,13 @@ export async function fetchFileContent(owner: string, repo: string, branch: stri
   try {
     response = await fetch(
       `${GITHUB_RAW_BASE}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch)}/${encodedPath}`,
-      { signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS) },
+      { headers: env.githubApi.token ? { Authorization: `Bearer ${env.githubApi.token}` } : {}, signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS) },
     );
   } catch {
     throw new GitHubRequestError(`Unable to fetch file content for ${path}.`, 502);
+  }
+  if (response.status === 403) {
+    throw new GitHubRequestError("GitHub API rate limit exceeded while importing files. Please try again later.", 403);
   }
   if (!response.ok) {
     throw new GitHubRequestError(`Unable to fetch file content for ${path}.`, response.status);

@@ -18,8 +18,6 @@ const INITIAL_VALUES: CreateRoomFormValues = {
   roomName: "",
   description: "",
   programmingLanguage: "typescript",
-  reviewMode: "live",
-  visibility: "team",
   maxParticipants: "25",
   features: INITIAL_FEATURES,
 };

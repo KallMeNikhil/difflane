@@ -1,6 +1,4 @@
 
-export type ReviewMode = "live" | "guided" | "readonly";
-export type RoomVisibility = "private" | "team" | "org";
 export type MaxParticipants = "10" | "25" | "50" | "unlimited";
 export type ProgrammingLanguage =
   | "typescript"
@@ -25,8 +23,6 @@ export interface CreateRoomFormValues {
   roomName: string;
   description: string;
   programmingLanguage: ProgrammingLanguage;
-  reviewMode: ReviewMode;
-  visibility: RoomVisibility;
   maxParticipants: MaxParticipants;
   features: CreateRoomFeatureToggles;
 }

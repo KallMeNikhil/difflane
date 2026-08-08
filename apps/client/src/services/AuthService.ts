@@ -32,8 +32,8 @@ export async function register(email: string, username: string, displayName: str
   return session;
 }
 
-export async function login(email: string, password: string): Promise<AuthSessionResponse> {
-  const session = await authClient.loginWithPassword(email, password);
+export async function login(identifier: string, password: string): Promise<AuthSessionResponse> {
+  const session = await authClient.loginWithPassword(identifier, password);
   applySession(session);
   return session;
 }

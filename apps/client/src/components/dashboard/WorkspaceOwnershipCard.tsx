@@ -2,9 +2,10 @@ import { useState } from "react";
 import type { WorkspaceOwnershipSummary } from "@difflane/shared-types";
 import { Card, CardHeader, Icon, StatusBadge } from "../common";
 
-type OwnershipTab = "created" | "joined" | "pinned" | "archived";
+type OwnershipTab = "all" | "created" | "joined" | "pinned" | "archived";
 
 const TABS: { id: OwnershipTab; label: string }[] = [
+  { id: "all", label: "All" },
   { id: "created", label: "Created" },
   { id: "joined", label: "Joined" },
   { id: "pinned", label: "Pinned" },
@@ -12,6 +13,7 @@ const TABS: { id: OwnershipTab; label: string }[] = [
 ];
 
 export interface WorkspaceOwnershipCardProps {
+  all: WorkspaceOwnershipSummary[];
   created: WorkspaceOwnershipSummary[];
   joined: WorkspaceOwnershipSummary[];
   pinned: WorkspaceOwnershipSummary[];
@@ -24,6 +26,7 @@ export interface WorkspaceOwnershipCardProps {
 }
 
 export function WorkspaceOwnershipCard({
+  all,
   created,
   joined,
   pinned,
@@ -34,8 +37,8 @@ export function WorkspaceOwnershipCard({
   onToggleArchive,
   onDeleteWorkspace,
 }: WorkspaceOwnershipCardProps) {
-  const [tab, setTab] = useState<OwnershipTab>("created");
-  const dataByTab: Record<OwnershipTab, WorkspaceOwnershipSummary[]> = { created, joined, pinned, archived };
+  const [tab, setTab] = useState<OwnershipTab>("all");
+  const dataByTab: Record<OwnershipTab, WorkspaceOwnershipSummary[]> = { all, created, joined, pinned, archived };
   const items = dataByTab[tab];
 
   return (

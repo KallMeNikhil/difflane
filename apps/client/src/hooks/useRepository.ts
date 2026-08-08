@@ -30,6 +30,7 @@ export interface ImportSuccessSummary {
   fileCount: number;
   detectedLanguage: string;
   sourceLabel: string;
+  truncated: boolean;
 }
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -142,6 +143,7 @@ export function useRepository(doc: Y.Doc | null) {
           fileCount: result.fileCount,
           detectedLanguage: result.detectedLanguage,
           sourceLabel: `github.com/${result.repository.fullName}`,
+          truncated: result.truncated,
         });
       })
       .catch((error: unknown) => {
@@ -160,6 +162,7 @@ export function useRepository(doc: Y.Doc | null) {
         fileCount: payload.fileCount,
         detectedLanguage: payload.detectedLanguage,
         sourceLabel: payload.provider === "zip" ? `ZIP Archive: ${payload.sourceName}.zip` : `Local Folder: ${payload.sourceName}`,
+        truncated: false,
       });
     },
     [doc, finishProgressWithSuccess],

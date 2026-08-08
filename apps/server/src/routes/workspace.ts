@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import type { TransferOwnershipRequest, UpdateMemberRoleRequest } from "@difflane/shared-types";
+import type { TransferOwnershipRequest, UpdateMemberRoleRequest, RemoveMemberRequest } from "@difflane/shared-types";
 import { resolveIdentity } from "../middleware/resolveIdentity.js";
 import { moderateRateLimit, relaxedRateLimit } from "../middleware/rateLimit.js";
 import { handleRouteError, requireIdentity } from "../middleware/routeHelpers.js";
@@ -14,6 +14,8 @@ import {
   isValidIdentityType,
   isValidUuid,
   isValidWorkspaceCode,
+  leaveWorkspace,
+  removeMember,
   requireMembership,
   setWorkspaceFlag,
   transferOwnership,
@@ -128,7 +130,9 @@ router.post("/api/workspaces/:code/transfer-ownership", resolveIdentity, moderat
       res.status(400).json({ code: "unknown_error", message: "A valid target member is required." });
       return;
     }
-    await transferOwnership(toIdentity(req), code, { type: targetIdentityType, id: targetIdentityId });
+    const result = await transferOwnership(toIdentity(req), code, { type: targetIdentityType, id: targetIdentityId });
+    lifecycleManager.notifyRoleChanged(result.workspaceId, result.previousOwner.id, result.previousOwner.type, "editor");
+    lifecycleManager.notifyRoleChanged(result.workspaceId, result.newOwner.id, result.newOwner.type, "owner");
     res.status(204).send();
   } catch (error) {
     handleError(error, res);
@@ -153,6 +157,36 @@ router.patch("/api/workspaces/:code/members/role", resolveIdentity, moderateRate
     }
     const result = await updateMemberRole(toIdentity(req), code, { type: targetIdentityType, id: targetIdentityId }, role);
     lifecycleManager.notifyRoleChanged(result.workspaceId, result.targetUserId, result.targetIdentityType, role);
+    res.status(204).send();
+  } catch (error) {
+    handleError(error, res);
+  }
+});
+
+router.post("/api/workspaces/:code/leave", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
+  try {
+    const code = requireValidCode(req, res);
+    if (!code) return;
+    const identity = toIdentity(req);
+    const result = await leaveWorkspace(identity, code);
+    lifecycleManager.notifyMemberRemoved(result.workspaceId, identity.id, identity.type, "left");
+    res.status(204).send();
+  } catch (error) {
+    handleError(error, res);
+  }
+});
+
+router.delete("/api/workspaces/:code/members", resolveIdentity, moderateRateLimit, async (req: Request, res: Response) => {
+  try {
+    const code = requireValidCode(req, res);
+    if (!code) return;
+    const { targetIdentityId, targetIdentityType } = req.body as RemoveMemberRequest;
+    if (!targetIdentityId || !targetIdentityType || !isValidUuid(targetIdentityId) || !isValidIdentityType(targetIdentityType)) {
+      res.status(400).json({ code: "unknown_error", message: "A valid target member is required." });
+      return;
+    }
+    const result = await removeMember(toIdentity(req), code, { type: targetIdentityType, id: targetIdentityId });
+    lifecycleManager.notifyMemberRemoved(result.workspaceId, targetIdentityId, targetIdentityType, "removed");
     res.status(204).send();
   } catch (error) {
     handleError(error, res);

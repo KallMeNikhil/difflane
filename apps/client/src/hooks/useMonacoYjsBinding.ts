@@ -15,6 +15,7 @@ interface UseMonacoYjsBindingArgs {
   doc?: Y.Doc | null;
   awareness?: Awareness | null;
   onLocalEdit?: () => void;
+  cursorPresenceEnabled?: boolean;
 }
 
 interface UseMonacoYjsBindingResult {
@@ -30,6 +31,7 @@ export function useMonacoYjsBinding({
   doc,
   awareness,
   onLocalEdit,
+  cursorPresenceEnabled = true,
 }: UseMonacoYjsBindingArgs): UseMonacoYjsBindingResult {
   const editorRef = useRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null);
   const bindingRef = useRef<MonacoYjsBinding | null>(null);
@@ -52,8 +54,15 @@ export function useMonacoYjsBinding({
     }
     seedFileTextIfEmpty(doc, fileId, valueRef.current);
     const yText = getFileText(doc, fileId);
-    bindingRef.current = bindMonacoToYText(yText, model, editorInstance, awareness, () => onLocalEditRef.current?.());
-  }, [fileId, doc, awareness]);
+    bindingRef.current = bindMonacoToYText(
+      yText,
+      model,
+      editorInstance,
+      awareness,
+      () => onLocalEditRef.current?.(),
+      cursorPresenceEnabled,
+    );
+  }, [fileId, doc, awareness, cursorPresenceEnabled]);
 
   // Re-runs whenever the active file or the Yjs doc/awareness identity
   // changes. CodeEditor keeps a single long-lived editor instance and

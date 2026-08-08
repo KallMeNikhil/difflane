@@ -74,4 +74,5 @@ export interface IdentityStore {
   listMembershipsForIdentity(identity: { userId: string } | { guestId: string }): Promise<WorkspaceMembershipRecord[]>;
   updateMembershipRole(membershipId: string, role: WorkspaceMembershipRecord["role"]): Promise<WorkspaceMembershipRecord>;
   setMembershipFlags(membershipId: string, patch: Partial<Pick<WorkspaceMembershipRecord, "pinned" | "archived">>): Promise<WorkspaceMembershipRecord>;
+  deleteMembership(membershipId: string): Promise<void>;
 }

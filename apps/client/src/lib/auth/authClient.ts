@@ -5,6 +5,7 @@ import type {
   GuestBootstrapResponse,
   UpdateMemberRoleRequest,
   TransferOwnershipRequest,
+  RemoveMemberRequest,
   SessionHistoryResponse,
   WorkspaceDashboardResponse,
 } from "@difflane/shared-types";
@@ -84,8 +85,8 @@ export function registerAccount(email: string, username: string, displayName: st
   return requestJson<AuthSessionResponse>("/api/auth/register", { method: "POST", body: JSON.stringify({ email, username, displayName, password }) }, false);
 }
 
-export function loginWithPassword(email: string, password: string): Promise<AuthSessionResponse> {
-  return requestJson<AuthSessionResponse>("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }, false);
+export function loginWithPassword(identifier: string, password: string): Promise<AuthSessionResponse> {
+  return requestJson<AuthSessionResponse>("/api/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) }, false);
 }
 
 export function refreshAccessToken(): Promise<AuthSessionResponse> {
@@ -205,6 +206,21 @@ export function transferWorkspaceOwnership(code: string, payload: TransferOwners
 export function updateWorkspaceMemberRole(code: string, payload: UpdateMemberRoleRequest, guestId: string | null): Promise<void> {
   return requestJson<void>(`/api/workspaces/${encodeURIComponent(code)}/members/role`, {
     method: "PATCH",
+    body: JSON.stringify(payload),
+    headers: guestHeaders(guestId),
+  });
+}
+
+export function leaveWorkspaceRecord(code: string, guestId: string | null): Promise<void> {
+  return requestJson<void>(`/api/workspaces/${encodeURIComponent(code)}/leave`, {
+    method: "POST",
+    headers: guestHeaders(guestId),
+  });
+}
+
+export function removeWorkspaceMember(code: string, payload: RemoveMemberRequest, guestId: string | null): Promise<void> {
+  return requestJson<void>(`/api/workspaces/${encodeURIComponent(code)}/members`, {
+    method: "DELETE",
     body: JSON.stringify(payload),
     headers: guestHeaders(guestId),
   });

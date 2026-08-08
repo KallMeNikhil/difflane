@@ -18,6 +18,21 @@ export type {
 
 export type FileNodeType = "file" | "folder";
 
+/**
+ * Values captured on the Create Workspace form that seed a brand-new
+ * workspace's Yjs metadata the first time it is opened. Passed through
+ * React Router navigation state rather than a new backend field, since
+ * WorkspaceMetadata already lives entirely in the collaborative Yjs doc
+ * (see WorkspaceFileSystemService), not in Postgres.
+ */
+export interface WorkspaceCreationSeed {
+  name: string;
+  description: string;
+  defaultLanguage: string;
+  maxParticipants: number | null;
+  collaboration: WorkspaceCollaborationPreferences;
+}
+
 export type FileStatus = "unmodified" | "modified" | "added" | "deleted";
 
 export type EditorLanguage =
@@ -27,6 +42,14 @@ export type EditorLanguage =
   | "css"
   | "html"
   | "markdown"
+  | "python"
+  | "go"
+  | "rust"
+  | "java"
+  | "cpp"
+  | "c"
+  | "csharp"
+  | "yaml"
   | "plaintext";
 
 export interface FileNode {
@@ -35,6 +58,7 @@ export interface FileNode {
   type: FileNodeType;
   isExpanded?: boolean;
   language?: EditorLanguage;
+  languageManuallySet?: boolean;
   status?: FileStatus;
   children?: FileNode[];
 }

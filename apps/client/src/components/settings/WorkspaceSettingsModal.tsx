@@ -46,7 +46,7 @@ const COLLABORATION_TOGGLES: { key: keyof WorkspaceCollaborationPreferences; lab
 ];
 
 export function WorkspaceSettingsModal({ onClose }: WorkspaceSettingsModalProps) {
-  const { roomCode, doc, persistenceStatus, lastPersistedAt } = useRoom();
+  const { roomCode, doc, persistenceStatus, lastPersistedAt, collaborators } = useRoom();
   const repositoryInfo = useRepositoryInfo(doc);
   const metadata = useWorkspaceMetadata(doc);
   const { snapshots, refreshSnapshots } = useWorkspaceLifecycle();
@@ -161,6 +161,16 @@ export function WorkspaceSettingsModal({ onClose }: WorkspaceSettingsModalProps)
                         onChange={(event) => handleDescriptionChange(event.target.value)}
                         className="w-full bg-surface-container-high border border-outline-variant text-on-surface rounded-lg px-md py-sm font-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none"
                       />
+                    </div>
+
+                    <div className="bg-surface-container-low border border-outline-variant rounded-lg p-md flex items-center justify-between gap-md">
+                      <div className="flex items-center gap-sm">
+                        <Icon name="group" size={18} className="text-primary" />
+                        <p className="font-label-sm text-label-sm text-on-surface-variant">Capacity</p>
+                      </div>
+                      <span className="font-body-sm text-body-sm text-on-surface">
+                        {collaborators.length + 1} / {metadata.maxParticipants ?? "Unlimited"} participants
+                      </span>
                     </div>
 
                     <div className="bg-surface-container-low border border-outline-variant rounded-lg p-md flex flex-col gap-xs">

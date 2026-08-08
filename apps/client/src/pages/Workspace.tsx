@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useMonaco } from "@monaco-editor/react";
+import type { editor as MonacoEditorNamespace } from "monaco-editor";
 import { CodeEditor, DiffViewer, EditorTabsBar, EditorToolbar } from "../components/editor";
 import type { ReviewGutterMarker } from "../components/editor/CodeEditor";
 import { disposeMonacoModelForFile } from "../lib/monaco/monacoBinding";
@@ -29,6 +30,7 @@ import {
 import { PlaceholderNotice, StatusBadge } from "../components/common";
 import { GlobalSearchModal } from "../components/search";
 import { WorkspaceSettingsModal } from "../components/settings";
+import { WorkspaceExportModal } from "../components/persistence";
 import { SessionSummaryModal } from "../components/history";
 import ErrorPage from "./Error";
 import { useEditorTabs } from "../hooks/useEditorTabs";
@@ -65,7 +67,15 @@ import { ROUTES, buildWorkspacePath } from "../constants/routes";
 import type { SearchSources } from "../services/SearchService";
 import type { SearchResultItem } from "../types/search";
 import type { FileReviewStatusRecord, ReviewAuthorIdentity, ReviewThread } from "../types/review";
-import type { DiffViewMode, DiscussionFeedItem, FileDiff, FileNode, OpenEditorTab, WorkspaceTopTab } from "../types/workspace";
+import type {
+  DiffViewMode,
+  DiscussionFeedItem,
+  FileDiff,
+  FileNode,
+  OpenEditorTab,
+  WorkspaceCreationSeed,
+  WorkspaceTopTab,
+} from "../types/workspace";
 
 const DEFAULT_ROOM_CODE = "DEMO-ROOM";
 const EMPTY_REPOSITORY_TREE: FileNode[] = [];
@@ -109,7 +119,13 @@ function WorkspaceContent() {
   } = useRoom();
   const { userId, displayName, initials, isAuthenticated } = useCurrentUser();
   const navigate = useNavigate();
-  const workspaceMetadata = useWorkspaceMetadata(doc);
+  const location = useLocation();
+  // Only ever consumed once: the very first time a freshly created
+  // workspace's Yjs doc is initialized (see initializeWorkspaceMetadataIfEmpty).
+  // A rejoin or page refresh has no router state, which is correct — the
+  // Yjs doc is already seeded by then.
+  const creationSeed = location.state?.creationSeed as WorkspaceCreationSeed | undefined;
+  const workspaceMetadata = useWorkspaceMetadata(doc, creationSeed);
   const { addNotification } = useNotifications();
   const [isUnsavedChangesDismissed, setUnsavedChangesDismissed] = useState(false);
 
@@ -123,6 +139,7 @@ function WorkspaceContent() {
   const [isShareOpen, setShareOpen] = useState(false);
   const [isImportOpen, setImportOpen] = useState(false);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
+  const [isWorkspaceExportOpen, setWorkspaceExportOpen] = useState(false);
   const [isSessionSummaryOpen, setSessionSummaryOpen] = useState(false);
   const [sessionStartedAt] = useState(() => new Date().toISOString());
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
@@ -143,6 +160,7 @@ function WorkspaceContent() {
     createFile,
     createFolder,
     renameEntry,
+    setFileLanguage,
     deleteEntry,
     duplicateEntry,
     baselines,
@@ -155,6 +173,10 @@ function WorkspaceContent() {
     tree,
   );
   const monaco = useMonaco();
+  const activeEditorRef = useRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null);
+  const handleFormatDocument = useCallback(() => {
+    activeEditorRef.current?.getAction("editor.action.formatDocument")?.run();
+  }, []);
   const closeTab = useCallback(
     (id: string) => {
       closeTabInternal(id);
@@ -586,11 +608,13 @@ function WorkspaceContent() {
       <WorkspaceTopNav
         activeTab={activeTopTab}
         onTabChange={setActiveTopTab}
+        onNavigateHome={() => navigate(ROUTES.dashboard)}
         onOpenShare={() => setShareOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenSessionSummary={() => setSessionSummaryOpen(true)}
-        onExportWorkspace={handleExportWorkspace}
-        isExporting={isExporting}
+        onDownloadZip={handleExportWorkspace}
+        isDownloadingZip={isExporting}
+        onOpenWorkspaceExport={() => setWorkspaceExportOpen(true)}
         onJumpToUser={handleJumpToUser}
         onRequestAttention={handleRequestAttention}
         fileNameById={getFileNameById}
@@ -637,6 +661,7 @@ function WorkspaceContent() {
                 statusLabel={getStatusBadgeLabel(activeNode.status)}
                 diffViewMode={activeDiff ? diffViewMode : undefined}
                 onChangeDiffViewMode={activeDiff ? setDiffViewMode : undefined}
+                onFormatDocument={!activeDiff && selfRole !== "viewer" ? handleFormatDocument : undefined}
                 rightSlot={
                   !activeDiff && (
                     <div className="flex items-center gap-sm">
@@ -674,6 +699,10 @@ function WorkspaceContent() {
                     onReviewGutterClick={handleReviewGutterClick}
                     onTypingActivity={markTyping}
                     readOnly={selfRole === "viewer"}
+                    cursorPresenceEnabled={workspaceMetadata.collaboration.cursorPresence}
+                    onEditorMount={(instance) => {
+                      activeEditorRef.current = instance;
+                    }}
                   />
                   {openReviewThread && (
                     <InlineReviewThread
@@ -758,6 +787,7 @@ function WorkspaceContent() {
 
         <DiscussionPanel
           feed={feed}
+          discussionsEnabled={workspaceMetadata.collaboration.inlineDiscussions}
           stats={stats}
           author={authorIdentity}
           onResolve={handleResolveThread}
@@ -766,7 +796,11 @@ function WorkspaceContent() {
         />
       </main>
 
-      <WorkspaceStatusBar />
+      <WorkspaceStatusBar
+        activeFileLanguage={activeTopTab === "files" ? activeNode?.language : undefined}
+        onChangeActiveFileLanguage={activeNode ? (language) => setFileLanguage(activeNode.id, language) : undefined}
+        canEditLanguage={selfRole !== "viewer"}
+      />
 
       <WorkspaceRecoveryModal />
       <RecoveryConflictModal />
@@ -776,6 +810,9 @@ function WorkspaceContent() {
 
       {isShareOpen && <ShareWorkspaceModal onClose={() => setShareOpen(false)} />}
       {isSettingsOpen && <WorkspaceSettingsModal onClose={() => setSettingsOpen(false)} />}
+      {isWorkspaceExportOpen && (
+        <WorkspaceExportModal workspaceName={workspaceMetadata.name} onClose={() => setWorkspaceExportOpen(false)} />
+      )}
       {isSessionSummaryOpen && activeSessionRecord && (
         <SessionSummaryModal
           record={activeSessionRecord}

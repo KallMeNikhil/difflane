@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Icon,
   ModalShell,
-  RadioCardGroup,
   SelectField,
   SwitchToggle,
   TextAreaField,
@@ -17,13 +16,27 @@ import {
 import {
   MAX_PARTICIPANTS_OPTIONS,
   PROGRAMMING_LANGUAGE_OPTIONS,
-  REVIEW_MODE_OPTIONS,
-  VISIBILITY_OPTIONS,
 } from "../constants/roomOptions";
 import { ROUTES, buildWorkspacePath } from "../constants/routes";
+import type { WorkspaceCreationSeed } from "../types/workspace";
 
 const PRIMARY_BUTTON = getButtonClasses("primary", "md");
 const SECONDARY_BUTTON = getButtonClasses("secondary", "md");
+
+// Maps the room-creation language picker (which also offers a couple of
+// languages Difflane's editor doesn't have dedicated Monaco language ids
+// for yet) down to a language id the workspace's default-language fallback
+// can safely use.
+const DEFAULT_LANGUAGE_BY_PROGRAMMING_LANGUAGE: Record<string, string> = {
+  typescript: "typescript",
+  javascript: "javascript",
+  python: "python",
+  java: "java",
+  go: "go",
+  rust: "rust",
+  csharp: "csharp",
+  cpp: "cpp",
+};
 
 export default function CreateRoom() {
   const navigate = useNavigate();
@@ -31,6 +44,20 @@ export default function CreateRoom() {
     useCreateRoomForm();
 
   const handleClose = () => navigate(ROUTES.landing);
+
+  function handleEnterWorkspace() {
+    if (!roomCode) {
+      return;
+    }
+    const creationSeed: WorkspaceCreationSeed = {
+      name: values.roomName,
+      description: values.description,
+      defaultLanguage: DEFAULT_LANGUAGE_BY_PROGRAMMING_LANGUAGE[values.programmingLanguage] ?? "plaintext",
+      maxParticipants: values.maxParticipants === "unlimited" ? null : Number(values.maxParticipants),
+      collaboration: { ...values.features },
+    };
+    navigate(buildWorkspacePath(roomCode), { state: { creationSeed } });
+  }
 
   if (status === "success" && roomCode) {
     return (
@@ -47,7 +74,7 @@ export default function CreateRoom() {
             <button
               type="button"
               className={PRIMARY_BUTTON}
-              onClick={() => navigate(buildWorkspacePath(roomCode))}
+              onClick={handleEnterWorkspace}
             >
               <Icon name="arrow_forward" size={18} />
               Enter Workspace
@@ -126,15 +153,7 @@ export default function CreateRoom() {
               Workspace Settings
             </h2>
             <div className="space-y-lg">
-              <RadioCardGroup
-                name="review_mode"
-                legend="Session Mode"
-                options={REVIEW_MODE_OPTIONS}
-                value={values.reviewMode}
-                onChange={(value) => setField("reviewMode", value as typeof values.reviewMode)}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
                 <SelectField
                   label="Programming Language"
                   options={PROGRAMMING_LANGUAGE_OPTIONS}
@@ -142,12 +161,6 @@ export default function CreateRoom() {
                   onChange={(event) =>
                     setField("programmingLanguage", event.target.value as typeof values.programmingLanguage)
                   }
-                />
-                <SelectField
-                  label="Visibility"
-                  options={VISIBILITY_OPTIONS}
-                  value={values.visibility}
-                  onChange={(event) => setField("visibility", event.target.value as typeof values.visibility)}
                 />
                 <SelectField
                   label="Max Participants"
