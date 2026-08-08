@@ -47,6 +47,7 @@ export interface IdentityStore {
   createGuestSession(displayName: string): Promise<GuestSessionRecord>;
   findGuestSession(id: string): Promise<GuestSessionRecord | null>;
   touchGuestSession(id: string): Promise<void>;
+  updateGuestDisplayName(id: string, displayName: string): Promise<GuestSessionRecord>;
   deleteGuestSession(id: string): Promise<void>;
 
   createWorkspace(code: string, name: string, owner: { userId: string } | { guestId: string }): Promise<WorkspaceRecord>;

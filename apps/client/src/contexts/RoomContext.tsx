@@ -70,6 +70,8 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
   const participantsRef = useRef<RoomParticipant[]>(participants);
   participantsRef.current = participants;
   const pendingLeftRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const identityRef = useRef(identity);
+  identityRef.current = identity;
 
   useEffect(() => {
     // Guest Lifecycle Fix / OAuth Runtime Fix: wait for identity resolution
@@ -87,8 +89,8 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
       socket,
       () => ({
         roomCode,
-        displayName: identity.displayName,
-        initials: identity.initials,
+        displayName: identityRef.current.displayName,
+        initials: identityRef.current.initials,
         accessToken: identity.isAuthenticated ? (getAccessToken() ?? undefined) : undefined,
         guestId: identity.isAuthenticated ? undefined : identity.guestId ?? undefined,
       }),
@@ -124,7 +126,7 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
       leaveRoom(socket);
       disconnectSocket(socket);
     };
-  }, [roomCode, identity.status, identity.displayName, identity.initials, identity.isAuthenticated, identity.guestId, identity.ensureGuestSession]);
+  }, [roomCode, identity.status, identity.isAuthenticated, identity.guestId, identity.ensureGuestSession]);
 
   useEffect(() => {
     if (!connection) {

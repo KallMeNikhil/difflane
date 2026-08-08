@@ -294,6 +294,10 @@ export function createPrismaIdentityStore(): IdentityStore {
     async touchGuestSession(id) {
       await prisma.guestSession.updateMany({ where: { id }, data: { lastSeenAt: new Date() } });
     },
+    async updateGuestDisplayName(id, displayName) {
+      const guest = await prisma.guestSession.update({ where: { id }, data: { displayName } });
+      return toGuestSessionRecord(guest);
+    },
     async deleteGuestSession(id) {
       await prisma.guestSession.deleteMany({ where: { id } });
     },

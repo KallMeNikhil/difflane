@@ -25,7 +25,7 @@ function extractRoomCode(values: JoinRoomFormValues): string {
 
 export function useJoinRoomForm() {
   const navigate = useNavigate();
-  const { setDisplayName } = useCurrentUser();
+  const { isAuthenticated, setDisplayName } = useCurrentUser();
   const [values, setValues] = useState<JoinRoomFormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<JoinRoomFormErrors>({});
   const [status, setStatus] = useState<JoinRoomStatus>("idle");
@@ -40,40 +40,44 @@ export function useJoinRoomForm() {
 
   const joinWithCode = useCallback(
     (code: string) => {
-      const trimmedDisplayName = values.displayName.trim();
-      if (!trimmedDisplayName) {
-        setErrors((prev) => ({ ...prev, displayName: "Display name is required." }));
-        return;
+      if (!isAuthenticated) {
+        const trimmedDisplayName = values.displayName.trim();
+        if (!trimmedDisplayName) {
+          setErrors((prev) => ({ ...prev, displayName: "Display name is required." }));
+          return;
+        }
+        setDisplayName(trimmedDisplayName);
       }
 
       setField("roomCode", code);
       setStatus("joining");
-      setDisplayName(trimmedDisplayName);
       window.setTimeout(() => {
         navigate(buildWorkspacePath(code));
       }, 400);
     },
-    [values.displayName, setField, navigate, setDisplayName],
+    [isAuthenticated, values.displayName, setField, navigate, setDisplayName],
   );
 
   const handleSubmit = useCallback(
     (event: FormEvent) => {
       event.preventDefault();
-      const validationErrors = validateJoinRoomForm(values);
+      const validationErrors = validateJoinRoomForm(values, isAuthenticated);
       setErrors(validationErrors);
       if (Object.keys(validationErrors).length > 0) {
         return;
       }
 
       setStatus("joining");
-      setDisplayName(values.displayName.trim());
+      if (!isAuthenticated) {
+        setDisplayName(values.displayName.trim());
+      }
       const roomCode = extractRoomCode(values);
       window.setTimeout(() => {
         navigate(buildWorkspacePath(roomCode));
       }, 500);
     },
-    [values, navigate, setDisplayName],
+    [values, isAuthenticated, navigate, setDisplayName],
   );
 
-  return { values, errors, status, setField, joinWithCode, handleSubmit };
+  return { values, errors, status, isAuthenticated, setField, joinWithCode, handleSubmit };
 }

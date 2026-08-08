@@ -14,6 +14,7 @@ import {
   searchRepository,
   type WorkspaceImportPayload,
 } from "../services/RepositoryService";
+import { useCurrentUser } from "./useCurrentUser";
 
 export type ImportSourceTab = "git" | "local" | "zip";
 export type ImportStep = "source" | "importing" | "success" | "error";
@@ -37,6 +38,7 @@ const SEARCH_DEBOUNCE_MS = 400;
 const PROGRESS_STEP_INTERVAL_MS = 550;
 
 export function useRepository(doc: Y.Doc | null) {
+  const { guestId } = useCurrentUser();
   const [step, setStep] = useState<ImportStep>("source");
   const [sourceTab, setSourceTab] = useState<ImportSourceTab>("git");
   const [repositoryQuery, setRepositoryQuery] = useState("");
@@ -62,11 +64,11 @@ export function useRepository(doc: Y.Doc | null) {
     }
     setSearchLoading(true);
     setSearchError(null);
-    searchRepository(query)
+    searchRepository(query, guestId)
       .then((summary) => {
         setRepositorySummary(summary);
         setSelectedBranch(summary.defaultBranch);
-        return listBranches(parsed.owner, parsed.repo);
+        return listBranches(parsed.owner, parsed.repo, guestId);
       })
       .then((fetchedBranches) => {
         if (fetchedBranches) {
@@ -79,7 +81,7 @@ export function useRepository(doc: Y.Doc | null) {
         setSearchError(error instanceof Error ? error.message : "Unable to find that repository.");
       })
       .finally(() => setSearchLoading(false));
-  }, []);
+  }, [guestId]);
 
   const handleQueryChange = useCallback(
     (value: string) => {
@@ -135,7 +137,7 @@ export function useRepository(doc: Y.Doc | null) {
       return;
     }
     beginProgress();
-    importRepository(parsed.owner, parsed.repo, selectedBranch || repositorySummary.defaultBranch)
+    importRepository(parsed.owner, parsed.repo, selectedBranch || repositorySummary.defaultBranch, guestId)
       .then((result) => {
         applyImportResult(doc, result);
         finishProgressWithSuccess({
@@ -149,7 +151,7 @@ export function useRepository(doc: Y.Doc | null) {
       .catch((error: unknown) => {
         finishProgressWithError(error instanceof Error ? error.message : "Import failed. Please try again.");
       });
-  }, [repositoryQuery, repositorySummary, selectedBranch, doc, beginProgress, finishProgressWithSuccess, finishProgressWithError]);
+  }, [repositoryQuery, repositorySummary, selectedBranch, doc, guestId, beginProgress, finishProgressWithSuccess, finishProgressWithError]);
 
   const applyLocalPayload = useCallback(
     (payload: WorkspaceImportPayload) => {

@@ -58,33 +58,35 @@ export function WorkspaceStatusBar({
           <span>{editingCount} Editing</span>
         </div>
       )}
-      {activeFileLanguage &&
-        (canEditLanguage && onChangeActiveFileLanguage ? (
-          <div className="flex items-center gap-1">
-            <Icon name="code" size={13} />
-            <select
-              aria-label="File language"
-              value={activeFileLanguage}
-              onChange={(event) => onChangeActiveFileLanguage(event.target.value as EditorLanguage)}
-              className="bg-transparent text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer"
-            >
-              {EDITOR_LANGUAGE_OPTIONS.map((language) => (
-                <option key={language} value={language} className="bg-surface-container-lowest text-on-surface">
-                  {getLanguageLabel(language)}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1">
-            <Icon name="code" size={13} />
-            <span>{getLanguageLabel(activeFileLanguage)}</span>
-          </div>
-        ))}
+      <div className="ml-auto flex items-center gap-4">
+        {activeFileLanguage &&
+          (canEditLanguage && onChangeActiveFileLanguage ? (
+            <div className="flex items-center gap-1">
+              <Icon name="code" size={13} />
+              <select
+                aria-label="File language"
+                value={activeFileLanguage}
+                onChange={(event) => onChangeActiveFileLanguage(event.target.value as EditorLanguage)}
+                className="bg-transparent text-on-surface-variant hover:text-on-surface focus:outline-none cursor-pointer"
+              >
+                {EDITOR_LANGUAGE_OPTIONS.map((language) => (
+                  <option key={language} value={language} className="bg-surface-container-lowest text-on-surface">
+                    {getLanguageLabel(language)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Icon name="code" size={13} />
+              <span>{getLanguageLabel(activeFileLanguage)}</span>
+            </div>
+          ))}
 
-      <div className="ml-auto flex items-center gap-1">
-        <Icon name="group" size={13} />
-        <span>{collaborators.length} Collaborators</span>
+        <div className="flex items-center gap-1">
+          <Icon name="group" size={13} />
+          <span>{collaborators.length} Collaborators</span>
+        </div>
       </div>
     </footer>
   );

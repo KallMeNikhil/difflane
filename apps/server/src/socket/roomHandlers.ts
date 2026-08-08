@@ -21,7 +21,6 @@ import { ensureWorkspace, isValidWorkspaceCode } from "../workspaces/workspaceSe
 import type { WorkspaceLifecycleManager } from "../workspaces/WorkspaceLifecycleManager.js";
 
 const DISPLAY_NAME_MAX_LENGTH = 60;
-const INITIALS_MAX_LENGTH = 4;
 
 class ExpiredJoinTokenError extends Error {
   constructor() {
@@ -46,30 +45,43 @@ function readGuestIdFromHandshake(socket: Socket): string | null {
   return parsed[env.auth.guestCookieName] ?? null;
 }
 
+function deriveInitials(displayName: string): string {
+  const trimmed = displayName.trim();
+  if (!trimmed) {
+    return "?";
+  }
+  const parts = trimmed.split(/\s+/);
+  const initials = parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : trimmed.slice(0, 2);
+  return initials.toUpperCase();
+}
+
 async function resolveJoinIdentity(
   socket: Socket,
   payload: RoomJoinPayload,
 ): Promise<{ identityId: string; identityType: ParticipantIdentityType; displayName: string; initials: string }> {
-  const fallbackDisplayName = payload.displayName.trim().slice(0, DISPLAY_NAME_MAX_LENGTH) || "Guest";
-  const fallbackInitials = payload.initials.trim().slice(0, INITIALS_MAX_LENGTH) || fallbackDisplayName.slice(0, 2).toUpperCase();
-
   if (payload.accessToken) {
     const claims = verifyAccessTokenClaims(payload.accessToken);
     if (claims) {
       const user = await identityStore.findUserById(claims.sub);
       if (user) {
-        return { identityId: user.id, identityType: "user", displayName: fallbackDisplayName, initials: fallbackInitials };
+        return { identityId: user.id, identityType: "user", displayName: user.displayName, initials: deriveInitials(user.displayName) };
       }
     }
     throw new ExpiredJoinTokenError();
   }
+
+  const requestedDisplayName = payload.displayName.trim().slice(0, DISPLAY_NAME_MAX_LENGTH);
 
   const cookieGuestId = readGuestIdFromHandshake(socket);
   if (cookieGuestId) {
     const guest = await identityStore.findGuestSession(cookieGuestId);
     if (guest) {
       await identityStore.touchGuestSession(guest.id);
-      return { identityId: guest.id, identityType: "guest", displayName: fallbackDisplayName, initials: fallbackInitials };
+      const resolved =
+        requestedDisplayName && requestedDisplayName !== guest.displayName
+          ? await identityStore.updateGuestDisplayName(guest.id, requestedDisplayName)
+          : guest;
+      return { identityId: resolved.id, identityType: "guest", displayName: resolved.displayName, initials: deriveInitials(resolved.displayName) };
     }
   }
 
@@ -78,7 +90,11 @@ async function resolveJoinIdentity(
     const guest = await identityStore.findGuestSession(payloadGuestId);
     if (guest) {
       await identityStore.touchGuestSession(guest.id);
-      return { identityId: guest.id, identityType: "guest", displayName: fallbackDisplayName, initials: fallbackInitials };
+      const resolved =
+        requestedDisplayName && requestedDisplayName !== guest.displayName
+          ? await identityStore.updateGuestDisplayName(guest.id, requestedDisplayName)
+          : guest;
+      return { identityId: resolved.id, identityType: "guest", displayName: resolved.displayName, initials: deriveInitials(resolved.displayName) };
     }
   }
 

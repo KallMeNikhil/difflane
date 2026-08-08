@@ -11,7 +11,7 @@ const SECONDARY_BUTTON = getButtonClasses("secondary", "md");
 
 export default function JoinRoom() {
   const navigate = useNavigate();
-  const { values, errors, status, setField, joinWithCode, handleSubmit } = useJoinRoomForm();
+  const { values, errors, status, isAuthenticated, setField, joinWithCode, handleSubmit } = useJoinRoomForm();
   const { dashboard } = useWorkspaceDashboard();
 
   const handleClose = () => navigate(ROUTES.landing);
@@ -59,15 +59,17 @@ export default function JoinRoom() {
         }
       >
         <div className="p-lg flex flex-col gap-lg">
-          <TextField
-            label="Display Name"
-            required
-            placeholder="e.g., Your Name"
-            value={values.displayName}
-            maxLength={DISPLAY_NAME_MAX_LENGTH}
-            error={errors.displayName}
-            onChange={(event) => setField("displayName", event.target.value)}
-          />
+          {!isAuthenticated && (
+            <TextField
+              label="Display Name"
+              required
+              placeholder="e.g., Your Name"
+              value={values.displayName}
+              maxLength={DISPLAY_NAME_MAX_LENGTH}
+              error={errors.displayName}
+              onChange={(event) => setField("displayName", event.target.value)}
+            />
+          )}
 
           <div className="space-y-md">
             <div>

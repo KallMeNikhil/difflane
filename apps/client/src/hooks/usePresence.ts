@@ -45,7 +45,10 @@ export function usePresence(awareness: Awareness | null, identity: LocalIdentity
     if (!awareness) {
       return;
     }
-    awareness.setLocalState(buildLocalAwarenessState(identity, localRef.current));
+    const state = buildLocalAwarenessState(identity, localRef.current);
+    (Object.keys(state) as (keyof typeof state)[]).forEach((key) => {
+      awareness.setLocalStateField(key, state[key]);
+    });
   }, [awareness, identity]);
 
   useEffect(() => {

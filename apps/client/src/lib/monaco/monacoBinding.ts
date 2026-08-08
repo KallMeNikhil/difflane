@@ -67,10 +67,10 @@ function renderAwarenessStyles(awareness: Awareness, localClientId: number): voi
     const awarenessState = state as Partial<AwarenessState>;
     const color = sanitizeCssColor(awarenessState.color ?? "#8d90a0");
     const name = escapeCssString(awarenessState.displayName ?? "Guest");
-    rules.push(`.yRemoteSelection-${clientId} { background-color: ${color}33; }`);
+    rules.push(`.yRemoteSelection-${clientId} { background-color: ${color}33; pointer-events: none; }`);
     rules.push(
-      `.yRemoteSelectionHead-${clientId} { position: relative; border-left: 2px solid ${color}; }`,
-      `.yRemoteSelectionHead-${clientId}::after { content: "${name}"; position: absolute; top: -1.1em; left: -2px; font-size: 10px; padding: 0 4px; border-radius: 2px; white-space: nowrap; background-color: ${color}; color: #0b1326; }`,
+      `.yRemoteSelectionHead-${clientId} { position: relative; border-left: 2px solid ${color}; pointer-events: none; }`,
+      `.yRemoteSelectionHead-${clientId}::after { content: "${name}"; position: absolute; top: -1.1em; left: -2px; font-size: 10px; padding: 0 4px; border-radius: 2px; white-space: nowrap; background-color: ${color}; color: #0b1326; pointer-events: none; }`,
     );
   });
   style.textContent = rules.join("\n");

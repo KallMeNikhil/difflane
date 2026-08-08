@@ -1,13 +1,24 @@
 import type { RepositoryImportResult, RepositorySummary } from "@difflane/shared-types";
 import { resolveServerUrl } from "../socket/socketClient";
+import { getAccessToken } from "../auth/tokenStore";
 
 export class RepositoryRequestError extends Error {}
 
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+function guestHeaders(guestId: string | null): Record<string, string> {
+  return guestId ? { "x-guest-id": guestId } : {};
+}
+
+async function requestJson<T>(path: string, init?: RequestInit, guestId: string | null = null): Promise<T> {
   const baseUrl = resolveServerUrl() ?? "";
+  const accessToken = getAccessToken();
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...guestHeaders(guestId),
+      ...init?.headers,
+    },
   });
   const body = await response.json().catch(() => ({ message: "Unexpected server response." }));
   if (!response.ok) {
@@ -16,17 +27,27 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export function searchRepository(query: string): Promise<RepositorySummary> {
-  return requestJson<RepositorySummary>(`/api/repository/search?query=${encodeURIComponent(query)}`);
+export function searchRepository(query: string, guestId: string | null = null): Promise<RepositorySummary> {
+  return requestJson<RepositorySummary>(`/api/repository/search?query=${encodeURIComponent(query)}`, undefined, guestId);
 }
 
-export function listBranches(owner: string, repo: string): Promise<{ branches: string[] }> {
-  return requestJson<{ branches: string[] }>(`/api/repository/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches`);
+export function listBranches(owner: string, repo: string, guestId: string | null = null): Promise<{ branches: string[] }> {
+  return requestJson<{ branches: string[] }>(
+    `/api/repository/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches`,
+    undefined,
+    guestId,
+  );
 }
 
-export function importRepository(owner: string, repo: string, branch: string): Promise<RepositoryImportResult> {
-  return requestJson<RepositoryImportResult>(`/api/repository/import`, {
-    method: "POST",
-    body: JSON.stringify({ owner, repo, branch }),
-  });
+export function importRepository(
+  owner: string,
+  repo: string,
+  branch: string,
+  guestId: string | null = null,
+): Promise<RepositoryImportResult> {
+  return requestJson<RepositoryImportResult>(
+    `/api/repository/import`,
+    { method: "POST", body: JSON.stringify({ owner, repo, branch }) },
+    guestId,
+  );
 }

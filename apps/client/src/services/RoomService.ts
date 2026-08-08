@@ -33,14 +33,16 @@ export function validateCreateRoomForm(values: CreateRoomFormValues): CreateRoom
   return errors;
 }
 
-export function validateJoinRoomForm(values: JoinRoomFormValues): JoinRoomFormErrors {
+export function validateJoinRoomForm(values: JoinRoomFormValues, isAuthenticated = false): JoinRoomFormErrors {
   const errors: JoinRoomFormErrors = {};
 
-  const trimmedDisplayName = values.displayName.trim();
-  if (!trimmedDisplayName) {
-    errors.displayName = "Display name is required.";
-  } else if (trimmedDisplayName.length > DISPLAY_NAME_MAX_LENGTH) {
-    errors.displayName = `Display name must be ${DISPLAY_NAME_MAX_LENGTH} characters or fewer.`;
+  if (!isAuthenticated) {
+    const trimmedDisplayName = values.displayName.trim();
+    if (!trimmedDisplayName) {
+      errors.displayName = "Display name is required.";
+    } else if (trimmedDisplayName.length > DISPLAY_NAME_MAX_LENGTH) {
+      errors.displayName = `Display name must be ${DISPLAY_NAME_MAX_LENGTH} characters or fewer.`;
+    }
   }
 
   const trimmedRoomCode = values.roomCode.trim();

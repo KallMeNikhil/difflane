@@ -30,17 +30,22 @@ export function parseRepositoryQuery(query: string): { owner: string; repo: stri
   return { owner: segments[0], repo: segments[1] };
 }
 
-export async function searchRepository(query: string): Promise<RepositorySummary> {
-  return githubClient.searchRepository(query);
+export async function searchRepository(query: string, guestId: string | null = null): Promise<RepositorySummary> {
+  return githubClient.searchRepository(query, guestId);
 }
 
-export async function listBranches(owner: string, repo: string): Promise<string[]> {
-  const { branches } = await githubClient.listBranches(owner, repo);
+export async function listBranches(owner: string, repo: string, guestId: string | null = null): Promise<string[]> {
+  const { branches } = await githubClient.listBranches(owner, repo, guestId);
   return branches;
 }
 
-export async function importRepository(owner: string, repo: string, branch: string): Promise<RepositoryImportResult> {
-  return githubClient.importRepository(owner, repo, branch);
+export async function importRepository(
+  owner: string,
+  repo: string,
+  branch: string,
+  guestId: string | null = null,
+): Promise<RepositoryImportResult> {
+  return githubClient.importRepository(owner, repo, branch, guestId);
 }
 
 function generateId(): string {
