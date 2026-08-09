@@ -1,0 +1,72 @@
+name: difflane
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-difflane}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-difflane}
+      POSTGRES_DB: ${POSTGRES_DB:-difflane}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - difflane_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-difflane} -d ${POSTGRES_DB:-difflane}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+      target: development
+    restart: unless-stopped
+    env_file:
+      - ../apps/server/.env
+    environment:
+      PORT: 4000
+      CLIENT_ORIGIN: http://localhost:${CLIENT_PORT:-7777}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-difflane}:${POSTGRES_PASSWORD:-difflane}@postgres:5432/${POSTGRES_DB:-difflane}
+    ports:
+      - "${SERVER_PORT:-4000}:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../apps/server:/app/apps/server
+      - ../packages/shared-types:/app/packages/shared-types
+      - difflane_server_node_modules:/app/node_modules
+      - difflane_server_nested_node_modules:/app/apps/server/node_modules
+      - difflane_shared_types_node_modules:/app/packages/shared-types/node_modules
+
+  client:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.client
+      target: development
+    restart: unless-stopped
+    env_file:
+      - ../apps/client/.env
+    environment:
+      VITE_SERVER_URL: http://localhost:${SERVER_PORT:-4000}
+    ports:
+      - "${CLIENT_PORT:-7777}:7777"
+    depends_on:
+      - server
+    volumes:
+      - ../apps/client:/app/apps/client
+      - ../packages/shared-types:/app/packages/shared-types
+      - difflane_client_node_modules:/app/node_modules
+      - difflane_client_nested_node_modules:/app/apps/client/node_modules
+      - difflane_shared_types_node_modules:/app/packages/shared-types/node_modules
+
+volumes:
+  difflane_postgres_data:
+  difflane_server_node_modules:
+  difflane_server_nested_node_modules:
+  difflane_client_node_modules:
+  difflane_client_nested_node_modules:
+  difflane_shared_types_node_modules:

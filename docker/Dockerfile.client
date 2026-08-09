@@ -1,0 +1,37 @@
+FROM node:20-bookworm-slim AS base
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json package-lock.json turbo.json tsconfig.json ./
+COPY apps/client/package.json apps/client/package.json
+COPY packages/shared-types/package.json packages/shared-types/package.json
+COPY packages/tsconfig/package.json packages/tsconfig/package.json
+COPY packages/eslint-config/package.json packages/eslint-config/package.json
+RUN npm ci --workspace=apps/client --workspace=packages/shared-types
+
+FROM deps AS build
+ARG VITE_SERVER_URL=http://localhost:4000
+ENV VITE_SERVER_URL=${VITE_SERVER_URL}
+COPY tsconfig.json ./
+COPY apps/client apps/client
+COPY packages/shared-types packages/shared-types
+COPY packages/tsconfig packages/tsconfig
+COPY packages/eslint-config packages/eslint-config
+RUN npx turbo run build --filter=@difflane/client...
+
+FROM base AS development
+ENV NODE_ENV=development
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json turbo.json tsconfig.json ./
+COPY apps/client apps/client
+COPY packages/shared-types packages/shared-types
+COPY packages/tsconfig packages/tsconfig
+COPY packages/eslint-config packages/eslint-config
+WORKDIR /app/apps/client
+EXPOSE 7777
+CMD ["npm", "run", "dev", "--", "--host"]
+
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS production
+COPY docker/nginx.client.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/apps/client/dist /usr/share/nginx/html
+EXPOSE 8080

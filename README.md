@@ -18,6 +18,8 @@ workspace.
 -   [Repository Structure](#repository-structure)
 -   [Getting Started](#getting-started)
 -   [Available Scripts](#available-scripts)
+-   [Docker](#docker)
+-   [Continuous Integration](#continuous-integration)
 -   [Documentation](#documentation)
 -   [Contributing](#contributing)
 -   [License](#license)
@@ -104,6 +106,8 @@ docker/        Container configuration
 -   Node.js (LTS)
 -   npm
 -   Git
+-   PostgreSQL 14+ (or use `docker compose up postgres` from the
+    [Docker](#docker) section instead of a local install)
 
 ### Installation
 
@@ -115,14 +119,44 @@ npm install
 
 ### Environment
 
-Create the required `.env` files before running the project if the
-current implementation requires them.
+Copy the example environment files and adjust values as needed:
+
+``` bash
+cp apps/server/.env.example apps/server/.env
+cp apps/client/.env.example apps/client/.env
+```
+
+`apps/server/.env.example` documents every variable the server reads,
+including safe development defaults for JWT secrets and rate limits.
+`GOOGLE_OAUTH_*` and `GITHUB_OAUTH_*` can be left blank in development;
+only the corresponding sign-in provider will be unavailable until real
+OAuth app credentials are supplied. Set `DATABASE_URL` to point at a
+running PostgreSQL instance (see Database below).
+
+### Database
+
+Point `DATABASE_URL` in `apps/server/.env` at a running PostgreSQL
+instance, then apply the schema:
+
+``` bash
+npx prisma migrate deploy --schema apps/server/prisma/schema.prisma
+```
+
+Use `npx prisma migrate dev --schema apps/server/prisma/schema.prisma`
+instead during active schema development, as it also creates new
+migrations from schema changes. `npm run build -w apps/server` and
+`npm run typecheck -w apps/server` regenerate the Prisma client
+automatically (`prebuild`/`pretypecheck` scripts); run
+`npm run prisma:generate -w apps/server` directly if you only need to
+regenerate the client without a full build or typecheck.
 
 ### Development
 
 ``` bash
 npm run dev
 ```
+
+Client: http://localhost:7777 · Server: http://localhost:4000
 
 ------------------------------------------------------------------------
 
@@ -134,6 +168,31 @@ npm run build       # Production build
 npm run lint        # Run ESLint
 npm run typecheck   # Run TypeScript type checking
 ```
+
+------------------------------------------------------------------------
+
+## Docker
+
+Difflane can run fully containerized for local development or
+production. See [`docker/README.md`](docker/README.md) for a quick
+start and [`docs/DOCKER_AND_CI.md`](docs/DOCKER_AND_CI.md) for full
+architecture, environment variables, and troubleshooting.
+
+``` bash
+cd docker
+cp .env.example .env
+docker compose up --build
+```
+
+------------------------------------------------------------------------
+
+## Continuous Integration
+
+Every push and pull request runs through GitHub Actions
+(`.github/workflows/ci.yml`): install, Prisma generate, typecheck,
+lint, build, and a Docker image build validation step. See
+[`docs/DOCKER_AND_CI.md`](docs/DOCKER_AND_CI.md) for pipeline details
+and troubleshooting common CI failures.
 
 ------------------------------------------------------------------------
 

@@ -47,7 +47,13 @@ export class RoomRegistry {
     this.cancelEviction(roomId);
     const existing = this.rooms.get(roomId);
     if (existing) {
-      return { room: existing, created: false };
+      if (existing.workspaceId === workspaceId) {
+        return { room: existing, created: false };
+      }
+      existing.doc.destroy();
+      const replacement = this.createRoom(roomId, normalizedCode, workspaceId, new Map());
+      this.rooms.set(roomId, replacement);
+      return { room: replacement, created: true };
     }
     const room = this.createRoom(roomId, normalizedCode, workspaceId, new Map());
     this.rooms.set(roomId, room);
