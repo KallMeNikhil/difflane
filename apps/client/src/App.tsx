@@ -6,6 +6,7 @@ import { GuestUpgradeModal, RegisterModal, SignInModal } from "./components/auth
 import { PlaceholderNotice, ProtectedRoute } from "./components/common";
 import { useUserSettingsModal } from "./hooks/useUserSettingsModal";
 import { useAuthModal } from "./hooks/useAuthModal";
+import { useRouteIndexing } from "./hooks/useRouteIndexing";
 import { ROUTES } from "./constants/routes";
 
 const MarketingLayout = lazy(() => import("./components/layout/MarketingLayout").then((module) => ({ default: module.MarketingLayout })));
@@ -36,6 +37,7 @@ function RouteFallback() {
 export default function App() {
   const { isOpen, closeUserSettings } = useUserSettingsModal();
   const { isGuestUpgradeOpen, closeGuestUpgrade, isSignInOpen, closeSignIn, isSignUpOpen, closeSignUp } = useAuthModal();
+  useRouteIndexing();
 
   return (
     <>

@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /workspace
+Disallow: /create-room
+Disallow: /join-room
+Disallow: /history
+Disallow: /settings
+Disallow: /profile
+Disallow: /auth/
+
+Sitemap: https://difflane.whynikhil.xyz/sitemap.xml
