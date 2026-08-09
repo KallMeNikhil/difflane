@@ -89,14 +89,3 @@ export function onParticipantLeft(socket: Socket, listener: (payload: RoomPartic
   socket.on(SOCKET_EVENTS.ROOM_PARTICIPANT_LEFT, listener);
   return () => socket.off(SOCKET_EVENTS.ROOM_PARTICIPANT_LEFT, listener);
 }
-
-export function onConnectionStatusChange(socket: Socket, listener: (connected: boolean) => void): () => void {
-  const handleConnect = () => listener(true);
-  const handleDisconnect = () => listener(false);
-  socket.on("connect", handleConnect);
-  socket.on("disconnect", handleDisconnect);
-  return () => {
-    socket.off("connect", handleConnect);
-    socket.off("disconnect", handleDisconnect);
-  };
-}

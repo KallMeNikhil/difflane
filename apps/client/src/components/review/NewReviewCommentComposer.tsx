@@ -42,6 +42,7 @@ export function NewReviewCommentComposer({ lineNumber, style, onSubmit, onClose 
           value={body}
           onChange={(event) => setBody(event.target.value)}
           placeholder="Leave a review comment..."
+          aria-label="Leave a review comment"
           rows={3}
           className="w-full bg-surface border border-outline-variant rounded px-sm py-1.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-colors resize-none"
         />

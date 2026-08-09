@@ -82,10 +82,6 @@ async function issueSession(user: UserRecord): Promise<AuthSessionResult> {
   return { user, accessToken, accessTokenExpiresAt, refreshToken };
 }
 
-export async function issueSessionForUser(user: UserRecord): Promise<AuthSessionResult> {
-  return issueSession(user);
-}
-
 export async function register(email: string, username: string, displayName: string, password: string): Promise<AuthSessionResult> {
   validateRegistrationInput(email, username, displayName, password);
 

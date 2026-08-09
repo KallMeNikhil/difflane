@@ -15,19 +15,6 @@ type PrismaSessionStatus = "ACTIVE" | "COMPLETED";
 
 type PrismaSnapshotTrigger = "MANUAL" | "BEFORE_IMPORT" | "BEFORE_RESTORE" | "BEFORE_DESTRUCTIVE";
 
-/**
- * SessionParticipantEntry/SessionTimelineEntry (packages/shared-types via
- * db/models.ts) are plain, JSON-safe data: every field is a string. Prisma's
- * `Json` write type, Prisma.InputJsonValue, is structurally an index-signature
- * type (`{ [Key in string]?: InputJsonValue | null }`), and TypeScript does
- * not consider a closed interface assignable to an index-signature type even
- * when every property matches — it requires an explicit index signature on
- * the source. This is a TypeScript structural-typing gap, not a real
- * JSON-incompatibility (there are no Dates, Maps, Sets, undefined, class
- * instances, bigints, or symbols in these types). The cast below is the
- * single, justified serialization boundary for that gap; it must not be
- * duplicated elsewhere.
- */
 function toInputJson<T>(value: T): Prisma.InputJsonValue {
   return value as unknown as Prisma.InputJsonValue;
 }

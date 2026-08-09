@@ -121,9 +121,10 @@ export function DiscussionThreadCard({ thread, onResolve, onSubmitReply }: Discu
               }
             }}
             placeholder="Reply to this thread..."
+            aria-label="Reply to this thread"
             className="flex-1 bg-surface border border-outline-variant rounded px-sm py-1.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-colors"
           />
-          <button type="button" onClick={handleSend} className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors">
+          <button type="button" onClick={handleSend} aria-label="Send reply" className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors">
             <Icon name="send" size={18} />
           </button>
         </div>

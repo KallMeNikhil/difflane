@@ -120,10 +120,6 @@ function WorkspaceContent() {
   const { userId, displayName, initials, isAuthenticated } = useCurrentUser();
   const navigate = useNavigate();
   const location = useLocation();
-  // Only ever consumed once: the very first time a freshly created
-  // workspace's Yjs doc is initialized (see initializeWorkspaceMetadataIfEmpty).
-  // A rejoin or page refresh has no router state, which is correct — the
-  // Yjs doc is already seeded by then.
   const creationSeed = location.state?.creationSeed as WorkspaceCreationSeed | undefined;
   const workspaceMetadata = useWorkspaceMetadata(doc, creationSeed);
   const { addNotification } = useNotifications();

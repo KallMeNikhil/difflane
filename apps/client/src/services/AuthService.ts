@@ -84,10 +84,6 @@ export function resetPassword(token: string, newPassword: string): Promise<void>
   return authClient.resetPasswordWithToken(token, newPassword);
 }
 
-export function fetchProfile(): Promise<AuthUserProfile> {
-  return authClient.fetchCurrentUser();
-}
-
 export function updateProfile(patch: { displayName?: string; username?: string }): Promise<AuthUserProfile> {
   return authClient.updateCurrentUserProfile(patch);
 }

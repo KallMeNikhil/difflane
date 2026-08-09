@@ -62,10 +62,6 @@ export function readFileBaselines(doc: Y.Doc): Record<string, string> {
   return Object.fromEntries(getFileBaselinesMap(doc).entries());
 }
 
-export function writeFileBaseline(doc: Y.Doc, fileId: string, content: string): void {
-  getFileBaselinesMap(doc).set(fileId, content);
-}
-
 export function writeFileBaselines(doc: Y.Doc, baselines: Record<string, string>): void {
   const map = getFileBaselinesMap(doc);
   doc.transact(() => {
@@ -105,10 +101,6 @@ export function readDeletedFiles(doc: Y.Doc): DeletedFileRecord[] {
 
 export function writeDeletedFile(doc: Y.Doc, record: DeletedFileRecord): void {
   getDeletedFilesMap(doc).set(record.id, record);
-}
-
-export function removeDeletedFile(doc: Y.Doc, fileId: string): void {
-  getDeletedFilesMap(doc).delete(fileId);
 }
 
 export function clearDeletedFiles(doc: Y.Doc): void {

@@ -17,17 +17,6 @@ interface MonacoNamespaceLike {
   };
 }
 
-/**
- * Disposes the cached Monaco model for a given file, if one exists.
- *
- * CodeEditor keeps per-file Monaco models alive across tab/file switches
- * (via the `path` + `keepCurrentModel` props) so that Monaco's native
- * undo/redo stack, cursor position and scroll state survive switching
- * away from and back to a file. Because those models are intentionally
- * NOT disposed on remount, callers must explicitly dispose a file's model
- * here once it is genuinely gone (tab closed, file deleted) to avoid
- * leaking models for the lifetime of the page.
- */
 export function disposeMonacoModelForFile(monacoInstance: MonacoNamespaceLike | null | undefined, fileId: string): void {
   if (!monacoInstance) {
     return;

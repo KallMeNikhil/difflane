@@ -87,7 +87,7 @@ export function WorkspaceSettingsModal({ onClose }: WorkspaceSettingsModalProps)
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard access denied; the field remains selectable for manual copy.
+      // no-op
     }
   }
 

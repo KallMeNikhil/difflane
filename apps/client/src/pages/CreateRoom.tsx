@@ -23,10 +23,6 @@ import type { WorkspaceCreationSeed } from "../types/workspace";
 const PRIMARY_BUTTON = getButtonClasses("primary", "md");
 const SECONDARY_BUTTON = getButtonClasses("secondary", "md");
 
-// Maps the room-creation language picker (which also offers a couple of
-// languages Difflane's editor doesn't have dedicated Monaco language ids
-// for yet) down to a language id the workspace's default-language fallback
-// can safely use.
 const DEFAULT_LANGUAGE_BY_PROGRAMMING_LANGUAGE: Record<string, string> = {
   typescript: "typescript",
   javascript: "javascript",

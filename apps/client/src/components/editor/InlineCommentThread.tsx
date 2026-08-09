@@ -51,6 +51,7 @@ export function InlineCommentThread({ thread, onSubmitReply }: InlineCommentThre
             }
           }}
           placeholder="Reply to this thread..."
+          aria-label="Reply to this thread"
           className="flex-1 bg-surface border border-outline-variant rounded px-sm py-1.5 font-body-sm text-body-sm focus:outline-none focus:border-primary transition-colors text-on-surface"
         />
         <button type="button" onClick={handleSend} className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors">

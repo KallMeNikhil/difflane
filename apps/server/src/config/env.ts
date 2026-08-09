@@ -1,7 +1,7 @@
 try {
   process.loadEnvFile();
 } catch {
-  // ignored
+  // no-op
 }
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -28,7 +28,6 @@ function readSecret(name: string, devFallback: string): string {
     return raw;
   }
   if (isProduction) {
-    // left empty on purpose
     return "";
   }
   return devFallback;

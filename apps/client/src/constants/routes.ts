@@ -20,7 +20,3 @@ export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
 export function buildWorkspacePath(roomCode: string): string {
   return `/workspace/${roomCode}`;
 }
-
-export function buildOAuthCallbackPath(provider: "google" | "github"): string {
-  return `/auth/callback/${provider}`;
-}

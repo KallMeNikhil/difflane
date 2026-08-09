@@ -28,7 +28,7 @@ export function writeRecoveryMarker(marker: RecoveryMarker): void {
     window.localStorage.setItem(`${STORAGE_PREFIX}${marker.workspaceCode}`, JSON.stringify(marker));
     window.localStorage.setItem(LAST_ACTIVE_KEY, marker.workspaceCode);
   } catch {
-    /* localStorage unavailable; recovery marker is best-effort only */
+    // no-op
   }
 }
 
@@ -44,12 +44,8 @@ export function clearRecoveryMarker(workspaceCode: string): void {
   try {
     window.localStorage.removeItem(`${STORAGE_PREFIX}${workspaceCode}`);
   } catch {
-    /* localStorage unavailable */
+    // no-op
   }
-}
-
-export function markCleanExit(workspaceCode: string): void {
-  clearRecoveryMarker(workspaceCode);
 }
 
 export function readLastActiveWorkspaceCode(): string | null {

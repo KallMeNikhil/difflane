@@ -33,7 +33,7 @@ export function writeStoredDisplayName(displayName: string): void {
   try {
     window.localStorage.setItem(DISPLAY_NAME_KEY, displayName);
   } catch {
-    // Storage unavailable; the in-memory value still applies for this session.
+    // no-op
   }
 }
 
@@ -60,6 +60,6 @@ export function writeEditorPreferences(preferences: EditorPreferences): void {
   try {
     window.localStorage.setItem(EDITOR_PREFERENCES_KEY, JSON.stringify(preferences));
   } catch {
-    // Storage unavailable; the in-memory value still applies for this session.
+    // no-op
   }
 }

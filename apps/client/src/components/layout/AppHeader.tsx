@@ -22,8 +22,8 @@ export function AppHeader({ onOpenMobileNav, onOpenSearch }: AppHeaderProps) {
     <>
       <header className="flex justify-between items-center px-lg h-16 w-full z-50 bg-surface border-b border-outline-variant flex-shrink-0 md:hidden">
         <div className="flex items-center gap-sm">
-          <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center flex-shrink-0">
-            <Icon name="view_in_ar" filled size={18} className="text-on-primary-container" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+            <img src="/logo.png" alt="Difflane" className="w-full h-full object-cover" />
           </div>
           <span className="font-headline-md text-headline-md font-bold text-on-surface">DIFFLANE</span>
         </div>

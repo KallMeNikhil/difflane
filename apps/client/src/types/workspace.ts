@@ -18,13 +18,6 @@ export type {
 
 export type FileNodeType = "file" | "folder";
 
-/**
- * Values captured on the Create Workspace form that seed a brand-new
- * workspace's Yjs metadata the first time it is opened. Passed through
- * React Router navigation state rather than a new backend field, since
- * WorkspaceMetadata already lives entirely in the collaborative Yjs doc
- * (see WorkspaceFileSystemService), not in Postgres.
- */
 export interface WorkspaceCreationSeed {
   name: string;
   description: string;

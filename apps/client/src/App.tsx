@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
-import { MarketingLayout, AppLayout } from "./components/layout";
+import { AppLayout } from "./components/layout/AppLayout";
 import { UserSettingsModal } from "./components/settings";
 import { GuestUpgradeModal, RegisterModal, SignInModal } from "./components/auth";
 import { PlaceholderNotice, ProtectedRoute } from "./components/common";
@@ -8,6 +8,7 @@ import { useUserSettingsModal } from "./hooks/useUserSettingsModal";
 import { useAuthModal } from "./hooks/useAuthModal";
 import { ROUTES } from "./constants/routes";
 
+const MarketingLayout = lazy(() => import("./components/layout/MarketingLayout").then((module) => ({ default: module.MarketingLayout })));
 const Landing = lazy(() => import("./pages/Landing"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const CreateRoom = lazy(() => import("./pages/CreateRoom"));

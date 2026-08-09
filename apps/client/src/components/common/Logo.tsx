@@ -1,5 +1,3 @@
-import { Icon } from "./Icon";
-
 interface LogoProps {
   variant?: "marketing" | "app";
   size?: "headline-md" | "body-md";
@@ -9,8 +7,8 @@ export function Logo({ variant = "marketing", size = "headline-md" }: LogoProps)
   if (variant === "app") {
     return (
       <div className="flex items-center gap-md">
-        <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center flex-shrink-0">
-          <Icon name="view_in_ar" filled className="text-on-primary-container" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+          <img src="/logo.png" alt="Difflane" className="w-full h-full object-cover" />
         </div>
         <div className="flex flex-col">
           <span className="font-headline-md text-headline-md text-primary font-bold leading-tight">

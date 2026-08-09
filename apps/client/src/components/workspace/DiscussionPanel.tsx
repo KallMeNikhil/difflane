@@ -91,6 +91,7 @@ export function DiscussionPanel({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Start a new discussion..."
+            aria-label="Start a new discussion"
             rows={3}
             className="w-full bg-surface border border-outline-variant rounded px-sm py-1.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary resize-none"
           />

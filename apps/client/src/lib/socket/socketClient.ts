@@ -13,10 +13,6 @@ export function resolveServerUrl(): string | undefined {
   return undefined;
 }
 
-export function isServerConfigured(): boolean {
-  return Boolean(resolveServerUrl());
-}
-
 export function createSocketConnection(): Socket {
   const serverUrl = resolveServerUrl();
 

@@ -64,11 +64,6 @@ export function useMonacoYjsBinding({
     );
   }, [fileId, doc, awareness, cursorPresenceEnabled]);
 
-  // Re-runs whenever the active file or the Yjs doc/awareness identity
-  // changes. CodeEditor keeps a single long-lived editor instance and
-  // swaps Monaco's underlying model (via the `path` prop) rather than
-  // remounting, so the binding must be re-attached here rather than only
-  // in onMount, which now only fires once for the editor's entire lifetime.
   useEffect(() => {
     rebind();
     return () => {

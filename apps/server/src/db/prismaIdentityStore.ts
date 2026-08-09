@@ -352,9 +352,6 @@ export function createPrismaIdentityStore(): IdentityStore {
             continue;
           }
 
-          // Both a guest membership and a registered-user membership exist for this
-          // workspace. Merge them into the surviving user membership instead of
-          // letting the unique (workspaceId, userId) constraint reject the update.
           const mergedRole = higherRole(existingUserMembership.role, guestMembership.role);
           await tx.workspaceMembership.delete({ where: { id: guestMembership.id } });
           if (mergedRole !== existingUserMembership.role) {

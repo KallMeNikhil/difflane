@@ -114,6 +114,7 @@ export function InlineReviewThread({
               }
             }}
             placeholder="Reply to this review thread..."
+            aria-label="Reply to this review thread"
             className="flex-1 bg-surface border border-outline-variant rounded px-sm py-1.5 font-body-sm text-body-sm focus:outline-none focus:border-primary transition-colors text-on-surface"
           />
           <button

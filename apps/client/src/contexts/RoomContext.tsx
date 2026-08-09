@@ -74,10 +74,6 @@ export function RoomProvider({ roomCode, children }: RoomProviderProps) {
   identityRef.current = identity;
 
   useEffect(() => {
-    // Guest Lifecycle Fix / OAuth Runtime Fix: wait for identity resolution
-    // (guest or authenticated) before opening the socket and joining the
-    // room. Joining while identity is still "loading" causes a race where
-    // the server resolves an incomplete/incorrect identity.
     if (identity.status === "loading") {
       return;
     }

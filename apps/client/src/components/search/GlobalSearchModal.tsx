@@ -89,6 +89,7 @@ export function GlobalSearchModal({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Search files, sessions, collaborators or repositories…"
+            aria-label="Search files, sessions, collaborators or repositories"
             className="w-full bg-transparent border-none focus:ring-0 text-headline-md font-headline-md text-on-surface placeholder:text-secondary p-0 h-12 outline-none"
           />
           <div className="flex items-center justify-center px-sm py-xs bg-surface-container-low rounded border border-outline-variant ml-md text-on-surface-variant font-code text-code opacity-70">

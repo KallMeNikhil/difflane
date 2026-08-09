@@ -108,9 +108,6 @@ export function createFile(doc: Y.Doc, parentId: string | null, name: string): W
     name,
     type: "file",
     order: nextOrder(doc, parentId),
-    // Priority order: extension/filename convention (detectLanguageForPath)
-    // first, then the workspace's configured default language, per the
-    // canonical language-detection priority.
     language: detectLanguageForPath(name) ?? readWorkspaceMetadata(doc).defaultLanguage,
   };
   getFileSystemMap(doc).set(entry.id, entry);
@@ -344,15 +341,6 @@ export function readWorkspaceMetadata(doc: Y.Doc): WorkspaceMetadata {
   };
 }
 
-/**
- * Seeds workspace metadata (name, description, default language, max
- * participants, collaboration preferences) exactly once — at the moment a
- * newly created workspace's Yjs doc is first initialized — from the values
- * chosen in the Create Workspace form. A no-op for any workspace whose
- * metadata has already been written (e.g. a rejoin, or a workspace someone
- * has already customized via Workspace Settings), mirroring the same
- * "only if empty" guard used by initializeFileSystemIfEmpty.
- */
 export function initializeWorkspaceMetadataIfEmpty(doc: Y.Doc, metadata: Partial<WorkspaceMetadata>): void {
   const map = getWorkspaceMetadataMap(doc);
   if (map.size > 0) {

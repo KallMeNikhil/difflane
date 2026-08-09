@@ -21,10 +21,6 @@ export async function writeState(workspaceId: string, stateBytes: Uint8Array, su
   });
 }
 
-export async function clearState(workspaceId: string): Promise<void> {
-  await workspaceStore.deleteState(workspaceId);
-}
-
 export async function writeSnapshot(
   workspaceId: string,
   label: string,

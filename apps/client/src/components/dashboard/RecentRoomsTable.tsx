@@ -37,7 +37,15 @@ export function RecentRoomsTable({ rooms, onViewAll, onSelectRoom }: RecentRooms
             {rooms.map((room) => (
               <tr
                 key={room.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectRoom?.(room.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectRoom?.(room.id);
+                  }
+                }}
                 className="hover:bg-surface-container transition-colors cursor-pointer group"
               >
                 <td className="px-md py-3 font-medium group-hover:text-primary transition-colors">{room.name}</td>

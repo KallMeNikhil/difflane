@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { LazyMotion, domAnimation } from "framer-motion";
+import { LazyMotion, domAnimation, MotionConfig } from "framer-motion";
 import App from "./App";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CurrentUserProvider } from "./contexts/CurrentUserContext";
@@ -26,7 +26,9 @@ createRoot(rootElement).render(
               <AuthModalProvider>
                 <NotificationsProvider>
                   <LazyMotion features={domAnimation} strict>
-                    <App />
+                    <MotionConfig reducedMotion="user">
+                      <App />
+                    </MotionConfig>
                   </LazyMotion>
                 </NotificationsProvider>
               </AuthModalProvider>

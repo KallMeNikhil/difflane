@@ -74,7 +74,7 @@ export function RegisterModal({ onClose }: { onClose: () => void }) {
     try {
       await beginOAuthFlow(provider);
     } catch {
-      // authError is surfaced via context state
+      // no-op
     }
   }
 
