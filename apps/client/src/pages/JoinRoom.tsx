@@ -109,7 +109,7 @@ export default function JoinRoom() {
                   label="Invitation Link"
                   hideLabel
                   className="pl-[40px]"
-                  placeholder="https://difflane.app/room/..."
+                  placeholder="https://difflane.whynikhil.xyz/room/..."
                   value={values.invitationLink}
                   error={errors.invitationLink}
                   onChange={(event) => setField("invitationLink", event.target.value)}

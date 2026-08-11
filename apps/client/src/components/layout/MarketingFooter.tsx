@@ -1,6 +1,12 @@
 import { Logo } from "../common";
 
-const FOOTER_LINKS = ["Documentation", "GitHub", "Privacy", "Terms", "Status"];
+const FOOTER_LINKS: { label: string; href: string }[] = [
+  { label: "Documentation", href: "#" },
+  { label: "GitHub", href: "https://github.com/KallMeNikhil/difflane" },
+  { label: "Privacy", href: "#" },
+  { label: "Terms", href: "#" },
+  { label: "Status", href: "#" },
+];
 
 export function MarketingFooter() {
   return (
@@ -9,8 +15,14 @@ export function MarketingFooter() {
         <Logo variant="marketing" size="body-md" />
 
         <div className="flex gap-xl font-label-md text-label-md text-gray-500">
-          {FOOTER_LINKS.map((label) => (
-            <a key={label} href="#" className="hover:text-white transition-all duration-300 ease-out">
+          {FOOTER_LINKS.map(({ label, href }) => (
+            <a
+              key={label}
+              href={href}
+              target={href.startsWith("http") ? "_blank" : undefined}
+              rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+              className="hover:text-white transition-all duration-300 ease-out"
+            >
               {label}
             </a>
           ))}

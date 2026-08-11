@@ -2,6 +2,11 @@
   "name": "difflane",
   "private": true,
   "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KallMeNikhil/difflane"
+  },
+  "homepage": "https://difflane.whynikhil.xyz/",
   "packageManager": "npm@11.18.0",
   "workspaces": [
     "apps/*",

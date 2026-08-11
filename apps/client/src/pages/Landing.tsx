@@ -62,12 +62,17 @@ export default function Landing() {
   return (
     <>
       <section className="relative max-w-7xl mx-auto px-lg pt-xl pb-md md:pt-[16px] md:pb-[40px] flex flex-col items-center text-center z-10">
-        <h1 className="font-display text-[40px] md:text-[56px] leading-tight md:leading-[1.1] font-bold tracking-normal text-white max-w-4xl mb-margin drop-shadow-[0_2px_16px_rgba(0,0,0,0.65)]">
-          Built for Engineering in Sync.
+
+        <h1 className="font-display mb-2 text-xl font-semibold tracking-[0.35em] text-indigo-300 uppercase">
+          DIFFLANE
         </h1>
 
+        <p className="font-display max-w-4xl text-[40px] leading-tight font-bold tracking-normal text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.65)] md:text-[56px] md:leading-[1.1]">
+          Built for Engineering in Sync.
+        </p>
+
         <p className="font-body-lg text-xl text-gray-400 max-w-2xl mb-xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">
-          A high-performance workspace for live collaborative sessions. Review code together with synced cursors,
+          A high-performance workspace for live collaborative sessions. <br/> Code together with synced cursors,
           instant navigation, and unified context.
         </p>
 
