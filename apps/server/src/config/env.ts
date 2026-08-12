@@ -85,6 +85,23 @@ export const env = {
     docUpdateMax: readNumber("SOCKET_RATE_LIMIT_DOC_UPDATE_MAX", 120),
     awarenessUpdateMax: readNumber("SOCKET_RATE_LIMIT_AWARENESS_UPDATE_MAX", 240),
     attentionRequestMax: readNumber("SOCKET_RATE_LIMIT_ATTENTION_REQUEST_MAX", 6),
+    terminalCreateMax: readNumber("SOCKET_RATE_LIMIT_TERMINAL_CREATE_MAX", 6),
+    terminalInputMax: readNumber("SOCKET_RATE_LIMIT_TERMINAL_INPUT_MAX", 400),
+  },
+  judge0: {
+    baseUrl: process.env.JUDGE0_BASE_URL ?? "http://judge0-server:2358",
+    authToken: process.env.JUDGE0_AUTH_TOKEN ?? "",
+    requestTimeoutMs: readNumber("JUDGE0_REQUEST_TIMEOUT_MS", 15_000),
+    pollIntervalMs: readNumber("JUDGE0_POLL_INTERVAL_MS", 700),
+    pollTimeoutMs: readNumber("JUDGE0_POLL_TIMEOUT_MS", 20_000),
+  },
+  execution: {
+    maxConcurrentPerUser: readNumber("EXECUTION_MAX_CONCURRENT_PER_USER", 2),
+    maxConcurrentPerWorkspace: readNumber("EXECUTION_MAX_CONCURRENT_PER_WORKSPACE", 4),
+  },
+  terminal: {
+    shellPath: process.env.TERMINAL_SHELL_PATH ?? "/bin/bash",
+    sandboxRoot: process.env.TERMINAL_SANDBOX_ROOT ?? "/tmp/difflane-terminal-sessions",
   },
 };
 
@@ -108,6 +125,9 @@ export function assertProductionSecurityConfig(): void {
   }
   if (!process.env.DATABASE_URL || process.env.DATABASE_URL.length === 0) {
     problems.push("DATABASE_URL must be set to a production database connection string.");
+  }
+  if (!process.env.JUDGE0_BASE_URL || process.env.JUDGE0_BASE_URL.length === 0) {
+    problems.push("JUDGE0_BASE_URL must point to the internal self-hosted Judge0 service.");
   }
   if (problems.length > 0) {
     throw new Error(`Refusing to start in production with insecure configuration:\n- ${problems.join("\n- ")}`);

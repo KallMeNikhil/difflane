@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useMonaco } from "@monaco-editor/react";
 import type { editor as MonacoEditorNamespace } from "monaco-editor";
-import { CodeEditor, DiffViewer, EditorTabsBar, EditorToolbar } from "../components/editor";
+import { CodeEditor, DiffViewer, EditorTabsBar, EditorToolbar, RunControl } from "../components/editor";
 import type { ReviewGutterMarker } from "../components/editor/CodeEditor";
 import { disposeMonacoModelForFile } from "../lib/monaco/monacoBinding";
 import {
@@ -27,11 +27,13 @@ import {
   countReviewedFiles,
   getNextFileReviewStatus,
 } from "../components/review";
-import { PlaceholderNotice, StatusBadge } from "../components/common";
+import { Icon, PlaceholderNotice, StatusBadge } from "../components/common";
 import { GlobalSearchModal } from "../components/search";
 import { WorkspaceSettingsModal } from "../components/settings";
 import { WorkspaceExportModal } from "../components/persistence";
 import { SessionSummaryModal } from "../components/history";
+import { TerminalPanel } from "../components/terminal/TerminalPanel";
+import { PreviewPanel } from "../components/terminal/PreviewPanel";
 import ErrorPage from "./Error";
 import { useEditorTabs } from "../hooks/useEditorTabs";
 import { useFileExplorer } from "../hooks/useFileExplorer";
@@ -42,6 +44,7 @@ import { useWorkspaceMetadata } from "../hooks/useWorkspaceMetadata";
 import { useGlobalSearch } from "../hooks/useGlobalSearch";
 import { useNotifications } from "../hooks/useNotifications";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+import { useExecution } from "../hooks/useExecution";
 import { RoomProvider } from "../contexts/RoomContext";
 import { WorkspaceLifecycleProvider } from "../contexts/WorkspaceLifecycleContext";
 import { WorkspaceRecoveryModal, RecoveryConflictModal, UnsavedChangesModal } from "../components/persistence";
@@ -64,6 +67,8 @@ import { buildLiveSessionRecord } from "../services/SessionHistoryService";
 import { useRepositoryInfo } from "../hooks/useRepositoryInfo";
 import { getStatusBadgeLabel } from "../utils/workspaceDisplay";
 import { ROUTES, buildWorkspacePath } from "../constants/routes";
+import { getAccessToken } from "../lib/auth/tokenStore";
+import { findExecutionLanguageForMonacoId } from "@difflane/shared-types";
 import type { SearchSources } from "../services/SearchService";
 import type { SearchResultItem } from "../types/search";
 import type { FileReviewStatusRecord, ReviewAuthorIdentity, ReviewThread } from "../types/review";
@@ -117,7 +122,7 @@ function WorkspaceContent() {
     incomingAttention,
     dismissIncomingAttention,
   } = useRoom();
-  const { userId, displayName, initials, isAuthenticated } = useCurrentUser();
+  const { userId, displayName, initials, isAuthenticated, guestId } = useCurrentUser();
   const navigate = useNavigate();
   const location = useLocation();
   const creationSeed = location.state?.creationSeed as WorkspaceCreationSeed | undefined;
@@ -137,6 +142,9 @@ function WorkspaceContent() {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isWorkspaceExportOpen, setWorkspaceExportOpen] = useState(false);
   const [isSessionSummaryOpen, setSessionSummaryOpen] = useState(false);
+  const [isTerminalOpen, setTerminalOpen] = useState(false);
+  const [isPreviewOpen, setPreviewOpen] = useState(false);
+  const execution = useExecution(roomCode, guestId);
   const [sessionStartedAt] = useState(() => new Date().toISOString());
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>("unified");
   const repositoryInfo = useRepositoryInfo(doc);
@@ -300,6 +308,18 @@ function WorkspaceContent() {
     () => (activeNode ? review.threadsForFile(activeNode.id) : []),
     [activeNode, review],
   );
+
+  const activeExecutionDescriptor = activeNode ? findExecutionLanguageForMonacoId(activeNode.language ?? "plaintext") : undefined;
+  const isPreviewLanguageActive = activeExecutionDescriptor?.kind === "preview";
+  const previewHtml = useMemo(() => {
+    if (!isPreviewLanguageActive || !activeNode) {
+      return null;
+    }
+    if (activeNode.language === "html") {
+      return activeFileText;
+    }
+    return `<!doctype html><html><head><style>${activeFileText}</style></head><body><p style="font-family:sans-serif;padding:16px;color:#444;">CSS preview — pair this stylesheet with an HTML file to see it rendered.</p></body></html>`;
+  }, [isPreviewLanguageActive, activeNode, activeFileText]);
 
   const reviewMarkers: ReviewGutterMarker[] = useMemo(
     () =>
@@ -664,6 +684,39 @@ function WorkspaceContent() {
                       {selfRole === "viewer" && (
                         <StatusBadge label="Viewer · Read-only" tone="neutral" />
                       )}
+                      {selfRole !== "viewer" && !isPreviewLanguageActive && (
+                        <RunControl
+                          isSupported={execution.isLanguageSupported(activeNode.language ?? "plaintext")}
+                          isRunning={execution.isRunning}
+                          activeExecution={execution.activeExecution}
+                          onRun={() => void execution.run(breadcrumbPath.join("/"), activeNode.language ?? "plaintext")}
+                          onStop={() => void execution.stop()}
+                        />
+                      )}
+                      {selfRole !== "viewer" && isPreviewLanguageActive && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewOpen((open) => !open)}
+                          className={`flex items-center gap-xs px-sm py-1 rounded transition-colors font-label-sm text-[11px] ${
+                            isPreviewOpen ? "text-primary bg-primary-container/10" : "text-on-surface-variant hover:text-on-surface hover:bg-surface"
+                          }`}
+                        >
+                          <Icon name="visibility" size={16} />
+                          Preview
+                        </button>
+                      )}
+                      {selfRole !== "viewer" && (
+                        <button
+                          type="button"
+                          onClick={() => setTerminalOpen((open) => !open)}
+                          title="Toggle terminal"
+                          className={`p-1 rounded transition-colors ${
+                            isTerminalOpen ? "text-primary bg-primary-container/10" : "text-on-surface-variant hover:text-on-surface hover:bg-surface"
+                          }`}
+                        >
+                          <Icon name="terminal" size={18} />
+                        </button>
+                      )}
                       <ReviewNavigationControls
                         count={activeFileReviewThreads.length}
                         onPrevious={() => review.goToAdjacentThread(activeNode.id, "previous")}
@@ -777,6 +830,20 @@ function WorkspaceContent() {
               onReopen={review.reopen}
               onDeleteThread={review.removeThread}
               onJumpToThread={handleJumpToReviewThread}
+            />
+          )}
+
+          {selfRole !== "viewer" && (
+            <PreviewPanel html={previewHtml} isOpen={isPreviewOpen && isPreviewLanguageActive} onClose={() => setPreviewOpen(false)} />
+          )}
+
+          {selfRole !== "viewer" && (
+            <TerminalPanel
+              workspaceCode={roomCode}
+              accessToken={isAuthenticated ? getAccessToken() : null}
+              guestId={guestId}
+              isOpen={isTerminalOpen}
+              onClose={() => setTerminalOpen(false)}
             />
           )}
         </section>

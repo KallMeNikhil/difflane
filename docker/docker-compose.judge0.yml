@@ -1,0 +1,71 @@
+name: difflane-judge0
+
+networks:
+  difflane_execution_internal:
+    driver: bridge
+    internal: true
+
+services:
+  judge0-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks:
+      - difflane_execution_internal
+    environment:
+      POSTGRES_USER: ${JUDGE0_POSTGRES_USER:-judge0}
+      POSTGRES_PASSWORD: ${JUDGE0_POSTGRES_PASSWORD:-judge0}
+      POSTGRES_DB: ${JUDGE0_POSTGRES_DB:-judge0}
+    volumes:
+      - difflane_judge0_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${JUDGE0_POSTGRES_USER:-judge0}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  judge0-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - difflane_execution_internal
+    command: ["redis-server", "--requirepass", "${JUDGE0_REDIS_PASSWORD:-judge0}"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${JUDGE0_REDIS_PASSWORD:-judge0}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    restart: unless-stopped
+    networks:
+      - difflane_execution_internal
+    env_file:
+      - ./judge0.conf
+    depends_on:
+      judge0-db:
+        condition: service_healthy
+      judge0-redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${JUDGE0_LOCAL_PORT:-2358}:2358"
+
+  judge0-worker:
+    image: judge0/judge0:1.13.1
+    restart: unless-stopped
+    command: ["./scripts/workers"]
+    networks:
+      - difflane_execution_internal
+    env_file:
+      - ./judge0.conf
+    privileged: true
+    depends_on:
+      judge0-db:
+        condition: service_healthy
+      judge0-redis:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+
+volumes:
+  difflane_judge0_db_data:

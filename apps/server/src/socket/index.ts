@@ -5,6 +5,7 @@ import type { ConnectionAwarenessTracker } from "./ConnectionAwarenessTracker.js
 import { registerRoomHandlers } from "./roomHandlers.js";
 import { registerSyncHandlers } from "./syncHandlers.js";
 import { registerAttentionHandlers } from "./attentionHandlers.js";
+import { registerTerminalGateway } from "./terminalGateway.js";
 
 export function registerSocketServer(
   io: Server,
@@ -16,5 +17,6 @@ export function registerSocketServer(
     registerRoomHandlers(io, socket, registry, awarenessTracker, lifecycleManager);
     registerSyncHandlers(socket, registry, lifecycleManager);
     registerAttentionHandlers(io, socket, registry);
+    registerTerminalGateway(io, socket);
   });
 }

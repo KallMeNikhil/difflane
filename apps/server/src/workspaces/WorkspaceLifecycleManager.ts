@@ -290,6 +290,22 @@ export class WorkspaceLifecycleManager {
     await persistence.writeState(workspaceId, bytes, { fileCount, folderCount });
   }
 
+  captureLiveFileSnapshot(workspaceId: string): { entries: FileSystemEntryLike[]; fileContents: Record<string, string> } | null {
+    const room = this.registry.getRoomByWorkspaceId(workspaceId);
+    if (!room) {
+      return null;
+    }
+    const entries = [...room.doc.getMap<FileSystemEntryLike>(FILE_SYSTEM_KEY).values()];
+    const fileTexts = room.doc.getMap<Y.Text>(FILE_TEXTS_KEY);
+    const fileContents: Record<string, string> = {};
+    for (const entry of entries) {
+      if (entry.type === "file") {
+        fileContents[entry.id] = fileTexts.get(entry.id)?.toString() ?? "";
+      }
+    }
+    return { entries, fileContents };
+  }
+
   async exportWorkspace(workspaceId: string, workspaceName: string): Promise<WorkspaceExportPayload> {
     const state = await persistence.readState(workspaceId);
     const doc = state ? decodeDoc(state.stateBytes) : new Y.Doc();

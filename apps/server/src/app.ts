@@ -11,6 +11,7 @@ import { authRouter } from "./routes/auth.js";
 import { userRouter } from "./routes/user.js";
 import { createWorkspaceRouter } from "./routes/workspace.js";
 import { createPersistenceRouter } from "./routes/persistence.js";
+import { createExecutionRouter } from "./routes/execution.js";
 import type { WorkspaceLifecycleManager } from "./workspaces/WorkspaceLifecycleManager.js";
 
 export function createApp(lifecycleManager: WorkspaceLifecycleManager): Express {
@@ -18,7 +19,23 @@ export function createApp(lifecycleManager: WorkspaceLifecycleManager): Express 
   if (env.isProduction) {
     app.set("trust proxy", 1);
   }
-  app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'"],
+          imgSrc: ["'self'"],
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    }),
+  );
   app.use((_req, res, next) => {
     res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
     res.setHeader("Cache-Control", "no-store");
@@ -34,6 +51,7 @@ export function createApp(lifecycleManager: WorkspaceLifecycleManager): Express 
   app.use(userRouter);
   app.use(createWorkspaceRouter(lifecycleManager));
   app.use(createPersistenceRouter(lifecycleManager));
+  app.use(createExecutionRouter(lifecycleManager));
   app.use(errorHandler);
   return app;
 }
