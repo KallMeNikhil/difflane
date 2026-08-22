@@ -104,14 +104,14 @@ async function runExecution(
   }
 }
 
-function mapJudge0Status(statusId: number): ExecutionRecordInternal["status"] {
+export function mapJudge0Status(statusId: number): ExecutionRecordInternal["status"] {
   if (statusId === 3) return "success";
   if (statusId === 4) return "failed";
   if (statusId === 5) return "timeout";
   if (statusId === 6) return "compilation_failed";
-  if (statusId >= 7 && statusId <= 12) return "resource_limit";
+  if (statusId >= 7 && statusId <= 12) return "runtime_error";
   if (statusId === 13) return "failed";
-  if (statusId === 14) return "resource_limit";
+  if (statusId === 14) return "failed";
   return "failed";
 }
 

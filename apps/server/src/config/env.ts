@@ -6,6 +6,17 @@ try {
 
 const isProduction = process.env.NODE_ENV === "production";
 
+const DISALLOWED_JUDGE0_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
+const PUBLIC_JUDGE0_HOST_SUFFIXES = ["judge0.com", "rapidapi.com"];
+
+function parseUrlSafely(value: string): URL | null {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
 const INSECURE_DEV_ACCESS_SECRET = "difflane-dev-access-secret";
 const INSECURE_DEV_REFRESH_SECRET = "difflane-dev-refresh-secret";
 const MIN_SECRET_LENGTH = 32;
@@ -100,8 +111,13 @@ export const env = {
     maxConcurrentPerWorkspace: readNumber("EXECUTION_MAX_CONCURRENT_PER_WORKSPACE", 4),
   },
   terminal: {
-    shellPath: process.env.TERMINAL_SHELL_PATH ?? "/bin/bash",
-    sandboxRoot: process.env.TERMINAL_SANDBOX_ROOT ?? "/tmp/difflane-terminal-sessions",
+    dockerBinaryPath: process.env.TERMINAL_DOCKER_BIN ?? "docker",
+    containerImage: process.env.TERMINAL_CONTAINER_IMAGE ?? "alpine:3.20",
+    containerRuntime: process.env.TERMINAL_CONTAINER_RUNTIME ?? "",
+    containerMemoryLimit: process.env.TERMINAL_CONTAINER_MEMORY ?? "128m",
+    containerCpuLimit: process.env.TERMINAL_CONTAINER_CPUS ?? "0.5",
+    containerPidsLimit: readNumber("TERMINAL_CONTAINER_PIDS_LIMIT", 64),
+    containerWorkdir: "/home/sandbox",
   },
 };
 
@@ -126,8 +142,23 @@ export function assertProductionSecurityConfig(): void {
   if (!process.env.DATABASE_URL || process.env.DATABASE_URL.length === 0) {
     problems.push("DATABASE_URL must be set to a production database connection string.");
   }
-  if (!process.env.JUDGE0_BASE_URL || process.env.JUDGE0_BASE_URL.length === 0) {
+  const judge0BaseUrl = process.env.JUDGE0_BASE_URL ?? "";
+  if (!judge0BaseUrl) {
     problems.push("JUDGE0_BASE_URL must point to the internal self-hosted Judge0 service.");
+  } else {
+    const parsed = parseUrlSafely(judge0BaseUrl);
+    if (!parsed) {
+      problems.push("JUDGE0_BASE_URL must be a valid URL.");
+    } else if (DISALLOWED_JUDGE0_HOSTS.has(parsed.hostname.toLowerCase())) {
+      problems.push("JUDGE0_BASE_URL must not point to localhost or a loopback address in production.");
+    } else if (PUBLIC_JUDGE0_HOST_SUFFIXES.some((suffix) => parsed.hostname.toLowerCase().endsWith(suffix))) {
+      problems.push("JUDGE0_BASE_URL must not point to a known public Judge0 endpoint in production.");
+    } else if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      problems.push("JUDGE0_BASE_URL must use http or https.");
+    }
+  }
+  if (!process.env.JUDGE0_AUTH_TOKEN || process.env.JUDGE0_AUTH_TOKEN.length === 0) {
+    problems.push("JUDGE0_AUTH_TOKEN must be set for production Judge0 authentication.");
   }
   if (problems.length > 0) {
     throw new Error(`Refusing to start in production with insecure configuration:\n- ${problems.join("\n- ")}`);

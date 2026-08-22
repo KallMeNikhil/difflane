@@ -18,6 +18,7 @@ const STATUS_LABEL: Record<string, string> = {
   timeout: "Timed out",
   resource_limit: "Resource limit",
   compilation_failed: "Compile error",
+  runtime_error: "Runtime error",
   unsupported: "Unsupported",
 };
 
@@ -30,6 +31,7 @@ const STATUS_TONE: Record<string, string> = {
   timeout: "text-error",
   resource_limit: "text-error",
   compilation_failed: "text-error",
+  runtime_error: "text-error",
   unsupported: "text-on-surface-variant",
 };
 

@@ -16,6 +16,8 @@ import { identityStore } from "../db/index.js";
 import { getWorkspaceByCode, isValidWorkspaceCode, requireRole, MUTATING_ROLES } from "../workspaces/workspaceService.js";
 import type { Identity } from "../workspaces/workspaceService.js";
 import { TerminalSandboxSession } from "../execution/terminalSandbox.js";
+import { TerminalContainerError } from "../execution/terminalContainerRuntime.js";
+import { TerminalError, TERMINAL_SAFE_MESSAGES, toSafeTerminalMessage } from "../execution/TerminalError.js";
 
 interface RateState {
   count: number;
@@ -40,11 +42,11 @@ async function resolveTerminalIdentity(socket: Socket, payload: TerminalCreatePa
   if (payload.accessToken) {
     const claims = verifyAccessTokenClaims(payload.accessToken);
     if (!claims) {
-      throw new Error("Your session has expired. Please refresh and try again.");
+      throw new TerminalError(TERMINAL_SAFE_MESSAGES.sessionExpired);
     }
     const user = await identityStore.findUserById(claims.sub);
     if (!user) {
-      throw new Error("Your session has expired. Please refresh and try again.");
+      throw new TerminalError(TERMINAL_SAFE_MESSAGES.sessionExpired);
     }
     return { type: "user", id: user.id };
   }
@@ -59,7 +61,7 @@ async function resolveTerminalIdentity(socket: Socket, payload: TerminalCreatePa
     }
   }
 
-  throw new Error("A signed-in or guest session is required to open a terminal.");
+  throw new TerminalError(TERMINAL_SAFE_MESSAGES.authRequired);
 }
 
 export function registerTerminalGateway(_io: Server, socket: Socket): void {
@@ -70,24 +72,24 @@ export function registerTerminalGateway(_io: Server, socket: Socket): void {
       const errorPayload: TerminalErrorPayload = { sessionId: null, message: "" };
       try {
         if (isRateLimited(terminalCreateRate, socket.id, env.socketRateLimit.terminalCreateMax)) {
-          errorPayload.message = "You're opening terminals too frequently. Please wait a moment.";
+          errorPayload.message = TERMINAL_SAFE_MESSAGES.rateLimited;
           socket.emit(TERMINAL_SOCKET_EVENTS.ERROR, errorPayload);
           return;
         }
         if (sessions.size >= TERMINAL_LIMITS.maxSessionsPerConnection) {
-          errorPayload.message = "You've reached the maximum number of open terminal sessions.";
+          errorPayload.message = TERMINAL_SAFE_MESSAGES.tooManySessions;
           socket.emit(TERMINAL_SOCKET_EVENTS.ERROR, errorPayload);
           return;
         }
         if (!isValidWorkspaceCode(payload.workspaceCode)) {
-          errorPayload.message = "Invalid workspace.";
+          errorPayload.message = TERMINAL_SAFE_MESSAGES.invalidWorkspace;
           socket.emit(TERMINAL_SOCKET_EVENTS.ERROR, errorPayload);
           return;
         }
 
         const workspace = await getWorkspaceByCode(payload.workspaceCode);
         if (!workspace) {
-          errorPayload.message = "Workspace not found.";
+          errorPayload.message = TERMINAL_SAFE_MESSAGES.workspaceNotFound;
           socket.emit(TERMINAL_SOCKET_EVENTS.ERROR, errorPayload);
           return;
         }
@@ -112,7 +114,12 @@ export function registerTerminalGateway(_io: Server, socket: Socket): void {
         const readyPayload: TerminalReadyPayload = { sessionId: session.sessionId };
         socket.emit(TERMINAL_SOCKET_EVENTS.READY, readyPayload);
       } catch (error) {
-        errorPayload.message = error instanceof Error ? error.message : "Unable to start a terminal session.";
+        if (!(error instanceof TerminalError) && !(error instanceof TerminalContainerError)) {
+          console.error("terminal:create failed unexpectedly", error);
+        }
+        const fallback =
+          error instanceof TerminalContainerError ? TERMINAL_SAFE_MESSAGES.sandboxUnavailable : TERMINAL_SAFE_MESSAGES.generic;
+        errorPayload.message = toSafeTerminalMessage(error, fallback);
         socket.emit(TERMINAL_SOCKET_EVENTS.ERROR, errorPayload);
       }
     })();

@@ -24,7 +24,7 @@ export interface ExecutionRecordInternal {
 
 const MAX_RETAINED_PER_WORKSPACE = 20;
 
-class ExecutionStore {
+export class ExecutionStore {
   private readonly records = new Map<string, ExecutionRecordInternal>();
   private readonly byWorkspace = new Map<string, string[]>();
 
@@ -45,8 +45,15 @@ class ExecutionStore {
     this.records.set(record.executionId, record);
     const forWorkspace = this.byWorkspace.get(record.workspaceId) ?? [];
     forWorkspace.push(record.executionId);
-    if (forWorkspace.length > MAX_RETAINED_PER_WORKSPACE) {
-      const evicted = forWorkspace.shift();
+    while (forWorkspace.length > MAX_RETAINED_PER_WORKSPACE) {
+      const evictableIndex = forWorkspace.findIndex((id) => {
+        const candidate = this.records.get(id);
+        return candidate && candidate.status !== "queued" && candidate.status !== "running";
+      });
+      if (evictableIndex === -1) {
+        break;
+      }
+      const [evicted] = forWorkspace.splice(evictableIndex, 1);
       if (evicted) {
         this.records.delete(evicted);
       }

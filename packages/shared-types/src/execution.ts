@@ -34,6 +34,7 @@ export type ExecutionStatus =
   | "timeout"
   | "resource_limit"
   | "compilation_failed"
+  | "runtime_error"
   | "unsupported";
 
 export interface ExecutionFileSnapshotEntry {

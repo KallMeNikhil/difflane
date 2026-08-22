@@ -15,14 +15,6 @@ const ALLOWED_EXECUTABLES = new Set([
   "rm",
   "find",
   "grep",
-  "gcc",
-  "g++",
-  "javac",
-  "java",
-  "python",
-  "python3",
-  "node",
-  "npm",
 ]);
 
 const DENIED_ARGUMENT_PATTERNS = [
@@ -49,14 +41,6 @@ const SAFE_FLAG_ALLOWLIST: Record<string, RegExp[]> = {
   ls: [/^-[algth]+$/],
   grep: [/^-[rniE]+$/],
   find: [/^-name$/, /^-type$/],
-  npm: [/^install$/, /^run$/, /^start$/, /^ci$/],
-  node: [],
-  python: [],
-  python3: [],
-  java: [],
-  javac: [],
-  gcc: [],
-  "g++": [],
 };
 
 export interface CommandValidationResult {

@@ -1,32 +1,58 @@
 import { randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
-import { mkdir, rm } from "node:fs/promises";
-import path from "node:path";
+import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { TERMINAL_LIMITS } from "@difflane/shared-types";
 import { env } from "../config/env.js";
-import { isExecutableAllowed, validateTerminalCommand } from "./terminalCommandPolicy.js";
+import { validateTerminalCommand } from "./terminalCommandPolicy.js";
+import { createSandboxContainer, destroySandboxContainer, spawnInteractiveShell } from "./terminalContainerRuntime.js";
 
-const MINIMAL_PATH = "/usr/local/bin:/usr/bin:/bin";
 const MAX_OUTPUT_BYTES = 64_000;
 const COMMAND_TIMEOUT_MS = 10_000;
+const SHELL_CLOSE_GRACE_MS = 2_000;
 
 export type TerminalSandboxEventHandler = (data: string) => void;
-export type TerminalSandboxExitHandler = (exitCode: number | null, reason: "exit" | "timeout" | "idle" | "closed" | "error") => void;
+export type TerminalSandboxExitHandler = (
+  exitCode: number | null,
+  reason: "exit" | "timeout" | "idle" | "closed" | "error",
+) => void;
+
+export interface MarkerSplitResult {
+  found: boolean;
+  before: string;
+  remainder: string;
+}
+
+export function splitOnCommandMarker(buffer: string, marker: string): MarkerSplitResult {
+  const markerIndex = buffer.indexOf(marker);
+  if (markerIndex === -1) {
+    return { found: false, before: "", remainder: buffer };
+  }
+  const before = buffer.slice(0, markerIndex);
+  const afterMarkerLineEnd = buffer.indexOf("\n", markerIndex);
+  const remainder = afterMarkerLineEnd === -1 ? "" : buffer.slice(afterMarkerLineEnd + 1);
+  return { found: true, before, remainder };
+}
 
 export class TerminalSandboxSession {
   readonly sessionId: string = randomUUID();
-  private readonly sandboxDir: string;
-  private relativeCwd = ".";
+  private readonly containerName: string;
+  private readonly marker: string;
+  private shellProcess: ChildProcessWithoutNullStreams | null = null;
   private idleTimer: NodeJS.Timeout | null = null;
   private lifetimeTimer: NodeJS.Timeout | null = null;
   private destroyed = false;
-  private activeChild: ReturnType<typeof spawn> | null = null;
+  private containerReady = false;
+  private commandInFlight = false;
+  private stdoutBuffer = "";
+  private pendingResolve: (() => void) | null = null;
+  private outputByteCount = 0;
+  private outputTruncated = false;
 
   private onData: TerminalSandboxEventHandler = () => undefined;
   private onExit: TerminalSandboxExitHandler = () => undefined;
 
   constructor() {
-    this.sandboxDir = path.join(env.terminal.sandboxRoot, this.sessionId);
+    this.containerName = `difflane-term-${this.sessionId}`;
+    this.marker = `__DIFFLANE_CMD_DONE_${this.sessionId}__`;
   }
 
   onDataEvent(handler: TerminalSandboxEventHandler): void {
@@ -38,12 +64,35 @@ export class TerminalSandboxSession {
   }
 
   async start(): Promise<void> {
-    await mkdir(this.sandboxDir, { recursive: true });
+    await createSandboxContainer(this.containerName);
+    this.containerReady = true;
+
+    const shell = spawnInteractiveShell(this.containerName, env.terminal.containerWorkdir);
+    this.shellProcess = shell;
+    this.wireShellStreams(shell);
+
     this.write(`Difflane sandboxed shell. Allowlisted commands only. Type "clear" to reset.\r\n$ `);
     this.armIdleTimer();
     this.lifetimeTimer = setTimeout(() => {
       void this.destroy("timeout");
     }, TERMINAL_LIMITS.maxSessionLifetimeMs);
+  }
+
+  private wireShellStreams(shell: ChildProcessWithoutNullStreams): void {
+    shell.stdout.on("data", (chunk: Buffer) => {
+      this.handleShellStdout(chunk.toString("utf-8"));
+    });
+    shell.stderr.on("data", (chunk: Buffer) => {
+      this.emitOutput(chunk.toString("utf-8"));
+    });
+    shell.on("error", () => {
+      void this.destroy("error");
+    });
+    shell.on("close", () => {
+      if (!this.destroyed) {
+        void this.destroy("exit");
+      }
+    });
   }
 
   private armIdleTimer(): void {
@@ -61,8 +110,49 @@ export class TerminalSandboxSession {
     }
   }
 
+  private emitOutput(chunk: string): void {
+    if (this.outputTruncated || !chunk) {
+      return;
+    }
+    let toWrite = chunk;
+    if (this.outputByteCount + toWrite.length > MAX_OUTPUT_BYTES) {
+      toWrite = toWrite.slice(0, Math.max(0, MAX_OUTPUT_BYTES - this.outputByteCount));
+      this.outputTruncated = true;
+    }
+    this.outputByteCount += toWrite.length;
+    if (toWrite) {
+      this.write(toWrite.replace(/\n/g, "\r\n"));
+    }
+    if (this.outputTruncated) {
+      this.write("\r\n[output truncated]\r\n");
+    }
+  }
+
+  private handleShellStdout(chunk: string): void {
+    this.stdoutBuffer += chunk;
+    const result = splitOnCommandMarker(this.stdoutBuffer, this.marker);
+    if (!result.found) {
+      if (this.stdoutBuffer.length > MAX_OUTPUT_BYTES * 2) {
+        this.emitOutput(this.stdoutBuffer);
+        this.stdoutBuffer = "";
+      }
+      return;
+    }
+    this.stdoutBuffer = result.remainder;
+    if (result.before) {
+      this.emitOutput(result.before);
+    }
+    this.resolvePendingCommand();
+  }
+
+  private resolvePendingCommand(): void {
+    const resolve = this.pendingResolve;
+    this.pendingResolve = null;
+    resolve?.();
+  }
+
   async handleLine(rawLine: string): Promise<void> {
-    if (this.destroyed) {
+    if (this.destroyed || !this.containerReady || this.commandInFlight) {
       return;
     }
     this.armIdleTimer();
@@ -84,86 +174,43 @@ export class TerminalSandboxSession {
       return;
     }
 
-    const tokens = line.split(/\s+/);
-    const executable = tokens[0];
-    const args = tokens.slice(1);
-
-    if (executable === "cd") {
-      this.handleCd(args[0] ?? ".");
-      this.write("$ ");
-      return;
-    }
-
-    if (!isExecutableAllowed(executable)) {
-      this.write(`\r\nCommand not permitted.\r\n$ `);
-      return;
-    }
-
-    await this.runCommand(executable, args);
+    await this.runCommand(line);
     this.write("$ ");
   }
 
-  private handleCd(target: string): void {
-    const nextRelative = path.normalize(path.join(this.relativeCwd, target));
-    const resolved = path.resolve(this.sandboxDir, nextRelative);
-    const isWithinSandbox = resolved === this.sandboxDir || resolved.startsWith(`${this.sandboxDir}${path.sep}`);
-    if (!isWithinSandbox) {
-      this.write("\r\ncd: cannot leave the workspace sandbox\r\n");
+  private async runCommand(line: string): Promise<void> {
+    const shell = this.shellProcess;
+    if (!shell || shell.exitCode !== null || shell.killed) {
+      this.write("\r\nThe command could not be completed.\r\n");
       return;
     }
-    this.relativeCwd = path.relative(this.sandboxDir, resolved) || ".";
-  }
 
-  private runCommand(executable: string, args: string[]): Promise<void> {
-    return new Promise((resolve) => {
-      const cwd = path.resolve(this.sandboxDir, this.relativeCwd);
-      let outputBytes = 0;
-      let settled = false;
+    this.commandInFlight = true;
+    this.outputByteCount = 0;
+    this.outputTruncated = false;
 
-      const child = spawn(executable, args, {
-        cwd,
-        env: {
-          PATH: MINIMAL_PATH,
-          HOME: this.sandboxDir,
-          LANG: "C.UTF-8",
-        },
-        shell: false,
-        timeout: COMMAND_TIMEOUT_MS,
-      });
-      this.activeChild = child;
-
-      const forward = (chunk: Buffer) => {
-        outputBytes += chunk.length;
-        if (outputBytes > MAX_OUTPUT_BYTES) {
-          if (!settled) {
-            this.write("\r\n[output truncated]\r\n");
-            child.kill("SIGKILL");
-          }
-          return;
-        }
-        this.write(chunk.toString("utf-8").replace(/\n/g, "\r\n"));
-      };
-
-      child.stdout?.on("data", forward);
-      child.stderr?.on("data", forward);
-
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        this.activeChild = null;
-        resolve();
-      };
-
-      child.on("error", (error) => {
-        this.write(`\r\n${error.message}\r\n`);
-        finish();
-      });
-      child.on("close", () => finish());
+    const donePromise = new Promise<void>((resolve) => {
+      this.pendingResolve = resolve;
     });
-  }
 
-  killActiveProcess(): void {
-    this.activeChild?.kill("SIGTERM");
+    const timeoutHandle = setTimeout(() => {
+      if (this.pendingResolve) {
+        this.write("\r\n[command timed out]\r\n");
+        this.resolvePendingCommand();
+      }
+    }, COMMAND_TIMEOUT_MS);
+
+    try {
+      shell.stdin.write(`${line}\n`);
+      shell.stdin.write(`echo ${this.marker}\n`);
+      await donePromise;
+    } catch {
+      this.resolvePendingCommand();
+      this.write("\r\nThe command could not be completed.\r\n");
+    } finally {
+      clearTimeout(timeoutHandle);
+      this.commandInFlight = false;
+    }
   }
 
   async destroy(reason: "exit" | "timeout" | "idle" | "closed" | "error" = "closed"): Promise<void> {
@@ -173,8 +220,35 @@ export class TerminalSandboxSession {
     this.destroyed = true;
     if (this.idleTimer) clearTimeout(this.idleTimer);
     if (this.lifetimeTimer) clearTimeout(this.lifetimeTimer);
-    this.activeChild?.kill("SIGKILL");
-    await rm(this.sandboxDir, { recursive: true, force: true }).catch(() => undefined);
+    this.resolvePendingCommand();
+
+    const shell = this.shellProcess;
+    if (shell && shell.exitCode === null && !shell.killed) {
+      await new Promise<void>((resolve) => {
+        const forceKill = setTimeout(() => {
+          try {
+            shell.kill("SIGKILL");
+          } catch {
+            // Cleanup must never throw.
+          }
+          resolve();
+        }, SHELL_CLOSE_GRACE_MS);
+        shell.once("close", () => {
+          clearTimeout(forceKill);
+          resolve();
+        });
+        try {
+          shell.stdin.end();
+        } catch {
+          clearTimeout(forceKill);
+          resolve();
+        }
+      });
+    }
+
+    if (this.containerReady) {
+      await destroySandboxContainer(this.containerName);
+    }
     this.onExit(null, reason);
   }
 }

@@ -34,11 +34,11 @@ function authHeaders(): Record<string, string> {
   return env.judge0.authToken ? { "X-Auth-Token": env.judge0.authToken } : {};
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, label: string): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await promise;
+    return await fetch(url, { ...init, signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
       throw new Judge0Error(`${label} timed out.`);
@@ -50,8 +50,9 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 }
 
 export async function submitExecution(input: Judge0SubmitInput): Promise<string> {
-  const response = await withTimeout(
-    fetch(`${env.judge0.baseUrl}/submissions?base64_encoded=true&wait=false`, {
+  const response = await fetchWithTimeout(
+    `${env.judge0.baseUrl}/submissions?base64_encoded=true&wait=false`,
+    {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({
@@ -65,7 +66,7 @@ export async function submitExecution(input: Judge0SubmitInput): Promise<string>
         enable_network: false,
         redirect_stderr_to_stdout: false,
       }),
-    }),
+    },
     env.judge0.requestTimeoutMs,
     "Judge0 submission",
   );
@@ -92,10 +93,9 @@ function decodeBase64(value: string | null | undefined): string {
 }
 
 async function fetchSubmission(token: string): Promise<Judge0Result & { statusId: number }> {
-  const response = await withTimeout(
-    fetch(`${env.judge0.baseUrl}/submissions/${token}?base64_encoded=true`, {
-      headers: authHeaders(),
-    }),
+  const response = await fetchWithTimeout(
+    `${env.judge0.baseUrl}/submissions/${token}?base64_encoded=true`,
+    { headers: authHeaders() },
     env.judge0.requestTimeoutMs,
     "Judge0 status poll",
   );
