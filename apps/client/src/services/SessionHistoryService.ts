@@ -34,6 +34,7 @@ function toSessionRecord(entry: SessionHistoryEntry): SessionRecord {
       actorName: event.actorName,
       description: event.description,
       timestampLabel: formatDateTimeLabel(event.occurredAt),
+      occurredAt: event.occurredAt,
     })),
     outcomes: entry.status === "completed" ? ["Session completed successfully"] : ["Session in progress"],
     startedAt: entry.startedAt,

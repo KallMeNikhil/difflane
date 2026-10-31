@@ -1,11 +1,7 @@
 import { Logo } from "../common";
 
 const FOOTER_LINKS: { label: string; href: string }[] = [
-  { label: "Documentation", href: "#" },
   { label: "GitHub", href: "https://github.com/KallMeNikhil/difflane" },
-  { label: "Privacy", href: "#" },
-  { label: "Terms", href: "#" },
-  { label: "Status", href: "#" },
 ];
 
 export function MarketingFooter() {

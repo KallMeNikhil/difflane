@@ -11,7 +11,6 @@ import type {
 const INITIAL_FEATURES: CreateRoomFeatureToggles = {
   cursorPresence: true,
   inlineDiscussions: true,
-  sharedNavigation: false,
 };
 
 const INITIAL_VALUES: CreateRoomFormValues = {

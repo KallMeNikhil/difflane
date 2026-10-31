@@ -92,7 +92,6 @@ export default function Landing() {
           </Link>
         </div>
 
-        {}
         <div className="mt-xl translate-y-6 z-20 max-w-[440px] rounded-xl border border-white/10 bg-[#0B0D12]/60 backdrop-blur-2xl overflow-hidden font-code text-code text-gray-400 text-left shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-transform hover:scale-[1.01] duration-500 ease-out">
           <div className="flex border-b border-white/10 px-md py-sm bg-white/[0.04] backdrop-blur-md gap-2 items-center">
             <div className="w-2.5 h-2.5 rounded-full bg-white/20" />

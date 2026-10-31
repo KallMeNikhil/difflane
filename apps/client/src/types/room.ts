@@ -16,7 +16,6 @@ export type ProgrammingLanguage =
 export interface CreateRoomFeatureToggles {
   cursorPresence: boolean;
   inlineDiscussions: boolean;
-  sharedNavigation: boolean;
 }
 
 export interface CreateRoomFormValues {

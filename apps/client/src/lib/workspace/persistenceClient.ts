@@ -7,35 +7,10 @@ import type {
   WorkspaceRecoveryStatusResponse,
   WorkspaceSnapshotSummary,
 } from "@difflane/shared-types";
-import { resolveServerUrl } from "../socket/socketClient";
-import { getAccessToken } from "../auth/tokenStore";
+import { apiRequest } from "../http/apiRequest";
 
-export class PersistenceRequestError extends Error {}
-
-function guestHeaders(guestId: string | null): Record<string, string> {
-  return guestId ? { "x-guest-id": guestId } : {};
-}
-
-async function requestJson<T>(path: string, init?: RequestInit, guestId: string | null = null): Promise<T> {
-  const baseUrl = resolveServerUrl() ?? "";
-  const accessToken = getAccessToken();
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...guestHeaders(guestId),
-      ...init?.headers,
-    },
-  });
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  const body = await response.json().catch(() => ({ message: "Unexpected server response." }));
-  if (!response.ok) {
-    throw new PersistenceRequestError(body?.message ?? "Workspace persistence request failed.");
-  }
-  return body as T;
+function requestJson<T>(path: string, init: RequestInit | undefined, guestId: string | null, timeoutMs?: number): Promise<T> {
+  return apiRequest<T>(path, init, { guestId, timeoutMs });
 }
 
 export function fetchSnapshots(code: string, guestId: string | null): Promise<{ snapshots: WorkspaceSnapshotSummary[] }> {
@@ -80,7 +55,7 @@ export function fetchExport(code: string, guestId: string | null): Promise<Works
 }
 
 export function importWorkspace(request: ImportWorkspaceRequest, guestId: string | null): Promise<ImportWorkspaceResponse> {
-  return requestJson(`/api/workspaces/import`, { method: "POST", body: JSON.stringify(request) }, guestId);
+  return requestJson(`/api/workspaces/import`, { method: "POST", body: JSON.stringify(request) }, guestId, 120_000);
 }
 
 export function fetchRecoveryStatus(code: string, guestId: string | null): Promise<WorkspaceRecoveryStatusResponse> {

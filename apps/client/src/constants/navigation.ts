@@ -15,6 +15,5 @@ export const SIDE_NAV_ITEMS: NavItem[] = [
 
 export const MARKETING_NAV_ITEMS = [
   { label: "Features", href: "#features" },
-  { label: "Workspace", href: "#workspace" },
-  { label: "Documentation", href: "#docs" },
+  { label: "GitHub", href: "https://github.com/KallMeNikhil/difflane" },
 ];

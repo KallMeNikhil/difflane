@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ComingSoonBadge, Icon, IconButton } from "../common";
+import { Icon, IconButton } from "../common";
 import { DiscussionThreadCard } from "./DiscussionThreadCard";
 import type { DiscussionFeedItem, DiscussionThread } from "../../types/workspace";
 import type { DiscussionFeedStats } from "../../services/DiscussionService";
@@ -131,20 +131,6 @@ export function DiscussionPanel({
             </div>
           ),
         )}
-      </div>
-
-      <div className="p-md border-t border-outline-variant">
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          title="Generate Summary is coming soon"
-          className="w-full py-2 rounded border border-outline-variant text-on-surface-variant cursor-not-allowed transition-colors font-body-sm text-body-sm font-medium flex items-center justify-center gap-sm opacity-60"
-        >
-          <Icon name="summarize" size={16} />
-          Generate Summary
-          <ComingSoonBadge />
-        </button>
       </div>
     </aside>
   );

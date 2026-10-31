@@ -37,7 +37,6 @@ export function ShareWorkspaceModal({ onClose }: ShareWorkspaceModalProps) {
       setCopiedField(field);
       window.setTimeout(() => setCopiedField(null), 1500);
     } catch {
-      // no-op
     }
   }
 

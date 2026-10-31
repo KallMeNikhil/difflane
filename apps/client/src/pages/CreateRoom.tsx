@@ -113,7 +113,6 @@ export default function CreateRoom() {
         }
       >
         <div className="p-lg space-y-lg">
-          {}
           <section className="space-y-md">
             <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider">
               Workspace Information
@@ -143,7 +142,6 @@ export default function CreateRoom() {
 
           <hr className="border-outline-variant" />
 
-          {}
           <section className="space-y-md">
             <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider">
               Workspace Settings
@@ -172,7 +170,6 @@ export default function CreateRoom() {
 
           <hr className="border-outline-variant" />
 
-          {}
           <section className="space-y-md">
             <h2 className="font-label-md text-label-md text-primary uppercase tracking-wider">
               Features
@@ -191,13 +188,6 @@ export default function CreateRoom() {
                 description="Allow threaded comments directly on content blocks."
                 checked={values.features.inlineDiscussions}
                 onChange={(checked) => setFeature("inlineDiscussions", checked)}
-              />
-              <SwitchToggle
-                icon="explore"
-                label="Shared Navigation"
-                description="Sync scroll and navigation across all participants."
-                checked={values.features.sharedNavigation}
-                onChange={(checked) => setFeature("sharedNavigation", checked)}
               />
             </div>
           </section>

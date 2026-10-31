@@ -21,7 +21,6 @@ export function EditorPreferencesProvider({ children }: { children: ReactNode })
       setTabSize: (tabSize) => updatePreferences({ tabSize }),
       setWordWrap: (wordWrap) => updatePreferences({ wordWrap }),
       setMinimap: (minimap) => updatePreferences({ minimap }),
-      setAutoSave: (autoSave) => updatePreferences({ autoSave }),
     }),
     [preferences, updatePreferences],
   );

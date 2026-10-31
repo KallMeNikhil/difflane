@@ -7,6 +7,7 @@ import {
   groupNotificationsByDate,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  saveNotifications,
 } from "../services/NotificationService";
 import { NotificationsContext, type NotificationsContextValue, type NotificationStatus } from "../hooks/useNotifications";
 import type { NotificationFilter, NotificationRecord } from "../types/notifications";
@@ -31,6 +32,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (status === "ready") {
+      saveNotifications(records);
+    }
+  }, [status, records]);
+
   const unreadCount = useMemo(() => getUnreadCount(records), [records]);
 
   const visibleGroups = useMemo(
@@ -47,7 +54,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addNotification = useCallback<NotificationsContextValue["addNotification"]>((input) => {
-    setRecords((current) => [createNotificationRecord(input), ...current]);
+    setRecords((current) => [createNotificationRecord(input), ...current].slice(0, 100));
   }, []);
 
   const value = useMemo<NotificationsContextValue>(

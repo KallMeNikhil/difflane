@@ -1,15 +1,17 @@
 import { Icon } from "../common";
 import { getFileIcon, getStatusBadgeLabel } from "../../utils/workspaceDisplay";
 import type { OpenEditorTab } from "../../types/workspace";
+import { FilePresenceAvatars, type FilePresenceEntry } from "../workspace/FilePresenceAvatars";
 
 interface EditorTabsBarProps {
   tabs: OpenEditorTab[];
   activeTabId: string;
   onSelectTab: (fileId: string) => void;
   onCloseTab: (fileId: string) => void;
+  getFilePresence?: (fileId: string) => FilePresenceEntry[];
 }
 
-export function EditorTabsBar({ tabs, activeTabId, onSelectTab, onCloseTab }: EditorTabsBarProps) {
+export function EditorTabsBar({ tabs, activeTabId, onSelectTab, onCloseTab, getFilePresence }: EditorTabsBarProps) {
   if (tabs.length === 0) {
     return null;
   }
@@ -35,6 +37,7 @@ export function EditorTabsBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Ed
           >
             <Icon name={getFileIcon(tab.name)} size={14} className={isActive ? "text-secondary" : ""} />
             <span>{tab.name}</span>
+            <FilePresenceAvatars entries={getFilePresence?.(tab.fileId) ?? []} max={2} />
             {tab.status !== "unmodified" && (
               <span
                 role="img"

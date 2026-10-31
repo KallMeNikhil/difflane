@@ -211,7 +211,7 @@ authRouter.post(
       res.status(400).json({ code: "unknown_error", message: "Email is required." });
       return;
     }
-    await requestPasswordReset(email);
+    void requestPasswordReset(email).catch((error: unknown) => console.error("Password reset request failed:", error));
     res.status(202).json({ message: "If an account exists for this email, a reset link has been sent." });
   }),
 );

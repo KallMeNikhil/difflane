@@ -6,13 +6,9 @@ import type * as Y from "yjs";
 import { useMonacoYjsBinding } from "../../hooks/useMonacoYjsBinding";
 import { useEditorPreferences } from "../../hooks/useEditorPreferences";
 import type { EditorLanguage } from "../../types/workspace";
+import { buildReviewDecorations, type ReviewGutterMarker } from "../../lib/monaco/reviewDecorations";
 
-export interface ReviewGutterMarker {
-  threadId: string;
-  line: number;
-  resolved: boolean;
-  orphaned: boolean;
-}
+export type { ReviewGutterMarker };
 
 interface CodeEditorProps {
   value: string;
@@ -21,6 +17,7 @@ interface CodeEditorProps {
   doc?: Y.Doc | null;
   awareness?: Awareness | null;
   reviewMarkers?: ReviewGutterMarker[];
+  canAddReviewComment?: boolean;
   onReviewMarkerClick?: (threadId: string, top: number) => void;
   onReviewGutterClick?: (lineNumber: number, top: number) => void;
   onTypingActivity?: () => void;
@@ -30,7 +27,6 @@ interface CodeEditorProps {
 }
 
 const THEME_NAME = "difflane-slate";
-
 const handleBeforeMount: BeforeMount = (monaco) => {
   monaco.editor.defineTheme(THEME_NAME, {
     base: "vs-dark",
@@ -55,6 +51,7 @@ export function CodeEditor({
   doc,
   awareness,
   reviewMarkers = [],
+  canAddReviewComment = false,
   onReviewMarkerClick,
   onReviewGutterClick,
   onTypingActivity,
@@ -65,7 +62,6 @@ export function CodeEditor({
   const { preferences } = useEditorPreferences();
   const { monacoLanguage, isCollaborative, handleMount } = useMonacoYjsBinding({
     fileId,
-    value,
     language,
     doc,
     awareness,
@@ -75,19 +71,15 @@ export function CodeEditor({
 
   const editorRef = useRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null);
   const decorationIdsRef = useRef<string[]>([]);
+  const hoverDecorationIdsRef = useRef<string[]>([]);
   const reviewMarkersRef = useRef<ReviewGutterMarker[]>(reviewMarkers);
+  const canAddReviewCommentRef = useRef(canAddReviewComment);
   const onReviewMarkerClickRef = useRef(onReviewMarkerClick);
   const onReviewGutterClickRef = useRef(onReviewGutterClick);
-
-  useEffect(() => {
-    reviewMarkersRef.current = reviewMarkers;
-  }, [reviewMarkers]);
-  useEffect(() => {
-    onReviewMarkerClickRef.current = onReviewMarkerClick;
-  }, [onReviewMarkerClick]);
-  useEffect(() => {
-    onReviewGutterClickRef.current = onReviewGutterClick;
-  }, [onReviewGutterClick]);
+  reviewMarkersRef.current = reviewMarkers;
+  canAddReviewCommentRef.current = canAddReviewComment;
+  onReviewMarkerClickRef.current = onReviewMarkerClick;
+  onReviewGutterClickRef.current = onReviewGutterClick;
 
   useEffect(() => {
     editorRef.current?.updateOptions({ readOnly, readOnlyMessage: readOnly ? { value: "You have view-only access to this workspace." } : undefined });
@@ -95,37 +87,76 @@ export function CodeEditor({
 
   useEffect(() => {
     const editorInstance = editorRef.current;
-    if (!editorInstance) {
+    const model = editorInstance?.getModel();
+    if (!editorInstance || !model) {
       return;
     }
-    const decorations: MonacoEditorNamespace.IModelDeltaDecoration[] = reviewMarkers.map((marker) => ({
-      range: { startLineNumber: marker.line, startColumn: 1, endLineNumber: marker.line, endColumn: 1 },
-      options: {
-        glyphMarginClassName: marker.orphaned ? "review-glyph-orphaned" : marker.resolved ? "review-glyph-resolved" : "review-glyph-open",
-        glyphMarginHoverMessage: { value: "Review comment — click to view" },
-      },
-    }));
+    const decorations = buildReviewDecorations(reviewMarkers, model.getLineCount(), (line) => model.getLineMaxColumn(line));
     decorationIdsRef.current = editorInstance.deltaDecorations(decorationIdsRef.current, decorations);
-  }, [reviewMarkers, fileId]);
+  }, [reviewMarkers, fileId, value]);
 
   const handleEditorMount: OnMount = (editorInstance, monaco) => {
     handleMount(editorInstance, monaco);
     editorRef.current = editorInstance;
     decorationIdsRef.current = [];
+    hoverDecorationIdsRef.current = [];
     onEditorMount?.(editorInstance);
+
+    const topOfLine = (line: number) => editorInstance.getScrolledVisiblePosition({ lineNumber: line, column: 1 })?.top ?? 0;
+    const markerOnLine = (line: number) => {
+      const onLine = reviewMarkersRef.current.filter((candidate) => candidate.line === line);
+      return onLine.find((candidate) => !candidate.resolved && !candidate.orphaned) ?? onLine[0];
+    };
+
     editorInstance.onMouseDown((event) => {
-      if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN || !event.target.position) {
+      const line = event.target.position?.lineNumber;
+      if (!line) {
         return;
       }
-      const line = event.target.position.lineNumber;
-      const visiblePosition = editorInstance.getScrolledVisiblePosition({ lineNumber: line, column: 1 });
-      const top = visiblePosition?.top ?? 0;
-      const marker = reviewMarkersRef.current.find((candidate) => candidate.line === line);
-      if (marker) {
-        onReviewMarkerClickRef.current?.(marker.threadId, top);
-      } else {
-        onReviewGutterClickRef.current?.(line, top);
+      const isGlyph = event.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN;
+      const isBadge =
+        event.target.type === monaco.editor.MouseTargetType.CONTENT_TEXT && Boolean(event.target.element?.classList.contains("review-inline-badge"));
+      if (!isGlyph && !isBadge) {
+        return;
       }
+      const marker = markerOnLine(line);
+      if (marker) {
+        onReviewMarkerClickRef.current?.(marker.threadId, topOfLine(line));
+      } else if (isGlyph && canAddReviewCommentRef.current) {
+        onReviewGutterClickRef.current?.(line, topOfLine(line));
+      }
+    });
+
+    editorInstance.onMouseMove((event) => {
+      const line = event.target.position?.lineNumber;
+      const showAdd = Boolean(line && canAddReviewCommentRef.current && !markerOnLine(line));
+      hoverDecorationIdsRef.current = editorInstance.deltaDecorations(
+        hoverDecorationIdsRef.current,
+        showAdd && line
+          ? [{ range: { startLineNumber: line, startColumn: 1, endLineNumber: line, endColumn: 1 }, options: { glyphMarginClassName: "review-glyph-add", glyphMarginHoverMessage: { value: "Add a review comment on this line" } } }]
+          : [],
+      );
+    });
+    editorInstance.onMouseLeave(() => {
+      hoverDecorationIdsRef.current = editorInstance.deltaDecorations(hoverDecorationIdsRef.current, []);
+    });
+
+    editorInstance.addAction({
+      id: "difflane.addReviewComment",
+      label: "Add Review Comment",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyM],
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 0,
+      run: (instance) => {
+        const line = instance.getPosition()?.lineNumber;
+        if (!line) return;
+        const marker = markerOnLine(line);
+        if (marker) {
+          onReviewMarkerClickRef.current?.(marker.threadId, topOfLine(line));
+        } else if (canAddReviewCommentRef.current) {
+          onReviewGutterClickRef.current?.(line, topOfLine(line));
+        }
+      },
     });
   };
 

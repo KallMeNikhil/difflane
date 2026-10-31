@@ -55,7 +55,7 @@ function ToggleRow({
 
 export function UserSettingsModal({ onClose }: UserSettingsModalProps) {
   const { displayName, initials, setDisplayName, isAuthenticated, user, updateAccountProfile, logout } = useCurrentUser();
-  const { preferences, setFontSize, setTabSize, setWordWrap, setMinimap, setAutoSave } = useEditorPreferences();
+  const { preferences, setFontSize, setTabSize, setWordWrap, setMinimap } = useEditorPreferences();
   const { openGuestUpgrade } = useAuthModal();
   const [section, setSection] = useState<UserSettingsSection>("general");
   const [username, setUsername] = useState(user?.username ?? "");
@@ -316,12 +316,6 @@ export function UserSettingsModal({ onClose }: UserSettingsModalProps) {
                     <div className="grid grid-cols-1 gap-y-sm pt-md border-t border-outline-variant">
                       <ToggleRow label="Word Wrap" description="Wrap long lines inside the editor." checked={preferences.wordWrap} onChange={setWordWrap} />
                       <ToggleRow label="Show Minimap" description="Display the code minimap on the right edge." checked={preferences.minimap} onChange={setMinimap} />
-                      <ToggleRow
-                        label="Auto Save"
-                        description="Automatically write changes back to the original local Workspace when available."
-                        checked={preferences.autoSave}
-                        onChange={setAutoSave}
-                      />
                     </div>
                   </div>
                 </section>

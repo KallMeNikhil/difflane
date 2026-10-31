@@ -158,6 +158,7 @@ export interface ActivityEvent {
   actorName: string;
   description: string;
   timestampLabel: string;
+  occurredAt?: string;
 }
 
 export type DiscussionFeedItem =

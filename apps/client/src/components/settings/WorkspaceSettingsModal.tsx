@@ -38,11 +38,6 @@ const COLLABORATION_TOGGLES: { key: keyof WorkspaceCollaborationPreferences; lab
     label: "Inline discussions",
     description: "Allow collaborators to leave discussion threads on code.",
   },
-  {
-    key: "sharedNavigation",
-    label: "Shared navigation",
-    description: "Keep collaborators viewing the same active file.",
-  },
 ];
 
 export function WorkspaceSettingsModal({ onClose }: WorkspaceSettingsModalProps) {
@@ -87,7 +82,6 @@ export function WorkspaceSettingsModal({ onClose }: WorkspaceSettingsModalProps)
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      // no-op
     }
   }
 

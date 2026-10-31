@@ -106,6 +106,17 @@ interface JoinRateState {
   windowStart: number;
 }
 
+const WORKSPACE_METADATA_KEY = "workspaceMetadata";
+
+export function isRoomFull(room: Pick<Room, "doc" | "participants">, joiningUserId: string): boolean {
+  const limit = room.doc.getMap(WORKSPACE_METADATA_KEY).get("maxParticipants");
+  if (typeof limit !== "number" || !Number.isFinite(limit) || limit <= 0) {
+    return false;
+  }
+  const present = new Set(Array.from(room.participants.values(), (participant) => participant.userId));
+  return !present.has(joiningUserId) && present.size >= limit;
+}
+
 const joinRateBySocket = new Map<string, JoinRateState>();
 
 function isRoomJoinRateLimited(socketId: string): boolean {
@@ -149,6 +160,10 @@ export function registerRoomHandlers(
         const { room, created } = registry.getOrCreateRoomByCode(roomCode, workspace.id);
         if (created) {
           await lifecycleManager.hydrateRoomDoc(workspace.id, room.doc);
+        }
+        if (role !== "OWNER" && isRoomFull(room, identity.identityId)) {
+          ack?.({ error: "This workspace is full. Ask the owner to raise the participant limit.", code: "room_full" });
+          return;
         }
         socket.data.roomId = room.roomId;
 

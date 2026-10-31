@@ -53,7 +53,6 @@ export function GuestUpgradeModal({ onClose }: { onClose: () => void }) {
     try {
       await beginOAuthFlow(provider);
     } catch {
-      // no-op
     }
   }
 

@@ -414,13 +414,6 @@ function ProgressView({ progressStepIndex, onCancel }: { progressStepIndex: numb
         >
           Cancel Import
         </button>
-        <button
-          type="button"
-          disabled
-          className="px-md py-[10px] rounded-lg bg-[#171A20] text-[#7B8496] font-label-md text-label-md cursor-not-allowed opacity-50 border border-transparent"
-        >
-          Continue
-        </button>
       </div>
     </div>
   );

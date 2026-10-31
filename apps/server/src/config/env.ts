@@ -77,6 +77,10 @@ export const env = {
       redirectUri: process.env.GITHUB_OAUTH_REDIRECT_URI ?? "",
     },
   },
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY ?? "",
+    from: process.env.EMAIL_FROM ?? "",
+  },
   githubApi: {
     token: process.env.GITHUB_API_TOKEN ?? "",
   },

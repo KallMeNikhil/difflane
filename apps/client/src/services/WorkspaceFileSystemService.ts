@@ -42,7 +42,6 @@ const WORKSPACE_METADATA_KEY = "workspaceMetadata";
 export const DEFAULT_WORKSPACE_COLLABORATION_PREFERENCES: WorkspaceCollaborationPreferences = {
   cursorPresence: true,
   inlineDiscussions: true,
-  sharedNavigation: false,
 };
 
 export const DEFAULT_WORKSPACE_METADATA: WorkspaceMetadata = {
@@ -75,10 +74,78 @@ export function readFileSystemEntries(doc: Y.Doc): WorkspaceFileSystemEntry[] {
   return Array.from(getFileSystemMap(doc).values());
 }
 
+function splitName(name: string): { stem: string; extension: string } {
+  const dot = name.lastIndexOf(".");
+  return dot <= 0 ? { stem: name, extension: "" } : { stem: name.slice(0, dot), extension: name.slice(dot) };
+}
+
+export function planFileSystemRepairs(entries: WorkspaceFileSystemEntry[]): WorkspaceFileSystemEntry[] {
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  const reparented = entries.map((entry) =>
+    entry.parentId && !byId.has(entry.parentId) ? { ...entry, parentId: null } : entry,
+  );
+  const byParent = new Map<string | null, WorkspaceFileSystemEntry[]>();
+  for (const entry of reparented) {
+    const siblings = byParent.get(entry.parentId) ?? [];
+    siblings.push(entry);
+    byParent.set(entry.parentId, siblings);
+  }
+  const repairs = new Map<string, WorkspaceFileSystemEntry>();
+  reparented.forEach((entry, index) => {
+    if (entry !== entries[index]) repairs.set(entry.id, entry);
+  });
+  for (const siblings of byParent.values()) {
+    const taken = new Set(siblings.map((entry) => entry.name.toLowerCase()));
+    const groups = new Map<string, WorkspaceFileSystemEntry[]>();
+    for (const entry of siblings) {
+      const key = entry.name.toLowerCase();
+      groups.set(key, [...(groups.get(key) ?? []), entry]);
+    }
+    for (const group of groups.values()) {
+      if (group.length < 2) continue;
+      group.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      for (const duplicate of group.slice(1)) {
+        const { stem, extension } = splitName(duplicate.name);
+        let counter = 2;
+        let candidate = `${stem} (${counter})${extension}`;
+        while (taken.has(candidate.toLowerCase())) {
+          counter += 1;
+          candidate = `${stem} (${counter})${extension}`;
+        }
+        taken.add(candidate.toLowerCase());
+        repairs.set(duplicate.id, { ...(repairs.get(duplicate.id) ?? duplicate), name: candidate });
+      }
+    }
+  }
+  return Array.from(repairs.values());
+}
+
+const REPAIR_ORIGIN = Symbol("file-system-repair");
+
+export function repairFileSystemConflicts(doc: Y.Doc): number {
+  const repairs = planFileSystemRepairs(readFileSystemEntries(doc));
+  if (repairs.length === 0) {
+    return 0;
+  }
+  const map = getFileSystemMap(doc);
+  doc.transact(() => {
+    for (const entry of repairs) {
+      map.set(entry.id, entry);
+    }
+  }, REPAIR_ORIGIN);
+  return repairs.length;
+}
+
 export function subscribeFileSystemEntries(doc: Y.Doc, listener: (entries: WorkspaceFileSystemEntry[]) => void): () => void {
   const map = getFileSystemMap(doc);
-  const handler = () => listener(readFileSystemEntries(doc));
+  const handler = (event: Y.YMapEvent<WorkspaceFileSystemEntry>) => {
+    if (event.transaction.origin !== REPAIR_ORIGIN && repairFileSystemConflicts(doc) > 0) {
+      return;
+    }
+    listener(readFileSystemEntries(doc));
+  };
   map.observe(handler);
+  repairFileSystemConflicts(doc);
   return () => map.unobserve(handler);
 }
 

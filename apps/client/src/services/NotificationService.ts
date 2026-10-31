@@ -38,8 +38,29 @@ export function createNotificationRecord(input: NotificationInput): Notification
   };
 }
 
+const STORAGE_KEY = "difflane:notifications";
+const MAX_STORED_NOTIFICATIONS = 100;
+
+function isNotificationRecord(value: unknown): value is NotificationRecord {
+  const record = value as Partial<NotificationRecord> | null;
+  return Boolean(record && typeof record.id === "string" && typeof record.message === "string" && typeof record.createdAt === "string");
+}
+
 export async function fetchNotifications(): Promise<NotificationRecord[]> {
-  return Promise.resolve([]);
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter(isNotificationRecord).map((record) => ({ ...record, actions: record.actions ?? [] })) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveNotifications(records: NotificationRecord[]): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, MAX_STORED_NOTIFICATIONS)));
+  } catch {
+    return;
+  }
 }
 
 export function getUnreadCount(records: NotificationRecord[]): number {

@@ -37,7 +37,6 @@ export interface WorkspaceExportPayload {
     collaboration: {
       cursorPresence: boolean;
       inlineDiscussions: boolean;
-      sharedNavigation: boolean;
     };
   };
   fileSystem: unknown[];

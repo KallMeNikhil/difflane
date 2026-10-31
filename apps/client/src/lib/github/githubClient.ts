@@ -1,30 +1,8 @@
 import type { RepositoryImportResult, RepositorySummary } from "@difflane/shared-types";
-import { resolveServerUrl } from "../socket/socketClient";
-import { getAccessToken } from "../auth/tokenStore";
+import { apiRequest } from "../http/apiRequest";
 
-export class RepositoryRequestError extends Error {}
-
-function guestHeaders(guestId: string | null): Record<string, string> {
-  return guestId ? { "x-guest-id": guestId } : {};
-}
-
-async function requestJson<T>(path: string, init?: RequestInit, guestId: string | null = null): Promise<T> {
-  const baseUrl = resolveServerUrl() ?? "";
-  const accessToken = getAccessToken();
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...guestHeaders(guestId),
-      ...init?.headers,
-    },
-  });
-  const body = await response.json().catch(() => ({ message: "Unexpected server response." }));
-  if (!response.ok) {
-    throw new RepositoryRequestError(body?.message ?? "Repository request failed.");
-  }
-  return body as T;
+function requestJson<T>(path: string, init: RequestInit | undefined, guestId: string | null, timeoutMs?: number): Promise<T> {
+  return apiRequest<T>(path, init, { guestId, timeoutMs });
 }
 
 export function searchRepository(query: string, guestId: string | null = null): Promise<RepositorySummary> {
@@ -49,5 +27,6 @@ export function importRepository(
     `/api/repository/import`,
     { method: "POST", body: JSON.stringify({ owner, repo, branch }) },
     guestId,
+    120_000,
   );
 }

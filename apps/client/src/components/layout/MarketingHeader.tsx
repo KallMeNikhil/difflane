@@ -23,6 +23,8 @@ export function MarketingHeader() {
             <a
               key={item.label}
               href={item.href}
+              target={item.href.startsWith("http") ? "_blank" : undefined}
+              rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
               className="font-label-md text-label-md font-medium text-gray-400 hover:text-white transition-colors duration-300 ease-out"
             >
               {item.label}

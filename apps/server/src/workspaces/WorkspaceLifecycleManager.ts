@@ -329,9 +329,11 @@ export class WorkspaceLifecycleManager {
       const comments = (thread as { comments?: unknown[] }).comments;
       return total + (Array.isArray(comments) ? comments.length : 0);
     }, 0);
-    const collaborationPreferences = (metadataMap.get("collaboration") as
-      | { cursorPresence: boolean; inlineDiscussions: boolean; sharedNavigation: boolean }
-      | undefined) ?? { cursorPresence: true, inlineDiscussions: true, sharedNavigation: false };
+    const storedCollaboration = metadataMap.get("collaboration") as { cursorPresence?: boolean; inlineDiscussions?: boolean } | undefined;
+    const collaborationPreferences = {
+      cursorPresence: storedCollaboration?.cursorPresence ?? true,
+      inlineDiscussions: storedCollaboration?.inlineDiscussions ?? true,
+    };
 
     const payload: WorkspaceExportPayload = {
       formatVersion: 1,

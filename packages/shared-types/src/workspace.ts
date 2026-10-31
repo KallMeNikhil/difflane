@@ -24,7 +24,6 @@ export interface WorkspaceRepositoryInfo {
 export interface WorkspaceCollaborationPreferences {
   cursorPresence: boolean;
   inlineDiscussions: boolean;
-  sharedNavigation: boolean;
 }
 
 export interface WorkspaceMetadata {

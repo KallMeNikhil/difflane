@@ -16,14 +16,6 @@ export function Card({ children, noPadding = false, className = "", ...rest }: C
   );
 }
 
-export function ComingSoonBadge() {
-  return (
-    <span className="px-2 py-0.5 rounded-full bg-tertiary-container/20 text-tertiary font-label-sm text-[9px] tracking-widest uppercase">
-      Coming Soon
-    </span>
-  );
-}
-
 interface CardHeaderProps {
   title: string;
   titleAdornment?: ReactNode;

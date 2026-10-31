@@ -2,6 +2,7 @@ import type { AuthUserProfile, OAuthProvider } from "@difflane/shared-types";
 import { env } from "../config/env.js";
 import { identityStore } from "../db/index.js";
 import type { RefreshSessionRecord, UserRecord } from "../db/models.js";
+import { buildPasswordResetEmail, sendEmail } from "../email/mailer.js";
 import { AuthError } from "./AuthError.js";
 import { buildAuthorizationUrl, exchangeCodeForIdentity } from "./oauthService.js";
 import { validatePasswordPolicy } from "./passwordPolicy.js";
@@ -262,15 +263,19 @@ export async function deleteAccount(userId: string): Promise<void> {
   await identityStore.deleteUser(userId);
 }
 
-export async function requestPasswordReset(email: string): Promise<string | null> {
-  const user = await identityStore.findUserByEmail(email);
+const PASSWORD_RESET_TTL_MINUTES = 30;
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const user = await identityStore.findUserByEmail(email.trim());
   if (!user) {
-    return null;
+    return;
   }
   const tokenValue = createRefreshTokenValue();
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000);
   await identityStore.createPasswordResetToken(user.id, hashRefreshToken(tokenValue), expiresAt);
-  return tokenValue;
+  const clientOrigin = env.corsOrigin.split(",")[0].trim().replace(/\/+$/, "");
+  const resetUrl = `${clientOrigin}/reset-password?token=${encodeURIComponent(tokenValue)}`;
+  await sendEmail(buildPasswordResetEmail(user.email, user.displayName, resetUrl, PASSWORD_RESET_TTL_MINUTES));
 }
 
 export async function resetPassword(tokenValue: string, newPassword: string): Promise<void> {

@@ -1,16 +1,13 @@
 import { DiffHunkCard } from "./DiffHunkCard";
-import { InlineCommentThread } from "./InlineCommentThread";
 import { buildSplitColumns } from "../../services/DiffService";
-import type { DiffViewMode, FileDiff, DiscussionThread } from "../../types/workspace";
+import type { DiffViewMode, FileDiff } from "../../types/workspace";
 
 interface DiffViewerProps {
   diff: FileDiff;
   viewMode: DiffViewMode;
-  anchorThread?: DiscussionThread;
-  onSubmitReply: (threadId: string, body: string) => void;
 }
 
-export function DiffViewer({ diff, viewMode, anchorThread, onSubmitReply }: DiffViewerProps) {
+export function DiffViewer({ diff, viewMode }: DiffViewerProps) {
   if (viewMode === "split") {
     const { left, right } = buildSplitColumns(diff.hunks);
     return (
@@ -30,7 +27,6 @@ export function DiffViewer({ diff, viewMode, anchorThread, onSubmitReply }: Diff
           <DiffHunkCard key={hunk.id} lines={hunk.lines} lineNumberSide="auto" />
         ))}
       </div>
-      {anchorThread && <InlineCommentThread thread={anchorThread} onSubmitReply={onSubmitReply} />}
     </div>
   );
 }

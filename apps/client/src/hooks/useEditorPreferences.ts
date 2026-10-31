@@ -7,7 +7,6 @@ export interface EditorPreferencesContextValue {
   setTabSize: (tabSize: EditorPreferences["tabSize"]) => void;
   setWordWrap: (wordWrap: boolean) => void;
   setMinimap: (minimap: boolean) => void;
-  setAutoSave: (autoSave: boolean) => void;
 }
 
 export const EditorPreferencesContext = createContext<EditorPreferencesContextValue | undefined>(undefined);

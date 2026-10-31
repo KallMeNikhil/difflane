@@ -60,19 +60,18 @@ export function EditorToolbar({
         >
           <Icon name="format_align_left" size={18} />
         </button>
-        <button
-          type="button"
-          title={isDiffMode ? "Split View" : "Split Editor — Coming Soon"}
-          onClick={isDiffMode ? () => onChangeDiffViewMode!("split") : undefined}
-          disabled={!isDiffMode}
-          className={`p-1 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-            isDiffMode && diffViewMode === "split"
-              ? "text-primary bg-primary-container/10"
-              : "text-on-surface-variant hover:text-on-surface hover:bg-surface"
-          }`}
-        >
-          <Icon name="splitscreen" size={18} />
-        </button>
+        {isDiffMode && (
+          <button
+            type="button"
+            title="Split View"
+            onClick={() => onChangeDiffViewMode!("split")}
+            className={`p-1 rounded transition-colors ${
+              diffViewMode === "split" ? "text-primary bg-primary-container/10" : "text-on-surface-variant hover:text-on-surface hover:bg-surface"
+            }`}
+          >
+            <Icon name="splitscreen" size={18} />
+          </button>
+        )}
         {rightSlot}
       </div>
     </div>

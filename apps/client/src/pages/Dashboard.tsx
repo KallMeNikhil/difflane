@@ -3,12 +3,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { Icon, getButtonClasses } from "../components/common";
 import {
   RecentRoomsTable,
-  ConnectedRepositoriesCard,
   TeamPresenceCard,
   RecentActivityCard,
   WorkspaceOwnershipCard,
 } from "../components/dashboard";
-import type { RecentRoom } from "../components/dashboard";
+import type { ActivityItem, RecentRoom, TeamPresenceMember } from "../components/dashboard";
+import type { AvatarTone } from "../components/common";
+import { useSessionHistory } from "../hooks/useSessionHistory";
+import { buildCollaborators, buildRecentActivity, describeCollaboratorStatus } from "../services/DashboardInsightsService";
 import { WorkspaceImportModal } from "../components/persistence";
 import { ROUTES, buildWorkspacePath } from "../constants/routes";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -18,9 +20,12 @@ import { formatRelativeTimeLabel } from "../services/SessionHistoryService";
 import { readLastActiveWorkspaceCode, readRecoveryMarker, type RecoveryMarker } from "../lib/persistence/recoveryCache";
 import type { WorkspaceOwnershipSummary } from "@difflane/shared-types";
 
+const COLLABORATOR_TONES: AvatarTone[] = ["primary", "secondary", "tertiary", "neutral"];
+
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { displayName, isAuthenticated, guestId } = useCurrentUser();
+  const { displayName, isAuthenticated, guestId, userId } = useCurrentUser();
+  const sessionHistory = useSessionHistory();
   const { dashboard, isLoading, refresh } = useWorkspaceDashboard();
   const [isImportOpen, setImportOpen] = useState(false);
   const [recoverable, setRecoverable] = useState<RecoveryMarker | null>(null);
@@ -55,6 +60,36 @@ export default function Dashboard() {
 
   const recentRooms: RecentRoom[] = useMemo(() => dashboard.recent.map((workspace) => toRecentRoom(workspace)), [dashboard.recent]);
   const totalWorkspaceCount = dashboard.all.length;
+  const isHistoryLoading = sessionHistory.status === "loading";
+
+  const activityItems: ActivityItem[] = useMemo(
+    () =>
+      buildRecentActivity(sessionHistory.records).map((event, index) => ({
+        id: event.id,
+        message: (
+          <>
+            {event.description} <span className="text-on-surface-variant">in</span> <span className="font-medium">{event.workspaceName}</span>
+          </>
+        ),
+        timeLabel: formatRelativeTimeLabel(event.occurredAt),
+        emphasized: index === 0,
+      })),
+    [sessionHistory.records],
+  );
+
+  const collaborators: TeamPresenceMember[] = useMemo(
+    () =>
+      buildCollaborators(sessionHistory.records, userId).map((collaborator, index) => ({
+        id: collaborator.id,
+        name: collaborator.name,
+        initials: collaborator.initials,
+        presence: collaborator.presence,
+        statusLabel: describeCollaboratorStatus(collaborator),
+        tone: COLLABORATOR_TONES[index % COLLABORATOR_TONES.length],
+        onOpen: () => navigate(buildWorkspacePath(collaborator.roomCode)),
+      })),
+    [sessionHistory.records, userId, navigate],
+  );
 
   return (
     <div className="max-w-7xl mx-auto flex flex-col gap-lg md:gap-xl">
@@ -125,17 +160,11 @@ export default function Dashboard() {
             onSelectRoom={(roomId) => navigate(buildWorkspacePath(roomId))}
             onViewAll={() => navigate(ROUTES.history)}
           />
-          <ConnectedRepositoriesCard
-            repositories={[]}
-            comingSoon
-            onAddRepository={() => navigate(ROUTES.createRoom)}
-            onOpenRoom={(repositoryId) => navigate(buildWorkspacePath(repositoryId))}
-          />
         </div>
 
         <div className="xl:col-span-1 flex flex-col gap-md md:gap-lg">
-          <TeamPresenceCard members={[]} comingSoon />
-          <RecentActivityCard items={[]} comingSoon />
+          <TeamPresenceCard members={collaborators} isLoading={isHistoryLoading} />
+          <RecentActivityCard items={activityItems} isLoading={isHistoryLoading} />
         </div>
       </div>
 

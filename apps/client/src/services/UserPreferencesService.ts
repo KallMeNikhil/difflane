@@ -8,7 +8,6 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   tabSize: 4,
   wordWrap: false,
   minimap: false,
-  autoSave: true,
 };
 
 function isBrowserStorageAvailable(): boolean {
@@ -33,7 +32,6 @@ export function writeStoredDisplayName(displayName: string): void {
   try {
     window.localStorage.setItem(DISPLAY_NAME_KEY, displayName);
   } catch {
-    // no-op
   }
 }
 
@@ -60,6 +58,5 @@ export function writeEditorPreferences(preferences: EditorPreferences): void {
   try {
     window.localStorage.setItem(EDITOR_PREFERENCES_KEY, JSON.stringify(preferences));
   } catch {
-    // no-op
   }
 }

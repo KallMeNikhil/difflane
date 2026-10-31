@@ -7,5 +7,4 @@ export interface EditorPreferences {
   tabSize: EditorTabSize;
   wordWrap: boolean;
   minimap: boolean;
-  autoSave: boolean;
 }

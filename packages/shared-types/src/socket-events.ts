@@ -38,7 +38,7 @@ export interface RoomJoinedPayload {
 
 export interface RoomJoinErrorPayload {
   error: string;
-  code?: "expired_token" | "guest_required";
+  code?: "expired_token" | "guest_required" | "room_full";
 }
 
 export interface RoomParticipantJoinedPayload {

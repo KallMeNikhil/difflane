@@ -44,7 +44,6 @@ export function SignInModal({ onClose }: { onClose: () => void }) {
     try {
       await beginOAuthFlow(provider);
     } catch {
-      // no-op
     }
   }
 

@@ -5,6 +5,7 @@ import { PendingCreateRow, type PendingCreate } from "./PendingCreateRow";
 import { getImportSourceLabel, getRelativeTimeLabel } from "../../utils/workspaceDisplay";
 import type { FileNode, WorkspaceRepositoryInfo } from "../../types/workspace";
 import type { FileReviewStatus } from "../../types/review";
+import type { FilePresenceEntry } from "./FilePresenceAvatars";
 
 export type { PendingCreate };
 
@@ -30,7 +31,7 @@ interface FileExplorerPanelProps {
   onSync: () => void;
   isSyncing: boolean;
   getReviewStatus?: (fileId: string) => FileReviewStatus;
-  getFilePresence?: (fileId: string) => { viewing: number; editing: number };
+  getFilePresence?: (fileId: string) => FilePresenceEntry[];
 }
 
 export function FileExplorerPanel({

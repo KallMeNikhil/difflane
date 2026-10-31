@@ -11,7 +11,7 @@ export { Avatar } from "./Avatar";
 export type { AvatarTone, PresenceStatus } from "./Avatar";
 export { StatusBadge } from "./StatusBadge";
 export type { StatusTone } from "./StatusBadge";
-export { Card, CardHeader, ComingSoonBadge } from "./Card";
+export { Card, CardHeader } from "./Card";
 export { PlaceholderNotice } from "./PlaceholderNotice";
 export { TextField } from "./TextField";
 export type { TextFieldProps } from "./TextField";

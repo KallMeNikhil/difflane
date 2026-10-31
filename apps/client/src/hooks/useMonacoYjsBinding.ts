@@ -4,13 +4,12 @@ import type { Awareness } from "y-protocols/awareness";
 import type { editor as MonacoEditorNamespace } from "monaco-editor";
 import type * as Y from "yjs";
 import { toMonacoLanguage } from "../services/FileTreeService";
-import { getFileText, seedFileTextIfEmpty } from "../services/CollaborationService";
-import { bindMonacoToYText, type MonacoYjsBinding } from "../lib/monaco/monacoBinding";
+import { getFileText } from "../services/CollaborationService";
+import { bindMonacoToYText, type MonacoNamespaceLike, type MonacoYjsBinding } from "../lib/monaco/monacoBinding";
 import type { EditorLanguage } from "../types/workspace";
 
 interface UseMonacoYjsBindingArgs {
   fileId: string;
-  value: string;
   language: EditorLanguage;
   doc?: Y.Doc | null;
   awareness?: Awareness | null;
@@ -26,7 +25,6 @@ interface UseMonacoYjsBindingResult {
 
 export function useMonacoYjsBinding({
   fileId,
-  value,
   language,
   doc,
   awareness,
@@ -34,11 +32,10 @@ export function useMonacoYjsBinding({
   cursorPresenceEnabled = true,
 }: UseMonacoYjsBindingArgs): UseMonacoYjsBindingResult {
   const editorRef = useRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<MonacoNamespaceLike | null>(null);
   const bindingRef = useRef<MonacoYjsBinding | null>(null);
   const onLocalEditRef = useRef(onLocalEdit);
   onLocalEditRef.current = onLocalEdit;
-  const valueRef = useRef(value);
-  valueRef.current = value;
 
   const rebind = useCallback(() => {
     bindingRef.current?.destroy();
@@ -52,13 +49,12 @@ export function useMonacoYjsBinding({
     if (!model) {
       return;
     }
-    seedFileTextIfEmpty(doc, fileId, valueRef.current);
-    const yText = getFileText(doc, fileId);
     bindingRef.current = bindMonacoToYText(
-      yText,
+      getFileText(doc, fileId),
       model,
       editorInstance,
       awareness,
+      monacoRef.current,
       () => onLocalEditRef.current?.(),
       cursorPresenceEnabled,
     );
@@ -72,8 +68,9 @@ export function useMonacoYjsBinding({
     };
   }, [rebind]);
 
-  const handleMount: OnMount = (editorInstance) => {
+  const handleMount: OnMount = (editorInstance, monaco) => {
     editorRef.current = editorInstance;
+    monacoRef.current = monaco as unknown as MonacoNamespaceLike;
     rebind();
   };
 

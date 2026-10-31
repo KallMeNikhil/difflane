@@ -5,6 +5,7 @@ import type { editor as MonacoEditorNamespace } from "monaco-editor";
 import { CodeEditor, DiffViewer, EditorTabsBar, EditorToolbar, RunControl } from "../components/editor";
 import type { ReviewGutterMarker } from "../components/editor/CodeEditor";
 import { disposeMonacoModelForFile } from "../lib/monaco/monacoBinding";
+import type { FilePresenceEntry } from "../components/workspace/FilePresenceAvatars";
 import {
   ChangesFileList,
   FileExplorerPanel,
@@ -332,22 +333,47 @@ function WorkspaceContent() {
     () =>
       activeFileReviewThreads.map((thread) => {
         const resolvedAnchor = review.resolveAnchor(thread.anchor, activeFileText);
+        const firstComment = thread.comments[0];
         return {
           threadId: thread.id,
           line: resolvedAnchor.line,
           resolved: thread.status === "resolved",
           orphaned: resolvedAnchor.confidence === "orphaned",
+          commentCount: thread.comments.length,
+          authorName: firstComment?.authorName ?? "Someone",
+          preview: firstComment?.body ?? "",
         };
       }),
     [activeFileReviewThreads, activeFileText, review],
   );
 
   const openReviewThread = openReviewThreadId ? review.threads.find((thread) => thread.id === openReviewThreadId) : undefined;
+  const popoverLine = openReviewThreadId ? reviewMarkers.find((marker) => marker.threadId === openReviewThreadId)?.line ?? null : newCommentLine;
 
   useEffect(() => {
     setOpenReviewThreadId(null);
     setNewCommentLine(null);
   }, [activeFileId]);
+
+  useEffect(() => {
+    const editorInstance = activeEditorRef.current;
+    if (!editorInstance || popoverLine === null) {
+      return;
+    }
+    const place = () => {
+      const top = editorInstance.getScrolledVisiblePosition({ lineNumber: popoverLine, column: 1 })?.top;
+      if (top !== undefined) {
+        setPopoverTop(Math.max(0, top));
+      }
+    };
+    place();
+    const scrollSubscription = editorInstance.onDidScrollChange(place);
+    const layoutSubscription = editorInstance.onDidLayoutChange(place);
+    return () => {
+      scrollSubscription.dispose();
+      layoutSubscription.dispose();
+    };
+  }, [popoverLine, activeFileId]);
 
   function handleReviewMarkerClick(threadId: string, top: number) {
     setNewCommentLine(null);
@@ -435,31 +461,18 @@ function WorkspaceContent() {
     return findNodeById(tree, fileId)?.name ?? null;
   }
 
-  function getFilePresence(fileId: string): { viewing: number; editing: number } {
-    let viewing = 0;
-    let editing = 0;
-    for (const collaborator of collaborators) {
-      if (collaborator.activeFileId !== fileId) {
-        continue;
-      }
-      if (collaborator.activityState === "editing" || collaborator.activityState === "typing") {
-        editing += 1;
-      } else {
-        viewing += 1;
-      }
-    }
-    return { viewing, editing };
+  function getFilePresence(fileId: string): FilePresenceEntry[] {
+    return collaborators
+      .filter((collaborator) => collaborator.activeFileId === fileId && collaborator.id !== userId)
+      .map((collaborator) => ({
+        id: collaborator.id,
+        name: collaborator.name,
+        initials: collaborator.initials,
+        color: collaborator.color ?? "#8d90a0",
+        isEditing: collaborator.activityState === "editing" || collaborator.activityState === "typing",
+      }))
+      .sort((a, b) => Number(b.isEditing) - Number(a.isEditing) || a.name.localeCompare(b.name));
   }
-
-  const anchorThread = useMemo(() => {
-    if (!activeNode) {
-      return undefined;
-    }
-    const match = feed.find(
-      (item) => item.kind === "thread" && item.thread.status === "pending" && item.thread.anchor?.fileName === activeNode.name,
-    );
-    return match?.kind === "thread" ? match.thread : undefined;
-  }, [feed, activeNode]);
 
   function handleSelectFile(node: FileNode) {
     setViewingDeletedFileId(null);
@@ -735,7 +748,7 @@ function WorkspaceContent() {
         <section className="flex-1 flex flex-col h-full min-w-0 z-20">
           {activeTopTab === "files" && activeNode && (
             <>
-              <EditorTabsBar tabs={openTabs} activeTabId={activeTabId} onSelectTab={handleSelectTab} onCloseTab={closeTab} />
+              <EditorTabsBar tabs={openTabs} activeTabId={activeTabId} onSelectTab={handleSelectTab} onCloseTab={closeTab} getFilePresence={getFilePresence} />
               <EditorToolbar
                 breadcrumb={breadcrumbPath.slice(0, -1)}
                 activeFileName={activeNode.name}
@@ -810,7 +823,7 @@ function WorkspaceContent() {
                 }
               />
               {activeDiff ? (
-                <DiffViewer diff={activeDiff} viewMode={diffViewMode} anchorThread={anchorThread} onSubmitReply={reply} />
+                <DiffViewer diff={activeDiff} viewMode={diffViewMode} />
               ) : (
                 <div className="relative flex-1 min-h-0">
                   <CodeEditor
@@ -820,6 +833,7 @@ function WorkspaceContent() {
                     doc={doc}
                     awareness={awareness}
                     reviewMarkers={reviewMarkers}
+                    canAddReviewComment={review.permissions.canCreate && selfRole !== "viewer"}
                     onReviewMarkerClick={handleReviewMarkerClick}
                     onReviewGutterClick={handleReviewGutterClick}
                     onTypingActivity={markTyping}
@@ -867,7 +881,7 @@ function WorkspaceContent() {
                 diffViewMode={diffViewMode}
                 onChangeDiffViewMode={setDiffViewMode}
               />
-              <DiffViewer diff={diffsByFileId[viewingDeletedFile.id]} viewMode={diffViewMode} onSubmitReply={reply} />
+              <DiffViewer diff={diffsByFileId[viewingDeletedFile.id]} viewMode={diffViewMode} />
             </>
           )}
 
