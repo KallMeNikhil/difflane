@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import type { CreateExecutionRequest } from "@difflane/shared-types";
+import { EXECUTION_LIMITS, type CreateExecutionRequest } from "@difflane/shared-types";
 import type { WorkspaceLifecycleManager } from "../workspaces/WorkspaceLifecycleManager.js";
 import { resolveIdentity } from "../middleware/resolveIdentity.js";
 import { moderateRateLimit, relaxedRateLimit } from "../middleware/rateLimit.js";
@@ -68,7 +68,11 @@ export function createExecutionRouter(lifecycleManager: WorkspaceLifecycleManage
         body.languageId,
         entryPath,
         { identity, displayName },
-        typeof body.stdin === "string" ? body.stdin.slice(0, 8_000) : undefined,
+        typeof body.stdin === "string" ? body.stdin.slice(0, EXECUTION_LIMITS.maxStdinBytes) : undefined,
+        {
+          interactive: body.interactive === true,
+          continuationOf: typeof body.continuationOf === "string" && isValidUuid(body.continuationOf) ? body.continuationOf : undefined,
+        },
       );
       res.status(202).json(result);
     } catch (error) {

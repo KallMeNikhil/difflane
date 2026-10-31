@@ -12,6 +12,7 @@ function baseInput(workspaceId: string) {
     requestedByType: "user" as const,
     requestedById: "user-1",
     requestedByDisplayName: "Tester",
+    interactiveStep: 0,
   };
 }
 
@@ -22,7 +23,7 @@ test("active queued/running records survive eviction under load", () => {
   const activeRecord = store.create(baseInput(workspaceId));
   store.update(activeRecord.executionId, { status: "running" });
 
-  for (let i = 0; i < 25; i += 1) {
+  for (let i = 0; i < 70; i += 1) {
     const record = store.create(baseInput(workspaceId));
     store.update(record.executionId, { status: "success", completedAt: new Date() });
   }
@@ -38,7 +39,7 @@ test("queued records survive eviction as well", () => {
 
   const queuedRecord = store.create(baseInput(workspaceId));
 
-  for (let i = 0; i < 25; i += 1) {
+  for (let i = 0; i < 70; i += 1) {
     const record = store.create(baseInput(workspaceId));
     store.update(record.executionId, { status: "failed", completedAt: new Date() });
   }
@@ -52,7 +53,7 @@ test("completed records are still evicted once retention is exceeded", () => {
   const workspaceId = "workspace-c";
 
   let firstCompletedId = "";
-  for (let i = 0; i < 25; i += 1) {
+  for (let i = 0; i < 70; i += 1) {
     const record = store.create(baseInput(workspaceId));
     store.update(record.executionId, { status: "success", completedAt: new Date() });
     if (i === 0) {
@@ -61,4 +62,19 @@ test("completed records are still evicted once retention is exceeded", () => {
   }
 
   assert.equal(store.get(firstCompletedId), undefined, "oldest completed record should eventually be evicted");
+});
+
+test("runs waiting for an answer outlive finished runs", () => {
+  const store = new ExecutionStore();
+  const workspaceId = "workspace-interactive";
+
+  const waiting = store.create(baseInput(workspaceId));
+  store.update(waiting.executionId, { status: "awaiting_input" });
+
+  for (let i = 0; i < 70; i += 1) {
+    const record = store.create(baseInput(workspaceId));
+    store.update(record.executionId, { status: "success", completedAt: new Date() });
+  }
+
+  assert.equal(store.get(waiting.executionId)?.status, "awaiting_input");
 });

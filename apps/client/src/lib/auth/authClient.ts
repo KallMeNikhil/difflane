@@ -90,7 +90,7 @@ export function loginWithPassword(identifier: string, password: string): Promise
 }
 
 export function refreshAccessToken(): Promise<AuthSessionResponse> {
-  return requestJson<AuthSessionResponse>("/api/auth/refresh", { method: "POST" }, false);
+  return refreshAccessTokenOnce();
 }
 
 export function logoutSession(): Promise<void> {

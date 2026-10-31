@@ -12,23 +12,31 @@ export interface ExecutionRecordInternal {
   stdout: string;
   stderr: string;
   compileOutput: string | null;
+  message: string | null;
   truncated: boolean;
+  cpuTimeSeconds: number | null;
+  memoryKb: number | null;
   createdAt: Date;
   startedAt: Date | null;
   completedAt: Date | null;
   requestedByType: "user" | "guest";
   requestedById: string;
   requestedByDisplayName: string;
+  interactiveStep: number;
   abortController: AbortController;
 }
 
-const MAX_RETAINED_PER_WORKSPACE = 20;
+const MAX_RETAINED_PER_WORKSPACE = 60;
+
+function isActive(record: ExecutionRecordInternal): boolean {
+  return record.status === "queued" || record.status === "running";
+}
 
 export class ExecutionStore {
   private readonly records = new Map<string, ExecutionRecordInternal>();
   private readonly byWorkspace = new Map<string, string[]>();
 
-  create(input: Omit<ExecutionRecordInternal, "executionId" | "status" | "exitCode" | "stdout" | "stderr" | "compileOutput" | "truncated" | "startedAt" | "completedAt" | "abortController">): ExecutionRecordInternal {
+  create(input: Omit<ExecutionRecordInternal, "executionId" | "status" | "exitCode" | "stdout" | "stderr" | "compileOutput" | "message" | "truncated" | "cpuTimeSeconds" | "memoryKb" | "startedAt" | "completedAt" | "abortController">): ExecutionRecordInternal {
     const record: ExecutionRecordInternal = {
       ...input,
       executionId: randomUUID(),
@@ -37,7 +45,10 @@ export class ExecutionStore {
       stdout: "",
       stderr: "",
       compileOutput: null,
+      message: null,
       truncated: false,
+      cpuTimeSeconds: null,
+      memoryKb: null,
       startedAt: null,
       completedAt: null,
       abortController: new AbortController(),
@@ -46,10 +57,16 @@ export class ExecutionStore {
     const forWorkspace = this.byWorkspace.get(record.workspaceId) ?? [];
     forWorkspace.push(record.executionId);
     while (forWorkspace.length > MAX_RETAINED_PER_WORKSPACE) {
-      const evictableIndex = forWorkspace.findIndex((id) => {
+      let evictableIndex = forWorkspace.findIndex((id) => {
         const candidate = this.records.get(id);
-        return candidate && candidate.status !== "queued" && candidate.status !== "running";
+        return candidate && !isActive(candidate) && candidate.status !== "awaiting_input";
       });
+      if (evictableIndex === -1) {
+        evictableIndex = forWorkspace.findIndex((id) => {
+          const candidate = this.records.get(id);
+          return candidate && !isActive(candidate);
+        });
+      }
       if (evictableIndex === -1) {
         break;
       }
@@ -126,7 +143,10 @@ export function toResultPayload(record: ExecutionRecordInternal): ExecutionResul
     stdout: record.stdout,
     stderr: record.stderr,
     compileOutput: record.compileOutput,
+    message: record.message,
     truncated: record.truncated,
+    cpuTimeSeconds: record.cpuTimeSeconds,
+    memoryKb: record.memoryKb,
   };
 }
 

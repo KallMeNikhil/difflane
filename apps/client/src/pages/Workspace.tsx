@@ -32,7 +32,9 @@ import { GlobalSearchModal } from "../components/search";
 import { WorkspaceSettingsModal } from "../components/settings";
 import { WorkspaceExportModal } from "../components/persistence";
 import { SessionSummaryModal } from "../components/history";
-import { TerminalPanel } from "../components/terminal/TerminalPanel";
+import { ConsolePanel, type ConsoleTab } from "../components/terminal/ConsolePanel";
+import { ExecutionOutputView } from "../components/terminal/ExecutionOutputView";
+import { TerminalView } from "../components/terminal/TerminalView";
 import { PreviewPanel } from "../components/terminal/PreviewPanel";
 import ErrorPage from "./Error";
 import { useEditorTabs } from "../hooks/useEditorTabs";
@@ -67,7 +69,6 @@ import { buildLiveSessionRecord } from "../services/SessionHistoryService";
 import { useRepositoryInfo } from "../hooks/useRepositoryInfo";
 import { getStatusBadgeLabel } from "../utils/workspaceDisplay";
 import { ROUTES, buildWorkspacePath } from "../constants/routes";
-import { getAccessToken } from "../lib/auth/tokenStore";
 import { findExecutionLanguageForMonacoId } from "@difflane/shared-types";
 import type { SearchSources } from "../services/SearchService";
 import type { SearchResultItem } from "../types/search";
@@ -142,7 +143,8 @@ function WorkspaceContent() {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
   const [isWorkspaceExportOpen, setWorkspaceExportOpen] = useState(false);
   const [isSessionSummaryOpen, setSessionSummaryOpen] = useState(false);
-  const [isTerminalOpen, setTerminalOpen] = useState(false);
+  const [isConsoleOpen, setConsoleOpen] = useState(false);
+  const [consoleTab, setConsoleTab] = useState<ConsoleTab>("output");
   const [isPreviewOpen, setPreviewOpen] = useState(false);
   const execution = useExecution(roomCode, guestId);
   const [sessionStartedAt] = useState(() => new Date().toISOString());
@@ -464,6 +466,64 @@ function WorkspaceContent() {
 
   const handleSelectFileRef = useRef(handleSelectFile);
   handleSelectFileRef.current = handleSelectFile;
+  const treeRef = useRef(tree);
+  treeRef.current = tree;
+
+  const canRunActiveFile = Boolean(activeNode && !activeDiff && execution.isLanguageSupported(activeNode.language ?? "plaintext"));
+  function handleRunActiveFile() {
+    if (!activeNode || !canRunActiveFile) {
+      return;
+    }
+    setConsoleTab("output");
+    setConsoleOpen(true);
+    void execution.run(breadcrumbPath.join("/"), activeNode.language ?? "plaintext");
+  }
+
+  function toggleConsoleTab(tab: ConsoleTab) {
+    if (isConsoleOpen && consoleTab === tab) {
+      setConsoleOpen(false);
+      return;
+    }
+    setConsoleTab(tab);
+    setConsoleOpen(true);
+  }
+
+  const toggleConsoleTabRef = useRef(toggleConsoleTab);
+  toggleConsoleTabRef.current = toggleConsoleTab;
+  const runActiveFileRef = useRef(handleRunActiveFile);
+  runActiveFileRef.current = handleRunActiveFile;
+  const canRunActiveFileRef = useRef(canRunActiveFile);
+  canRunActiveFileRef.current = canRunActiveFile;
+
+  useEffect(() => {
+    if (selfRole === "viewer") {
+      return;
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.ctrlKey && !event.altKey && !event.metaKey && event.code === "Backquote") {
+        event.preventDefault();
+        toggleConsoleTabRef.current("terminal");
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key === "Enter" && canRunActiveFileRef.current && !target?.closest(".xterm")) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!execution.isRunning) {
+          runActiveFileRef.current();
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [selfRole, execution.isRunning]);
+
+  const handleOpenFileFromTerminal = useCallback((fileId: string) => {
+    const node = findNodeById(treeRef.current, fileId);
+    if (node) {
+      handleSelectFileRef.current(node);
+    }
+  }, []);
 
   function handleSelectChangedFile(node: FileNode) {
     if (node.status === "deleted") {
@@ -688,9 +748,10 @@ function WorkspaceContent() {
                         <RunControl
                           isSupported={execution.isLanguageSupported(activeNode.language ?? "plaintext")}
                           isRunning={execution.isRunning}
-                          activeExecution={execution.activeExecution}
-                          onRun={() => void execution.run(breadcrumbPath.join("/"), activeNode.language ?? "plaintext")}
-                          onStop={() => void execution.stop()}
+                          activeExecution={execution.session?.result ?? null}
+                          isAwaitingInput={execution.isAwaitingInput}
+                          onRun={handleRunActiveFile}
+                          onStop={execution.stop}
                         />
                       )}
                       {selfRole !== "viewer" && isPreviewLanguageActive && (
@@ -708,10 +769,10 @@ function WorkspaceContent() {
                       {selfRole !== "viewer" && (
                         <button
                           type="button"
-                          onClick={() => setTerminalOpen((open) => !open)}
+                          onClick={() => toggleConsoleTab("terminal")}
                           title="Toggle terminal"
                           className={`p-1 rounded transition-colors ${
-                            isTerminalOpen ? "text-primary bg-primary-container/10" : "text-on-surface-variant hover:text-on-surface hover:bg-surface"
+                            isConsoleOpen && consoleTab === "terminal" ? "text-primary bg-primary-container/10" : "text-on-surface-variant hover:text-on-surface hover:bg-surface"
                           }`}
                         >
                           <Icon name="terminal" size={18} />
@@ -838,12 +899,37 @@ function WorkspaceContent() {
           )}
 
           {selfRole !== "viewer" && (
-            <TerminalPanel
-              workspaceCode={roomCode}
-              accessToken={isAuthenticated ? getAccessToken() : null}
-              guestId={guestId}
-              isOpen={isTerminalOpen}
-              onClose={() => setTerminalOpen(false)}
+            <ConsolePanel
+              isOpen={isConsoleOpen}
+              activeTab={consoleTab}
+              onTabChange={setConsoleTab}
+              onClose={() => setConsoleOpen(false)}
+              isRunning={execution.isRunning}
+              output={
+                <ExecutionOutputView
+                  session={execution.session}
+                  isRunning={execution.isRunning}
+                  isAwaitingInput={execution.isAwaitingInput}
+                  errorMessage={execution.errorMessage}
+                  activeFileLabel={canRunActiveFile ? breadcrumbPath.join("/") : null}
+                  canRunActiveFile={canRunActiveFile}
+                  onRun={handleRunActiveFile}
+                  onStop={execution.stop}
+                  onClear={execution.reset}
+                  onSubmitInput={execution.submitInput}
+                  onEndInput={execution.endInput}
+                />
+              }
+              renderTerminal={(isVisible) => (
+                <TerminalView
+                  doc={doc}
+                  workspaceCode={roomCode}
+                  guestId={guestId}
+                  userName={displayName}
+                  isVisible={isVisible}
+                  onOpenFile={handleOpenFileFromTerminal}
+                />
+              )}
             />
           )}
         </section>
@@ -863,6 +949,8 @@ function WorkspaceContent() {
         activeFileLanguage={activeTopTab === "files" ? activeNode?.language : undefined}
         onChangeActiveFileLanguage={activeNode ? (language) => setFileLanguage(activeNode.id, language) : undefined}
         canEditLanguage={selfRole !== "viewer"}
+        isTerminalOpen={isConsoleOpen && consoleTab === "terminal"}
+        onToggleTerminal={selfRole !== "viewer" ? () => toggleConsoleTab("terminal") : undefined}
       />
 
       <WorkspaceRecoveryModal />

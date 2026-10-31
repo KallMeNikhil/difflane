@@ -6,5 +6,6 @@ module.exports = {
   parser: "@typescript-eslint/parser",
   rules: {
     "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+    "no-empty": ["error", { allowEmptyCatch: true }],
   },
 };

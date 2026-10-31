@@ -15,12 +15,16 @@ interface WorkspaceStatusBarProps {
   activeFileLanguage?: EditorLanguage;
   onChangeActiveFileLanguage?: (language: EditorLanguage) => void;
   canEditLanguage?: boolean;
+  isTerminalOpen?: boolean;
+  onToggleTerminal?: () => void;
 }
 
 export function WorkspaceStatusBar({
   activeFileLanguage,
   onChangeActiveFileLanguage,
   canEditLanguage = false,
+  isTerminalOpen = false,
+  onToggleTerminal,
 }: WorkspaceStatusBarProps) {
   const { connectionStatus, collaborators, persistenceStatus } = useRoom();
   const status = connectionStatus ?? "connecting";
@@ -59,6 +63,17 @@ export function WorkspaceStatusBar({
         </div>
       )}
       <div className="ml-auto flex items-center gap-4">
+        {onToggleTerminal && (
+          <button
+            type="button"
+            onClick={onToggleTerminal}
+            title="Toggle terminal (Ctrl+`)"
+            className={`flex items-center gap-1 hover:text-on-surface transition-colors ${isTerminalOpen ? "text-primary" : ""}`}
+          >
+            <Icon name="terminal" size={13} />
+            <span>Terminal</span>
+          </button>
+        )}
         {activeFileLanguage &&
           (canEditLanguage && onChangeActiveFileLanguage ? (
             <div className="flex items-center gap-1">

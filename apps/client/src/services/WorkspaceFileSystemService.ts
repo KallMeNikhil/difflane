@@ -141,6 +141,32 @@ export function renameEntry(doc: Y.Doc, id: string, name: string): void {
   map.set(id, { ...existing, name: trimmed, language });
 }
 
+export function moveEntry(doc: Y.Doc, id: string, parentId: string | null, name: string): void {
+  const map = getFileSystemMap(doc);
+  const existing = map.get(id);
+  const trimmed = name.trim();
+  if (!existing || !trimmed) {
+    return;
+  }
+  const language =
+    existing.type === "file" && !existing.languageManuallySet && trimmed !== existing.name
+      ? detectLanguageForPath(trimmed) ?? existing.language
+      : existing.language;
+  const order = parentId === existing.parentId ? existing.order : nextOrder(doc, parentId);
+  map.set(id, { ...existing, parentId, name: trimmed, language, order });
+}
+
+export function replaceFileContent(doc: Y.Doc, fileId: string, content: string): void {
+  const text = getFileText(doc, fileId);
+  if (text.toString() === content) {
+    return;
+  }
+  doc.transact(() => {
+    text.delete(0, text.length);
+    text.insert(0, content);
+  });
+}
+
 export function setFileLanguage(doc: Y.Doc, id: string, language: EditorLanguage): void {
   const map = getFileSystemMap(doc);
   const existing = map.get(id);

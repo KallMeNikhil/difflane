@@ -1,13 +1,17 @@
 try {
   process.loadEnvFile();
 } catch {
-  // no-op
 }
 
 const isProduction = process.env.NODE_ENV === "production";
 
 const DISALLOWED_JUDGE0_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
-const PUBLIC_JUDGE0_HOST_SUFFIXES = ["judge0.com", "rapidapi.com"];
+const DEFAULT_JUDGE0_BASE_URL = "https://ce.judge0.com";
+
+function readBaseUrl(name: string, fallback: string): string {
+  const raw = process.env[name]?.trim();
+  return (raw && raw.length > 0 ? raw : fallback).replace(/\/+$/, "");
+}
 
 function parseUrlSafely(value: string): URL | null {
   try {
@@ -96,28 +100,19 @@ export const env = {
     docUpdateMax: readNumber("SOCKET_RATE_LIMIT_DOC_UPDATE_MAX", 120),
     awarenessUpdateMax: readNumber("SOCKET_RATE_LIMIT_AWARENESS_UPDATE_MAX", 240),
     attentionRequestMax: readNumber("SOCKET_RATE_LIMIT_ATTENTION_REQUEST_MAX", 6),
-    terminalCreateMax: readNumber("SOCKET_RATE_LIMIT_TERMINAL_CREATE_MAX", 6),
-    terminalInputMax: readNumber("SOCKET_RATE_LIMIT_TERMINAL_INPUT_MAX", 400),
   },
   judge0: {
-    baseUrl: process.env.JUDGE0_BASE_URL ?? "http://judge0-server:2358",
+    baseUrl: readBaseUrl("JUDGE0_BASE_URL", DEFAULT_JUDGE0_BASE_URL),
+    authHeader: process.env.JUDGE0_AUTH_HEADER?.trim() || "X-Auth-Token",
     authToken: process.env.JUDGE0_AUTH_TOKEN ?? "",
     requestTimeoutMs: readNumber("JUDGE0_REQUEST_TIMEOUT_MS", 15_000),
-    pollIntervalMs: readNumber("JUDGE0_POLL_INTERVAL_MS", 700),
-    pollTimeoutMs: readNumber("JUDGE0_POLL_TIMEOUT_MS", 20_000),
+    pollIntervalMs: readNumber("JUDGE0_POLL_INTERVAL_MS", 1_000),
+    pollTimeoutMs: readNumber("JUDGE0_POLL_TIMEOUT_MS", 45_000),
   },
   execution: {
     maxConcurrentPerUser: readNumber("EXECUTION_MAX_CONCURRENT_PER_USER", 2),
     maxConcurrentPerWorkspace: readNumber("EXECUTION_MAX_CONCURRENT_PER_WORKSPACE", 4),
-  },
-  terminal: {
-    dockerBinaryPath: process.env.TERMINAL_DOCKER_BIN ?? "docker",
-    containerImage: process.env.TERMINAL_CONTAINER_IMAGE ?? "alpine:3.20",
-    containerRuntime: process.env.TERMINAL_CONTAINER_RUNTIME ?? "",
-    containerMemoryLimit: process.env.TERMINAL_CONTAINER_MEMORY ?? "128m",
-    containerCpuLimit: process.env.TERMINAL_CONTAINER_CPUS ?? "0.5",
-    containerPidsLimit: readNumber("TERMINAL_CONTAINER_PIDS_LIMIT", 64),
-    containerWorkdir: "/home/sandbox",
+    dailyLimitPerUser: readNumber("EXECUTION_DAILY_LIMIT_PER_USER", 40),
   },
 };
 
@@ -142,23 +137,13 @@ export function assertProductionSecurityConfig(): void {
   if (!process.env.DATABASE_URL || process.env.DATABASE_URL.length === 0) {
     problems.push("DATABASE_URL must be set to a production database connection string.");
   }
-  const judge0BaseUrl = process.env.JUDGE0_BASE_URL ?? "";
-  if (!judge0BaseUrl) {
-    problems.push("JUDGE0_BASE_URL must point to the internal self-hosted Judge0 service.");
-  } else {
-    const parsed = parseUrlSafely(judge0BaseUrl);
-    if (!parsed) {
-      problems.push("JUDGE0_BASE_URL must be a valid URL.");
-    } else if (DISALLOWED_JUDGE0_HOSTS.has(parsed.hostname.toLowerCase())) {
-      problems.push("JUDGE0_BASE_URL must not point to localhost or a loopback address in production.");
-    } else if (PUBLIC_JUDGE0_HOST_SUFFIXES.some((suffix) => parsed.hostname.toLowerCase().endsWith(suffix))) {
-      problems.push("JUDGE0_BASE_URL must not point to a known public Judge0 endpoint in production.");
-    } else if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      problems.push("JUDGE0_BASE_URL must use http or https.");
-    }
-  }
-  if (!process.env.JUDGE0_AUTH_TOKEN || process.env.JUDGE0_AUTH_TOKEN.length === 0) {
-    problems.push("JUDGE0_AUTH_TOKEN must be set for production Judge0 authentication.");
+  const parsedJudge0Url = parseUrlSafely(env.judge0.baseUrl);
+  if (!parsedJudge0Url) {
+    problems.push("JUDGE0_BASE_URL must be a valid URL.");
+  } else if (DISALLOWED_JUDGE0_HOSTS.has(parsedJudge0Url.hostname.toLowerCase())) {
+    problems.push("JUDGE0_BASE_URL must not point to localhost or a loopback address in production.");
+  } else if (parsedJudge0Url.protocol !== "https:") {
+    problems.push("JUDGE0_BASE_URL must use https in production.");
   }
   if (problems.length > 0) {
     throw new Error(`Refusing to start in production with insecure configuration:\n- ${problems.join("\n- ")}`);

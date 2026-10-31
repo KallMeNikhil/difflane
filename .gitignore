@@ -13,8 +13,6 @@ dist/
 .env.*
 !.env.example
 
-docker/judge0.conf
-
 *.log
 
 coverage/

@@ -1,33 +1,8 @@
 import type { CreateExecutionRequest, ExecutionRecordSummary, ExecutionResultPayload } from "@difflane/shared-types";
-import { resolveServerUrl } from "../socket/socketClient";
-import { getAccessToken } from "../auth/tokenStore";
+import { apiRequest } from "../http/apiRequest";
 
-export class ExecutionRequestError extends Error {}
-
-function guestHeaders(guestId: string | null): Record<string, string> {
-  return guestId ? { "x-guest-id": guestId } : {};
-}
-
-async function requestJson<T>(path: string, init?: RequestInit, guestId: string | null = null): Promise<T> {
-  const baseUrl = resolveServerUrl() ?? "";
-  const accessToken = getAccessToken();
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...guestHeaders(guestId),
-      ...init?.headers,
-    },
-  });
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  const body = await response.json().catch(() => ({ message: "Unexpected server response." }));
-  if (!response.ok) {
-    throw new ExecutionRequestError(body?.message ?? "Execution request failed.");
-  }
-  return body as T;
+function requestJson<T>(path: string, init: RequestInit | undefined, guestId: string | null, timeoutMs?: number): Promise<T> {
+  return apiRequest<T>(path, init, { guestId, timeoutMs });
 }
 
 export function createExecution(code: string, request: CreateExecutionRequest, guestId: string | null): Promise<ExecutionRecordSummary> {

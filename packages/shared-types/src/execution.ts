@@ -35,7 +35,8 @@ export type ExecutionStatus =
   | "resource_limit"
   | "compilation_failed"
   | "runtime_error"
-  | "unsupported";
+  | "unsupported"
+  | "awaiting_input";
 
 export interface ExecutionFileSnapshotEntry {
   path: string;
@@ -46,6 +47,8 @@ export interface CreateExecutionRequest {
   entryPath: string;
   languageId: ExecutionLanguageId;
   stdin?: string;
+  interactive?: boolean;
+  continuationOf?: string;
 }
 
 export interface ExecutionRecordSummary {
@@ -67,70 +70,17 @@ export interface ExecutionResultPayload extends ExecutionRecordSummary {
   stdout: string;
   stderr: string;
   compileOutput: string | null;
+  message: string | null;
   truncated: boolean;
+  cpuTimeSeconds: number | null;
+  memoryKb: number | null;
 }
 
 export const EXECUTION_LIMITS = {
   cpuTimeSeconds: 5,
   wallTimeSeconds: 10,
   memoryKb: 256_000,
-  maxProcesses: 32,
   maxOutputBytes: 64_000,
-  maxConcurrentPerUser: 2,
-  maxConcurrentPerWorkspace: 4,
-} as const;
-
-export type TerminalSessionStatus = "connecting" | "ready" | "closed" | "error";
-
-export interface TerminalCreatePayload {
-  workspaceCode: string;
-  accessToken?: string;
-  guestId?: string;
-  cols: number;
-  rows: number;
-}
-
-export interface TerminalReadyPayload {
-  sessionId: string;
-}
-
-export interface TerminalDataPayload {
-  sessionId: string;
-  data: string;
-}
-
-export interface TerminalResizePayload {
-  sessionId: string;
-  cols: number;
-  rows: number;
-}
-
-export interface TerminalExitPayload {
-  sessionId: string;
-  exitCode: number | null;
-  reason: "exit" | "timeout" | "idle" | "closed" | "error";
-}
-
-export interface TerminalErrorPayload {
-  sessionId: string | null;
-  message: string;
-}
-
-export const TERMINAL_SOCKET_EVENTS = {
-  CREATE: "terminal:create",
-  READY: "terminal:ready",
-  INPUT: "terminal:input",
-  DATA: "terminal:data",
-  RESIZE: "terminal:resize",
-  CLOSE: "terminal:close",
-  EXIT: "terminal:exit",
-  ERROR: "terminal:error",
-} as const;
-
-export type TerminalSocketEventName = (typeof TERMINAL_SOCKET_EVENTS)[keyof typeof TERMINAL_SOCKET_EVENTS];
-
-export const TERMINAL_LIMITS = {
-  idleTimeoutMs: 5 * 60 * 1000,
-  maxSessionLifetimeMs: 30 * 60 * 1000,
-  maxSessionsPerConnection: 3,
+  maxStdinBytes: 8_000,
+  maxInteractiveSteps: 100,
 } as const;

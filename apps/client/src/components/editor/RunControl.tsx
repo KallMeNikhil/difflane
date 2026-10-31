@@ -5,6 +5,7 @@ interface RunControlProps {
   isSupported: boolean;
   isRunning: boolean;
   activeExecution: ExecutionResultPayload | null;
+  isAwaitingInput?: boolean;
   onRun: () => void;
   onStop: () => void;
 }
@@ -20,6 +21,7 @@ const STATUS_LABEL: Record<string, string> = {
   compilation_failed: "Compile error",
   runtime_error: "Runtime error",
   unsupported: "Unsupported",
+  awaiting_input: "Waiting for input",
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -33,9 +35,11 @@ const STATUS_TONE: Record<string, string> = {
   compilation_failed: "text-error",
   runtime_error: "text-error",
   unsupported: "text-on-surface-variant",
+  awaiting_input: "text-primary",
 };
 
-export function RunControl({ isSupported, isRunning, activeExecution, onRun, onStop }: RunControlProps) {
+export function RunControl({ isSupported, isRunning, activeExecution, isAwaitingInput = false, onRun, onStop }: RunControlProps) {
+  const status = isAwaitingInput ? "awaiting_input" : isRunning ? "running" : activeExecution?.status;
   if (!isSupported) {
     return (
       <span className="text-on-surface-variant font-label-sm text-[10px] tracking-widest uppercase opacity-60">
@@ -46,9 +50,9 @@ export function RunControl({ isSupported, isRunning, activeExecution, onRun, onS
 
   return (
     <div className="flex items-center gap-sm">
-      {activeExecution && (
-        <span className={`font-label-sm text-[10px] tracking-widest uppercase ${STATUS_TONE[activeExecution.status] ?? "text-on-surface-variant"}`}>
-          {STATUS_LABEL[activeExecution.status] ?? activeExecution.status}
+      {status && (isRunning || activeExecution) && (
+        <span className={`whitespace-nowrap font-label-sm text-[10px] tracking-widest uppercase ${STATUS_TONE[status] ?? "text-on-surface-variant"}`}>
+          {STATUS_LABEL[status] ?? status}
         </span>
       )}
       {isRunning ? (
