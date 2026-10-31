@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@difflane/shared-types": "*",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@monaco-editor/react": "^4.7.0",
     "@react-three/fiber": "^8.18.0",
     "@react-three/postprocessing": "^2.19.1",

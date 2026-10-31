@@ -82,3 +82,7 @@
 .animate-smooth-blink {
   animation: smoothBlink 1.2s ease-in-out infinite;
 }
+
+.difflane-whiteboard .UserList-Wrapper {
+  display: none;
+}

@@ -35,6 +35,7 @@ import { SessionSummaryModal } from "../components/history";
 import { ConsolePanel, type ConsoleTab } from "../components/terminal/ConsolePanel";
 import { ExecutionOutputView } from "../components/terminal/ExecutionOutputView";
 import { TerminalView } from "../components/terminal/TerminalView";
+import { WhiteboardWindow } from "../components/whiteboard/WhiteboardWindow";
 import { PreviewPanel } from "../components/terminal/PreviewPanel";
 import ErrorPage from "./Error";
 import { useEditorTabs } from "../hooks/useEditorTabs";
@@ -47,6 +48,7 @@ import { useGlobalSearch } from "../hooks/useGlobalSearch";
 import { useNotifications } from "../hooks/useNotifications";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useExecution } from "../hooks/useExecution";
+import { useWhiteboardPresence } from "../hooks/useWhiteboardPresence";
 import { RoomProvider } from "../contexts/RoomContext";
 import { WorkspaceLifecycleProvider } from "../contexts/WorkspaceLifecycleContext";
 import { WorkspaceRecoveryModal, RecoveryConflictModal, UnsavedChangesModal } from "../components/persistence";
@@ -145,6 +147,9 @@ function WorkspaceContent() {
   const [isSessionSummaryOpen, setSessionSummaryOpen] = useState(false);
   const [isConsoleOpen, setConsoleOpen] = useState(false);
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>("output");
+  const [isWhiteboardOpen, setWhiteboardOpen] = useState(false);
+  const whiteboardPeers = useWhiteboardPresence(awareness, userId);
+  const whiteboardPeerNames = useMemo(() => whiteboardPeers.map((peer) => peer.name), [whiteboardPeers]);
   const [isPreviewOpen, setPreviewOpen] = useState(false);
   const execution = useExecution(roomCode, guestId);
   const [sessionStartedAt] = useState(() => new Date().toISOString());
@@ -778,6 +783,16 @@ function WorkspaceContent() {
                           <Icon name="terminal" size={18} />
                         </button>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => setWhiteboardOpen((open) => !open)}
+                        title="Toggle whiteboard"
+                        className={`p-1 rounded transition-colors ${
+                          isWhiteboardOpen ? "text-primary bg-primary-container/10" : "text-on-surface-variant hover:text-on-surface hover:bg-surface"
+                        }`}
+                      >
+                        <Icon name="draw" size={18} />
+                      </button>
                       <ReviewNavigationControls
                         count={activeFileReviewThreads.length}
                         onPrevious={() => review.goToAdjacentThread(activeNode.id, "previous")}
@@ -951,6 +966,9 @@ function WorkspaceContent() {
         canEditLanguage={selfRole !== "viewer"}
         isTerminalOpen={isConsoleOpen && consoleTab === "terminal"}
         onToggleTerminal={selfRole !== "viewer" ? () => toggleConsoleTab("terminal") : undefined}
+        isWhiteboardOpen={isWhiteboardOpen}
+        whiteboardPeerNames={whiteboardPeerNames}
+        onToggleWhiteboard={() => setWhiteboardOpen((open) => !open)}
       />
 
       <WorkspaceRecoveryModal />
@@ -959,6 +977,9 @@ function WorkspaceContent() {
         <UnsavedChangesModal message={persistenceErrorMessage} onDismiss={() => setUnsavedChangesDismissed(true)} />
       )}
 
+      {isWhiteboardOpen && (
+        <WhiteboardWindow doc={doc} awareness={awareness} readOnly={selfRole === "viewer"} onClose={() => setWhiteboardOpen(false)} />
+      )}
       {isShareOpen && <ShareWorkspaceModal onClose={() => setShareOpen(false)} />}
       {isSettingsOpen && <WorkspaceSettingsModal onClose={() => setSettingsOpen(false)} />}
       {isWorkspaceExportOpen && (

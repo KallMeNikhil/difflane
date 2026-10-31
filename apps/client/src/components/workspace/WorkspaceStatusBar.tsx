@@ -17,6 +17,9 @@ interface WorkspaceStatusBarProps {
   canEditLanguage?: boolean;
   isTerminalOpen?: boolean;
   onToggleTerminal?: () => void;
+  isWhiteboardOpen?: boolean;
+  onToggleWhiteboard?: () => void;
+  whiteboardPeerNames?: string[];
 }
 
 export function WorkspaceStatusBar({
@@ -25,6 +28,9 @@ export function WorkspaceStatusBar({
   canEditLanguage = false,
   isTerminalOpen = false,
   onToggleTerminal,
+  isWhiteboardOpen = false,
+  onToggleWhiteboard,
+  whiteboardPeerNames = [],
 }: WorkspaceStatusBarProps) {
   const { connectionStatus, collaborators, persistenceStatus } = useRoom();
   const status = connectionStatus ?? "connecting";
@@ -72,6 +78,25 @@ export function WorkspaceStatusBar({
           >
             <Icon name="terminal" size={13} />
             <span>Terminal</span>
+          </button>
+        )}
+        {onToggleWhiteboard && (
+          <button
+            type="button"
+            onClick={onToggleWhiteboard}
+            title={
+              whiteboardPeerNames.length > 0 ? `On the whiteboard: ${whiteboardPeerNames.join(", ")}` : "Toggle whiteboard"
+            }
+            className={`flex items-center gap-1 hover:text-on-surface transition-colors ${isWhiteboardOpen ? "text-primary" : ""}`}
+          >
+            <Icon name="draw" size={13} />
+            <span>Whiteboard</span>
+            {whiteboardPeerNames.length > 0 && (
+              <span className="flex items-center gap-1 rounded-full bg-success-mint/15 text-success-mint px-1.5 leading-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-success-mint animate-pulse" />
+                {whiteboardPeerNames.length}
+              </span>
+            )}
           </button>
         )}
         {activeFileLanguage &&
