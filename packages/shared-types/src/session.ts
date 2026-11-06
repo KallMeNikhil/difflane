@@ -6,6 +6,8 @@ export interface SessionParticipantPayload {
   displayName: string;
   initials: string;
   role: string;
+  overlappedWithViewer: boolean;
+  connectedNow: boolean;
 }
 
 export interface SessionTimelineEventPayload {

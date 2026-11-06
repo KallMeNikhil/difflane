@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Awareness } from "y-protocols/awareness";
+import type { Collaborator } from "../types/workspace";
 import {
   HEARTBEAT_MIN_INTERVAL_MS,
   PRESENCE_TICK_MS,
@@ -12,8 +13,7 @@ import {
 const ACTIVITY_EVENT_OPTIONS: AddEventListenerOptions = { passive: true };
 
 export function usePresence(awareness: Awareness | null, identity: LocalIdentity) {
-  const [awarenessVersion, setAwarenessVersion] = useState(0);
-  const [tick, setTick] = useState(0);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
 
   const localRef = useRef({
     activeFileId: null as string | null,
@@ -26,10 +26,10 @@ export function usePresence(awareness: Awareness | null, identity: LocalIdentity
 
   useEffect(() => {
     if (!awareness) {
-      setAwarenessVersion((value) => value + 1);
+      setCollaborators([]);
       return;
     }
-    const handler = () => setAwarenessVersion((value) => value + 1);
+    const handler = () => setCollaborators(readRemoteCollaborators(awareness, Date.now()));
     awareness.on("change", handler);
     handler();
     return () => {
@@ -52,9 +52,12 @@ export function usePresence(awareness: Awareness | null, identity: LocalIdentity
   }, [awareness, identity]);
 
   useEffect(() => {
-    const interval = setInterval(() => setTick((value) => value + 1), PRESENCE_TICK_MS);
+    if (!awareness) {
+      return;
+    }
+    const interval = setInterval(() => setCollaborators(readRemoteCollaborators(awareness, Date.now())), PRESENCE_TICK_MS);
     return () => clearInterval(interval);
-  }, []);
+  }, [awareness]);
 
   const markActive = useCallback(() => {
     const now = Date.now();
@@ -121,14 +124,6 @@ export function usePresence(awareness: Awareness | null, identity: LocalIdentity
       awareness.setLocalStateField("isTyping", false);
     }, TYPING_CLEAR_MS);
   }, [awareness]);
-
-  const collaborators = useMemo(() => {
-    if (!awareness) {
-      return [];
-    }
-    return readRemoteCollaborators(awareness, Date.now());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [awareness, awarenessVersion, tick]);
 
   return { collaborators, setActiveFileId, markTyping };
 }

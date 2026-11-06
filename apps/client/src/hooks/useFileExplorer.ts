@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { buildFileTree } from "../services/FileTreeService";
 import {
@@ -31,6 +31,8 @@ interface UseFileExplorerSeed {
 }
 
 export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: string, doc?: Y.Doc | null) {
+  const seedRef = useRef(seed);
+  seedRef.current = seed;
   const [entries, setEntries] = useState<WorkspaceFileSystemEntry[]>(seed.entries);
   const [activeFileId, setActiveFileIdState] = useState<string>(initialActiveFileId);
   const [selectedId, setSelectedId] = useState<string | null>(initialActiveFileId || null);
@@ -63,7 +65,7 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
     if (!doc) {
       return;
     }
-    initializeFileSystemIfEmpty(doc, seed.entries);
+    initializeFileSystemIfEmpty(doc, seedRef.current.entries);
     setEntries(readFileSystemEntries(doc));
     setBaselines(readFileBaselines(doc));
     setDeletedFiles(readDeletedFiles(doc));
@@ -78,7 +80,6 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
       unsubscribeContent();
       unsubscribeDeletedFiles();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc]);
 
   const setActiveFileId = useCallback((fileId: string) => {
@@ -201,9 +202,12 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
     [entries, selectedId],
   );
 
-  const statusByFileId = useMemo(() => {
+  const [statusByFileId, setStatusByFileId] = useState<Record<string, FileStatus>>(seed.statusByFileId);
+
+  useLayoutEffect(() => {
     if (!doc) {
-      return seed.statusByFileId;
+      setStatusByFileId(seedRef.current.statusByFileId);
+      return;
     }
     const result: Record<string, FileStatus> = {};
     for (const entry of entries) {
@@ -217,8 +221,7 @@ export function useFileExplorer(seed: UseFileExplorerSeed, initialActiveFileId: 
       }
       result[entry.id] = peekFileText(doc, entry.id) === baseline ? "unmodified" : "modified";
     }
-    return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setStatusByFileId(result);
   }, [doc, entries, baselines, contentVersion]);
 
   const tree = useMemo(

@@ -53,10 +53,12 @@ export function SessionHistoryCard({ record, isSelected, onSelect, onViewSummary
         <MetaChip icon="group">
           {record.participants.length} Participant{record.participants.length === 1 ? "" : "s"}
         </MetaChip>
-        <MetaChip icon="draft">{record.counts.filesReviewed} Files Reviewed</MetaChip>
-        <MetaChip icon="forum">
-          {record.counts.discussionsResolved}/{record.counts.discussionsCreated} Resolved
-        </MetaChip>
+        {record.counts.filesReviewed !== null && <MetaChip icon="draft">{record.counts.filesReviewed} Files Reviewed</MetaChip>}
+        {record.counts.discussionsCreated !== null && record.counts.discussionsResolved !== null && (
+          <MetaChip icon="forum">
+            {record.counts.discussionsResolved}/{record.counts.discussionsCreated} Resolved
+          </MetaChip>
+        )}
         <MetaChip icon="calendar_today">{formatDateRangeLabel(record.startedAt, record.endedAt)}</MetaChip>
       </div>
 

@@ -1,4 +1,5 @@
 import type { Server, Socket } from "socket.io";
+import { deriveInitials } from "../workspaces/sessionParticipants.js";
 import * as Y from "yjs";
 import { parseCookie } from "cookie";
 import { encodeAwarenessUpdate } from "y-protocols/awareness";
@@ -43,16 +44,6 @@ function readGuestIdFromHandshake(socket: Socket): string | null {
   }
   const parsed = parseCookie(rawCookie);
   return parsed[env.auth.guestCookieName] ?? null;
-}
-
-function deriveInitials(displayName: string): string {
-  const trimmed = displayName.trim();
-  if (!trimmed) {
-    return "?";
-  }
-  const parts = trimmed.split(/\s+/);
-  const initials = parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : trimmed.slice(0, 2);
-  return initials.toUpperCase();
 }
 
 async function resolveJoinIdentity(
@@ -265,19 +256,27 @@ async function recordParticipantJoined(workspaceId: string, roomCode: string, pa
 
 async function recordParticipantLeft(room: Room, participant: RoomParticipant): Promise<void> {
   try {
+    const occurredAt = new Date();
     if (room.participants.size === 0) {
       await workspaceStore.completeSession(room.workspaceId, room.roomCode, {
         actorName: participant.displayName,
         description: `${participant.displayName} left and the session ended`,
-        occurredAt: new Date(),
+        occurredAt,
       });
-    } else {
-      await workspaceStore.recordSessionEvent(room.workspaceId, room.roomCode, {
-        actorName: participant.displayName,
-        description: `${participant.displayName} left the session`,
-        occurredAt: new Date(),
-      });
+      return;
     }
+    const stillConnected = Array.from(room.participants.values()).some(
+      (other) => other.userId === participant.userId && other.identityType === participant.identityType,
+    );
+    if (stillConnected) {
+      return;
+    }
+    await workspaceStore.markParticipantLeft(
+      room.workspaceId,
+      room.roomCode,
+      { userId: participant.userId, identityType: participant.identityType },
+      { actorName: participant.displayName, description: `${participant.displayName} left the session`, occurredAt },
+    );
   } catch (error) {
     console.error(error);
   }

@@ -5,12 +5,9 @@ import { identityStore } from "../db/index.js";
 import type { Identity } from "../workspaces/workspaceService.js";
 import { asyncHandler } from "./asyncHandler.js";
 
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      identity?: Identity;
-    }
+declare module "express-serve-static-core" {
+  interface Request {
+    identity?: Identity;
   }
 }
 

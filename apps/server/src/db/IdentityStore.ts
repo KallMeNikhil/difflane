@@ -20,6 +20,7 @@ export interface CreateUserInput {
 export interface IdentityStore {
   createUser(input: CreateUserInput): Promise<UserRecord>;
   findUserById(id: string): Promise<UserRecord | null>;
+  findUsersByIds(ids: string[]): Promise<UserRecord[]>;
   findUserByEmail(email: string): Promise<UserRecord | null>;
   findUserByUsername(username: string): Promise<UserRecord | null>;
   updateUser(id: string, patch: Partial<Pick<UserRecord, "displayName" | "username" | "passwordHash">>): Promise<UserRecord>;
@@ -46,6 +47,7 @@ export interface IdentityStore {
 
   createGuestSession(displayName: string): Promise<GuestSessionRecord>;
   findGuestSession(id: string): Promise<GuestSessionRecord | null>;
+  findGuestSessionsByIds(ids: string[]): Promise<GuestSessionRecord[]>;
   touchGuestSession(id: string): Promise<void>;
   updateGuestDisplayName(id: string, displayName: string): Promise<GuestSessionRecord>;
   deleteGuestSession(id: string): Promise<void>;

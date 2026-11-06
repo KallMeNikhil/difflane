@@ -101,12 +101,18 @@ export interface WorkspaceSnapshotRecord {
 
 export type SessionRecordStatus = "active" | "completed";
 
+export interface SessionPresenceInterval {
+  joinedAt: string;
+  leftAt: string | null;
+}
+
 export interface SessionParticipantEntry {
   userId: string;
   identityType: "user" | "guest";
   displayName: string;
   initials: string;
   role: string;
+  intervals?: SessionPresenceInterval[];
 }
 
 export interface SessionTimelineEntry {

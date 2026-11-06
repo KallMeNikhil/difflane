@@ -7,11 +7,13 @@ import type {
   OAuthStateRecord,
   PasswordResetTokenRecord,
   RefreshSessionRecord,
+  SessionParticipantEntry,
   UserRecord,
   WorkspaceMembershipRecord,
   WorkspaceRecord,
 } from "./models.js";
 import type { CreateUserInput, IdentityStore } from "./IdentityStore.js";
+import { reassignGuestParticipant } from "../workspaces/sessionParticipants.js";
 
 type PrismaOAuthProvider = "GOOGLE" | "GITHUB";
 
@@ -193,6 +195,13 @@ export function createPrismaIdentityStore(): IdentityStore {
       const user = await prisma.user.findUnique({ where: { id } });
       return user ? toUserRecord(user) : null;
     },
+    async findUsersByIds(ids) {
+      if (ids.length === 0) {
+        return [];
+      }
+      const users = await prisma.user.findMany({ where: { id: { in: ids } } });
+      return users.map(toUserRecord);
+    },
     async findUserByEmail(email) {
       const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
       return user ? toUserRecord(user) : null;
@@ -291,6 +300,13 @@ export function createPrismaIdentityStore(): IdentityStore {
       const guest = await prisma.guestSession.findUnique({ where: { id } });
       return guest ? toGuestSessionRecord(guest) : null;
     },
+    async findGuestSessionsByIds(ids) {
+      if (ids.length === 0) {
+        return [];
+      }
+      const guests = await prisma.guestSession.findMany({ where: { id: { in: ids } } });
+      return guests.map(toGuestSessionRecord);
+    },
     async touchGuestSession(id) {
       await prisma.guestSession.updateMany({ where: { id }, data: { lastSeenAt: new Date() } });
     },
@@ -338,6 +354,24 @@ export function createPrismaIdentityStore(): IdentityStore {
     async reassignWorkspaceMembershipsOnGuestUpgrade(guestId, userId) {
       await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const guestMemberships = await tx.workspaceMembership.findMany({ where: { guestId } });
+
+        const guestWorkspaceIds = guestMemberships.map((membership) => membership.workspaceId);
+        if (guestWorkspaceIds.length > 0) {
+          const sessions = await tx.sessionHistoryRecord.findMany({ where: { workspaceId: { in: guestWorkspaceIds } } });
+          for (const session of sessions) {
+            const result = reassignGuestParticipant(
+              (session.participants as SessionParticipantEntry[] | null) ?? [],
+              guestId,
+              userId,
+            );
+            if (result.changed) {
+              await tx.sessionHistoryRecord.update({
+                where: { id: session.id },
+                data: { participants: result.participants as unknown as Prisma.InputJsonValue },
+              });
+            }
+          }
+        }
 
         for (const guestMembership of guestMemberships) {
           const existingUserMembership = await tx.workspaceMembership.findUnique({

@@ -65,8 +65,8 @@ class MemoryFileSystem implements ShellFileSystem {
   }
 }
 
-// eslint-disable-next-line no-control-regex
-const stripAnsi = (text: string) => text.replace(/\x1b\[[0-9;]*m/g, "");
+const ANSI_SGR_PATTERN = new RegExp(`${String.fromCharCode(0x1b)}\\[[0-9;]*m`, "g");
+const stripAnsi = (text: string) => text.replace(ANSI_SGR_PATTERN, "");
 
 function setup(runner?: { run: (request: ShellRunRequest, signal: AbortSignal) => Promise<ExecutionResultPayload> }) {
   const fs = new MemoryFileSystem();

@@ -3,8 +3,8 @@ import { Card, StatusBadge, type StatusTone } from "../common";
 export interface RecentRoom {
   id: string;
   name: string;
-  repository: string;
-  lastOpened: string;
+  members: string;
+  createdLabel: string;
   status: { label: string; tone: StatusTone };
 }
 
@@ -28,8 +28,8 @@ export function RecentRoomsTable({ rooms, onViewAll, onSelectRoom }: RecentRooms
           <thead>
             <tr className="bg-surface-container-lowest font-label-sm text-label-sm text-on-surface-variant border-b border-outline-variant">
               <th className="px-md py-sm font-medium">Workspace Name</th>
-              <th className="px-md py-sm font-medium">Repository</th>
-              <th className="px-md py-sm font-medium">Last Opened</th>
+              <th className="px-md py-sm font-medium">Members</th>
+              <th className="px-md py-sm font-medium">Created</th>
               <th className="px-md py-sm font-medium">Status</th>
             </tr>
           </thead>
@@ -50,9 +50,9 @@ export function RecentRoomsTable({ rooms, onViewAll, onSelectRoom }: RecentRooms
               >
                 <td className="px-md py-3 font-medium group-hover:text-primary transition-colors">{room.name}</td>
                 <td className="px-md py-3">
-                  <span className="font-code text-[12px] text-secondary">{room.repository}</span>
+                  <span className="text-on-surface-variant">{room.members}</span>
                 </td>
-                <td className="px-md py-3 text-on-surface-variant">{room.lastOpened}</td>
+                <td className="px-md py-3 text-on-surface-variant">{room.createdLabel}</td>
                 <td className="px-md py-3">
                   <StatusBadge label={room.status.label} tone={room.status.tone} />
                 </td>

@@ -2,12 +2,9 @@ import type { NextFunction, Request, Response } from "express";
 import { verifyAccessTokenClaims } from "../auth/authService.js";
 import type { AccessTokenClaims } from "../auth/tokenService.js";
 
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      authUser?: AccessTokenClaims;
-    }
+declare module "express-serve-static-core" {
+  interface Request {
+    authUser?: AccessTokenClaims;
   }
 }
 

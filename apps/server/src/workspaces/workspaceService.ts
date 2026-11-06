@@ -1,6 +1,12 @@
-import type { SessionHistoryEntry, WorkspaceDashboardResponse, WorkspaceOwnershipSummary } from "@difflane/shared-types";
+import type {
+  SessionHistoryEntry,
+  SessionParticipantPayload,
+  WorkspaceDashboardResponse,
+  WorkspaceOwnershipSummary,
+} from "@difflane/shared-types";
 import { identityStore, workspaceStore } from "../db/index.js";
-import type { WorkspaceMembershipRecord, WorkspaceMemberRole, WorkspaceRecord } from "../db/models.js";
+import type { SessionParticipantEntry, WorkspaceMembershipRecord, WorkspaceMemberRole, WorkspaceRecord } from "../db/models.js";
+import { deriveInitials, isParticipantConnected, participantsOverlapped } from "./sessionParticipants.js";
 import { AuthError } from "../auth/AuthError.js";
 
 export type Identity = { type: "user"; id: string } | { type: "guest"; id: string };
@@ -128,30 +134,80 @@ export async function getSessionHistory(identity: Identity): Promise<SessionHist
   const workspaces = await identityStore.findWorkspacesByIds(workspaceIds);
   const workspaceById = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
 
-  const records = await workspaceStore.listSessionsForWorkspaceIds(workspaceIds);
+  const allRecords = await workspaceStore.listSessionsForWorkspaceIds(workspaceIds);
 
-  return records.map((record) => {
+  const records = allRecords.filter((record) => record.participants.some((participant) => isSameIdentity(participant, identity)));
+
+  const userIds = new Set<string>();
+  const guestIds = new Set<string>();
+  for (const record of records) {
+    for (const participant of record.participants) {
+      (participant.identityType === "guest" ? guestIds : userIds).add(participant.userId);
+    }
+  }
+  const [users, guests] = await Promise.all([
+    identityStore.findUsersByIds(Array.from(userIds)),
+    identityStore.findGuestSessionsByIds(Array.from(guestIds)),
+  ]);
+  const liveNames = new Map<string, string>();
+  for (const user of users) liveNames.set(`user:${user.id}`, user.displayName);
+  for (const guest of guests) liveNames.set(`guest:${guest.id}`, guest.displayName);
+
+  const now = new Date();
+
+  return records.flatMap((record) => {
     const workspace = workspaceById.get(record.workspaceId);
-    return {
-      id: record.id,
-      workspaceCode: workspace?.code ?? "",
-      workspaceName: workspace?.name ?? "Workspace",
-      roomCode: record.roomCode,
-      status: record.status,
-      fileCount: record.fileCount,
-      folderCount: record.folderCount,
-      participants: record.participants,
-      timeline: record.timeline.map((event) => ({
-        id: event.id,
-        actorName: event.actorName,
-        description: event.description,
-        occurredAt: event.occurredAt,
-      })),
-      startedAt: record.startedAt.toISOString(),
-      endedAt: record.endedAt ? record.endedAt.toISOString() : null,
-      lastActivityAt: record.lastActivityAt.toISOString(),
-    };
+    if (!workspace) {
+      return [];
+    }
+    const sessionEnd = record.endedAt ?? (record.status === "active" ? now : record.lastActivityAt);
+    const viewer = record.participants.find((participant) => isSameIdentity(participant, identity));
+
+    const participants: SessionParticipantPayload[] = record.participants.flatMap((participant) => {
+      const liveName = liveNames.get(`${participant.identityType}:${participant.userId}`);
+      if (liveName === undefined) {
+        return [];
+      }
+      const isViewer = isSameIdentity(participant, identity);
+      return [
+        {
+          userId: participant.userId,
+          identityType: participant.identityType,
+          displayName: liveName,
+          initials: deriveInitials(liveName),
+          role: participant.role,
+          overlappedWithViewer: !isViewer && viewer !== undefined && participantsOverlapped(viewer, participant, sessionEnd),
+          connectedNow: record.status === "active" && isParticipantConnected(participant),
+        },
+      ];
+    });
+
+    return [
+      {
+        id: record.id,
+        workspaceCode: workspace.code,
+        workspaceName: workspace.name,
+        roomCode: record.roomCode,
+        status: record.status,
+        fileCount: record.fileCount,
+        folderCount: record.folderCount,
+        participants,
+        timeline: record.timeline.map((event) => ({
+          id: event.id,
+          actorName: event.actorName,
+          description: event.description,
+          occurredAt: event.occurredAt,
+        })),
+        startedAt: record.startedAt.toISOString(),
+        endedAt: record.endedAt ? record.endedAt.toISOString() : null,
+        lastActivityAt: record.lastActivityAt.toISOString(),
+      },
+    ];
   });
+}
+
+function isSameIdentity(participant: Pick<SessionParticipantEntry, "userId" | "identityType">, identity: Identity): boolean {
+  return participant.userId === identity.id && participant.identityType === identity.type;
 }
 
 export async function requireMembership(identity: Identity, workspaceId: string): Promise<WorkspaceMembershipRecord> {

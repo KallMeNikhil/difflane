@@ -270,12 +270,7 @@ function WorkspaceContent() {
   const [viewingDeletedFileId, setViewingDeletedFileId] = useState<string | null>(null);
   const [diffPreviewFileId, setDiffPreviewFileId] = useState<string | null>(null);
 
-  function getFileTextById(fileId: string): string {
-    if (doc) {
-      return peekFileText(doc, fileId);
-    }
-    return "";
-  }
+  const getFileTextById = useCallback((fileId: string): string => (doc ? peekFileText(doc, fileId) : ""), [doc]);
 
   const deletedFileNodes = useMemo(() => deletedFileRecords.map(toDeletedFileNode), [deletedFileRecords]);
   const changedFiles = useMemo(() => getChangedFiles(tree, deletedFileNodes), [tree, deletedFileNodes]);
@@ -296,8 +291,7 @@ function WorkspaceContent() {
       map[file.id] = buildFileDiff(file.id, path, file.language ?? "plaintext", baseline, current);
     }
     return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [changedFiles, baselines, tree, doc]);
+  }, [changedFiles, deletedFileRecords, baselines, tree, getFileTextById]);
 
   const viewingDeletedFile = viewingDeletedFileId
     ? deletedFileRecords.find((record) => record.id === viewingDeletedFileId)
@@ -308,8 +302,7 @@ function WorkspaceContent() {
 
   const activeFileText = useMemo(
     () => (activeNode ? getFileTextById(activeNode.id) : ""),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [doc, activeNode],
+    [getFileTextById, activeNode],
   );
 
   const activeFileReviewThreads = useMemo(

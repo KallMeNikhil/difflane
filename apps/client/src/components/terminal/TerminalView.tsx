@@ -278,8 +278,7 @@ export function TerminalView({ doc, workspaceCode, guestId, userName, isVisible,
       }
 
       const lines = data.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
-      // eslint-disable-next-line no-control-regex
-      const printable = (text: string) => text.replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "").replace(/\t/g, "  ");
+      const printable = (text: string) => stripControlCharacters(text).replace(/\t/g, "  ");
       insert(printable(lines[0]));
       if (lines.length > 1) {
         pendingLines.push(...lines.slice(1, -1).map(printable));
@@ -326,4 +325,16 @@ export function TerminalView({ doc, workspaceCode, guestId, userName, isVisible,
     return <div className="flex-1 min-h-0 px-md py-sm text-on-surface-variant text-[12px]">Connecting to the workspace…</div>;
   }
   return <div ref={containerRef} className="flex-1 min-h-0 px-sm py-xs" onClick={() => containerRef.current?.querySelector("textarea")?.focus()} />;
+}
+
+function stripControlCharacters(text: string): string {
+  let result = "";
+  for (const character of text) {
+    const code = character.charCodeAt(0);
+    const isControl = code <= 0x08 || (code >= 0x0b && code <= 0x1f) || code === 0x7f;
+    if (!isControl) {
+      result += character;
+    }
+  }
+  return result;
 }

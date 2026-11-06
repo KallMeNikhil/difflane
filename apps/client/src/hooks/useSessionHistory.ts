@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchSessionRecords,
   filterSessionRecords,
@@ -11,26 +11,37 @@ import { useCurrentUser } from "./useCurrentUser";
 export type SessionHistoryStatus = "loading" | "ready" | "error";
 
 export function useSessionHistory() {
-  const { guestId, userId } = useCurrentUser();
+  const { status: authStatus, guestId, userId } = useCurrentUser();
   const [status, setStatus] = useState<SessionHistoryStatus>("loading");
   const [records, setRecords] = useState<SessionRecord[]>([]);
   const [filters, setFilters] = useState<SessionHistoryFilters>(DEFAULT_SESSION_HISTORY_FILTERS);
   const [sortOrder, setSortOrder] = useState<SessionSortOrder>("newest");
+  const requestIdRef = useRef(0);
 
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setStatus("loading");
+    if (authStatus === "loading") {
+      return;
+    }
     try {
-      const result = await fetchSessionRecords(guestId);
+      const result = await fetchSessionRecords(authStatus === "authenticated" ? null : guestId);
+      if (requestId !== requestIdRef.current) return;
       setRecords(result);
       setStatus("ready");
     } catch {
+      if (requestId !== requestIdRef.current) return;
       setStatus("error");
     }
-  }, [guestId]);
+  }, [authStatus, guestId]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    setRecords([]);
+  }, [userId]);
+
+  useEffect(() => {
+    void load();
+  }, [load, userId]);
 
   const workspaceOptions = useMemo(() => getWorkspaceNameOptions(records), [records]);
 

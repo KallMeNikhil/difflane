@@ -79,7 +79,7 @@ export default function Dashboard() {
 
   const collaborators: TeamPresenceMember[] = useMemo(
     () =>
-      buildCollaborators(sessionHistory.records, userId).map((collaborator, index) => ({
+      buildCollaborators(sessionHistory.records, { id: userId, identityType: isAuthenticated ? "user" : "guest" }).map((collaborator, index) => ({
         id: collaborator.id,
         name: collaborator.name,
         initials: collaborator.initials,
@@ -88,7 +88,7 @@ export default function Dashboard() {
         tone: COLLABORATOR_TONES[index % COLLABORATOR_TONES.length],
         onOpen: () => navigate(buildWorkspacePath(collaborator.roomCode)),
       })),
-    [sessionHistory.records, userId, navigate],
+    [sessionHistory.records, userId, isAuthenticated, navigate],
   );
 
   return (
@@ -177,8 +177,8 @@ function toRecentRoom(workspace: WorkspaceOwnershipSummary): RecentRoom {
   return {
     id: workspace.workspaceCode,
     name: workspace.name,
-    repository: "—",
-    lastOpened: formatRelativeTimeLabel(workspace.createdAt),
+    members: `${workspace.memberCount} member${workspace.memberCount === 1 ? "" : "s"}`,
+    createdLabel: formatRelativeTimeLabel(workspace.createdAt),
     status: workspace.archived
       ? { label: "Archived", tone: "neutral" }
       : { label: roleLabel(workspace.role), tone: "active" },

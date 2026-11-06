@@ -1,8 +1,6 @@
 import type { PresenceStatus } from "../components/common";
-import type { SessionRecord } from "../types/session";
+import type { SessionParticipant, SessionRecord } from "../types/session";
 import { formatRelativeTimeLabel } from "./SessionHistoryService";
-
-const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 export interface ActivityInsight {
   id: string;
@@ -37,33 +35,52 @@ export function buildRecentActivity(records: SessionRecord[], limit = 8): Activi
     .slice(0, limit);
 }
 
-export function buildCollaborators(records: SessionRecord[], selfId: string | null, now = Date.now(), limit = 8): CollaboratorInsight[] {
-  const byId = new Map<string, CollaboratorInsight>();
+export function buildCollaborators(records: SessionRecord[], self: SelfIdentity, limit = 8): CollaboratorInsight[] {
+  const byKey = new Map<string, CollaboratorInsight>();
   for (const record of records) {
-    const isLive = record.status === "active" && now - new Date(record.lastActivityAt).getTime() < ONLINE_WINDOW_MS;
     for (const participant of record.participants) {
-      if (participant.id === selfId) {
+      if (isSelf(participant, self) || !participant.overlappedWithViewer) {
         continue;
       }
-      const existing = byId.get(participant.id);
+      const key = `${participant.identityType ?? "user"}:${participant.id}`;
+      const isOnline = participant.presence === "online";
+      const existing = byKey.get(key);
       const candidate: CollaboratorInsight = {
-        id: participant.id,
+        id: key,
         name: participant.name,
         initials: participant.initials,
-        presence: isLive ? "online" : "offline",
+        presence: isOnline ? "online" : "offline",
         workspaceName: record.title,
         roomCode: record.roomCode,
         lastSeenAt: record.lastActivityAt,
       };
-      const isNewer = !existing || new Date(candidate.lastSeenAt).getTime() > new Date(existing.lastSeenAt).getTime();
-      if (isNewer || (isLive && existing?.presence !== "online")) {
-        byId.set(participant.id, isNewer ? candidate : { ...existing!, presence: "online" });
+      if (!existing) {
+        byKey.set(key, candidate);
+        continue;
+      }
+      const existingOnline = existing.presence === "online";
+      const isNewer = new Date(candidate.lastSeenAt).getTime() > new Date(existing.lastSeenAt).getTime();
+      if ((isOnline && !existingOnline) || (isOnline === existingOnline && isNewer)) {
+        byKey.set(key, candidate);
       }
     }
   }
-  return Array.from(byId.values())
-    .sort((a, b) => Number(b.presence === "online") - Number(a.presence === "online") || new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime())
+  return Array.from(byKey.values())
+    .sort(
+      (a, b) =>
+        Number(b.presence === "online") - Number(a.presence === "online") ||
+        new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime(),
+    )
     .slice(0, limit);
+}
+
+export interface SelfIdentity {
+  id: string;
+  identityType: "user" | "guest";
+}
+
+function isSelf(participant: SessionParticipant, self: SelfIdentity): boolean {
+  return participant.id === self.id && (participant.identityType ?? self.identityType) === self.identityType;
 }
 
 export function describeCollaboratorStatus(collaborator: CollaboratorInsight): string {

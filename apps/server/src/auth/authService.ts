@@ -1,4 +1,5 @@
 import type { AuthUserProfile, OAuthProvider } from "@difflane/shared-types";
+import { deriveInitials } from "../workspaces/sessionParticipants.js";
 import { env } from "../config/env.js";
 import { identityStore } from "../db/index.js";
 import type { RefreshSessionRecord, UserRecord } from "../db/models.js";
@@ -26,16 +27,6 @@ export interface AuthSessionResult {
   accessToken: string;
   accessTokenExpiresAt: Date;
   refreshToken: string;
-}
-
-function deriveInitials(displayName: string): string {
-  const trimmed = displayName.trim();
-  if (!trimmed) {
-    return "?";
-  }
-  const parts = trimmed.split(/\s+/);
-  const initials = parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : trimmed.slice(0, 2);
-  return initials.toUpperCase();
 }
 
 export async function toPublicUser(user: UserRecord): Promise<AuthUserProfile> {

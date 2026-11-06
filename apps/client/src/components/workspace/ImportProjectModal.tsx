@@ -63,9 +63,7 @@ export function ImportProjectModal({ onClose, onOpenWorkspace }: ImportProjectMo
       <input
         ref={folderInputRef}
         type="file"
-        // @ts-expect-error non-standard attribute enabling folder selection in browsers without the File System Access API
-        webkitdirectory=""
-        directory=""
+        {...{ webkitdirectory: "", directory: "" }}
         multiple
         className="hidden"
         onChange={(event) => {

@@ -20,14 +20,14 @@ function OverviewField({ label, children }: { label: string; children: React.Rea
   );
 }
 
-function MetricCard({ icon, label, value, tone = "text-on-surface-variant" }: { icon: string; label: string; value: number; tone?: string }) {
+function MetricCard({ icon, label, value, tone = "text-on-surface-variant" }: { icon: string; label: string; value: number | null; tone?: string }) {
   return (
     <div className="bg-surface-container border border-outline rounded-xl p-md flex flex-col">
       <div className={`flex items-center gap-2 mb-2 ${tone}`}>
         <Icon name={icon} size={18} />
         <span className="font-label-md text-label-md">{label}</span>
       </div>
-      <div className="font-headline-lg text-headline-lg text-on-surface">{value}</div>
+      <div className="font-headline-lg text-headline-lg text-on-surface">{value ?? "—"}</div>
     </div>
   );
 }

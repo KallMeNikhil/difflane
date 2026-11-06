@@ -7,6 +7,7 @@ import { ConnectionAwarenessTracker } from "./socket/ConnectionAwarenessTracker.
 import { WorkspaceLifecycleManager } from "./workspaces/WorkspaceLifecycleManager.js";
 import { registerSocketServer } from "./socket/index.js";
 import { prisma } from "./db/prismaClient.js";
+import { workspaceStore } from "./db/index.js";
 
 assertProductionSecurityConfig();
 
@@ -24,9 +25,19 @@ io.attach(httpServer);
 
 registerSocketServer(io, registry, awarenessTracker, lifecycleManager);
 
-httpServer.listen(env.port, () => {
-  console.log(`Difflane server listening on port ${env.port}`);
-});
+workspaceStore
+  .completeStaleSessions()
+  .then((count) => {
+    if (count > 0) {
+      console.log(`Closed ${count} stale session record${count === 1 ? "" : "s"} from a previous run.`);
+    }
+  })
+  .catch((error) => console.error("Failed to close stale session records:", error))
+  .finally(() => {
+    httpServer.listen(env.port, () => {
+      console.log(`Difflane server listening on port ${env.port}`);
+    });
+  });
 
 let shuttingDown = false;
 

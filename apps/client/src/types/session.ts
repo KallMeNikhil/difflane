@@ -10,9 +10,14 @@ export interface SessionFileSystemSummary {
 
 export interface SessionCounts {
   filesImported: number;
-  filesReviewed: number;
-  discussionsCreated: number;
-  discussionsResolved: number;
+  filesReviewed: number | null;
+  discussionsCreated: number | null;
+  discussionsResolved: number | null;
+}
+
+export interface SessionParticipant extends Collaborator {
+  identityType?: "user" | "guest";
+  overlappedWithViewer?: boolean;
 }
 
 export interface SessionRecord {
@@ -24,7 +29,7 @@ export interface SessionRecord {
   repository?: WorkspaceRepositoryInfo;
   fileSystem: SessionFileSystemSummary;
   counts: SessionCounts;
-  participants: Collaborator[];
+  participants: SessionParticipant[];
   timeline: ActivityEvent[];
   outcomes: string[];
   startedAt: string;

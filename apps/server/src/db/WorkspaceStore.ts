@@ -51,6 +51,13 @@ export interface WorkspaceStore {
 
   startOrTouchSession(input: StartOrTouchSessionInput): Promise<SessionHistoryRecord>;
   recordSessionEvent(workspaceId: string, roomCode: string, event: SessionTimelineEventInput): Promise<void>;
+  markParticipantLeft(
+    workspaceId: string,
+    roomCode: string,
+    participant: Pick<SessionParticipantEntry, "userId" | "identityType">,
+    event: SessionTimelineEventInput,
+  ): Promise<void>;
   completeSession(workspaceId: string, roomCode: string, event: SessionTimelineEventInput): Promise<void>;
+  completeStaleSessions(): Promise<number>;
   listSessionsForWorkspaceIds(workspaceIds: string[]): Promise<SessionHistoryRecord[]>;
 }

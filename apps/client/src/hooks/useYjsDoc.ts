@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
@@ -21,13 +21,15 @@ interface YjsDocState {
 export function useYjsDoc({ socket, roomId, initialDocUpdate, initialAwarenessUpdate, rejoin }: UseYjsDocOptions) {
   const [docState, setDocState] = useState<YjsDocState | null>(null);
   const [status, setStatus] = useState<YjsSocketProviderStatus>("connecting");
+  const latestRef = useRef({ initialDocUpdate, initialAwarenessUpdate, rejoin });
+  latestRef.current = { initialDocUpdate, initialAwarenessUpdate, rejoin };
 
   useEffect(() => {
     const { doc, awareness } = createRoomDoc();
-    const provider = new YjsSocketProvider({ socket, roomId, doc, awareness, rejoin });
+    const provider = new YjsSocketProvider({ socket, roomId, doc, awareness, rejoin: () => latestRef.current.rejoin() });
     const unsubscribe = provider.onStatusChange(setStatus);
 
-    provider.applyInitialState(initialDocUpdate, initialAwarenessUpdate);
+    provider.applyInitialState(latestRef.current.initialDocUpdate, latestRef.current.initialAwarenessUpdate);
     setDocState({ doc, awareness });
 
     return () => {
@@ -37,7 +39,6 @@ export function useYjsDoc({ socket, roomId, initialDocUpdate, initialAwarenessUp
       setDocState(null);
       setStatus("connecting");
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, roomId]);
 
   return { doc: docState?.doc ?? null, awareness: docState?.awareness ?? null, status };

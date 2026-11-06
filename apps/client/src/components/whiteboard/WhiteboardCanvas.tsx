@@ -81,15 +81,11 @@ export default function WhiteboardCanvas({ doc, awareness, readOnly, onJumpReady
   const getAuthor = useCallback(() => readLocalAuthor(awareness?.getLocalState()), [awareness]);
   const { initialElements, initialFiles, handleLocalChange } = useWhiteboard(doc, sceneApi, readOnly, getAuthor);
 
-  const initialData = useMemo(
-    () => ({
-      elements: initialElements as unknown as OrderedExcalidrawElement[],
-      files: Object.fromEntries(initialFiles.map((file) => [file.id, file])) as unknown as Record<string, BinaryFileData>,
-      scrollToContent: true,
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  const [initialData] = useState(() => ({
+    elements: initialElements as unknown as OrderedExcalidrawElement[],
+    files: Object.fromEntries(initialFiles.map((file) => [file.id, file])) as unknown as Record<string, BinaryFileData>,
+    scrollToContent: true,
+  }));
 
   useEffect(() => {
     if (!awareness) {

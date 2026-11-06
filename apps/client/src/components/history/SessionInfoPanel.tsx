@@ -68,9 +68,9 @@ export function SessionInfoPanel({ record, onClose, onOpenWorkspace, onViewSumma
             <MetaRow label="Started" value={formatDateTimeLabel(record.startedAt)} />
             <MetaRow label="Ended" value={record.endedAt ? formatDateTimeLabel(record.endedAt) : "-"} />
             <MetaRow label="Duration" value={formatDurationLabel(record.startedAt, record.endedAt)} />
-            <MetaRow label="Files Reviewed" value={String(record.counts.filesReviewed)} />
-            <MetaRow label="Discussions Created" value={String(record.counts.discussionsCreated)} />
-            <MetaRow label="Discussions Resolved" value={String(record.counts.discussionsResolved)} />
+            <MetaRow label="Files Reviewed" value={record.counts.filesReviewed === null ? "—" : String(record.counts.filesReviewed)} />
+            <MetaRow label="Discussions Created" value={record.counts.discussionsCreated === null ? "—" : String(record.counts.discussionsCreated)} />
+            <MetaRow label="Discussions Resolved" value={record.counts.discussionsResolved === null ? "—" : String(record.counts.discussionsResolved)} />
             <MetaRow label="Participants" value={String(record.participants.length)} />
             <MetaRow
               label="Repository Source"

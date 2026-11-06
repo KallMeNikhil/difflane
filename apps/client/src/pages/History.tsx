@@ -24,10 +24,7 @@ export default function History() {
       setSelectedId(null);
       return;
     }
-    if (!visibleRecords.some((record) => record.id === selectedId)) {
-      setSelectedId(visibleRecords[0].id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSelectedId((current) => (visibleRecords.some((record) => record.id === current) ? current : visibleRecords[0].id));
   }, [visibleRecords]);
 
   const selectedRecord = selectedId ? getSessionRecordById(visibleRecords, selectedId) ?? null : null;

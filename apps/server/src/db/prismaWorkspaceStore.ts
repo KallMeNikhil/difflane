@@ -9,6 +9,7 @@ import type {
   WorkspaceSnapshotRecord,
   WorkspaceStateRecord,
 } from "./models.js";
+import { closeAllParticipants, markParticipantDeparted, upsertJoinedParticipant } from "../workspaces/sessionParticipants.js";
 import type { CreateSnapshotInput, SaveStateInput, SessionTimelineEventInput, StartOrTouchSessionInput, WorkspaceStore } from "./WorkspaceStore.js";
 
 type PrismaSessionStatus = "ACTIVE" | "COMPLETED";
@@ -176,6 +177,7 @@ export function createPrismaWorkspaceStore(): WorkspaceStore {
         orderBy: { startedAt: "desc" },
       });
 
+      const now = input.event.occurredAt;
       const eventEntry = toTimelineEntry(input.event);
 
       if (!existing) {
@@ -185,7 +187,7 @@ export function createPrismaWorkspaceStore(): WorkspaceStore {
             roomCode: input.roomCode,
             fileCount: input.fileCount,
             folderCount: input.folderCount,
-            participants: toInputJson([input.participant]),
+            participants: toInputJson(upsertJoinedParticipant([], input.participant, now)),
             timeline: toInputJson([eventEntry]),
           },
         });
@@ -193,8 +195,7 @@ export function createPrismaWorkspaceStore(): WorkspaceStore {
       }
 
       const existingParticipants = (existing.participants as SessionParticipantEntry[] | null) ?? [];
-      const alreadyPresent = existingParticipants.some((participant) => participant.userId === input.participant.userId);
-      const participants = alreadyPresent ? existingParticipants : [...existingParticipants, input.participant];
+      const participants = upsertJoinedParticipant(existingParticipants, input.participant, now);
       const timeline = [...((existing.timeline as SessionTimelineEntry[] | null) ?? []), eventEntry];
 
       const updated = await prisma.sessionHistoryRecord.update({
@@ -225,6 +226,26 @@ export function createPrismaWorkspaceStore(): WorkspaceStore {
       });
     },
 
+    async markParticipantLeft(workspaceId, roomCode, participant, event) {
+      const existing = await prisma.sessionHistoryRecord.findFirst({
+        where: { workspaceId, roomCode, status: "ACTIVE" },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!existing) {
+        return;
+      }
+      const participants = markParticipantDeparted(
+        (existing.participants as SessionParticipantEntry[] | null) ?? [],
+        participant,
+        event.occurredAt,
+      );
+      const timeline = [...((existing.timeline as SessionTimelineEntry[] | null) ?? []), toTimelineEntry(event)];
+      await prisma.sessionHistoryRecord.update({
+        where: { id: existing.id },
+        data: { participants: toInputJson(participants), timeline: toInputJson(timeline), lastActivityAt: new Date() },
+      });
+    },
+
     async completeSession(workspaceId: string, roomCode: string, event: SessionTimelineEventInput) {
       const existing = await prisma.sessionHistoryRecord.findFirst({
         where: { workspaceId, roomCode, status: "ACTIVE" },
@@ -233,11 +254,31 @@ export function createPrismaWorkspaceStore(): WorkspaceStore {
       if (!existing) {
         return;
       }
+      const now = new Date();
+      const participants = closeAllParticipants((existing.participants as SessionParticipantEntry[] | null) ?? [], event.occurredAt);
       const timeline = [...((existing.timeline as SessionTimelineEntry[] | null) ?? []), toTimelineEntry(event)];
       await prisma.sessionHistoryRecord.update({
         where: { id: existing.id },
-        data: { status: "COMPLETED", endedAt: new Date(), timeline: toInputJson(timeline), lastActivityAt: new Date() },
+        data: {
+          status: "COMPLETED",
+          endedAt: now,
+          participants: toInputJson(participants),
+          timeline: toInputJson(timeline),
+          lastActivityAt: now,
+        },
       });
+    },
+
+    async completeStaleSessions() {
+      const stale = await prisma.sessionHistoryRecord.findMany({ where: { status: "ACTIVE" } });
+      for (const record of stale) {
+        const participants = closeAllParticipants((record.participants as SessionParticipantEntry[] | null) ?? [], record.lastActivityAt);
+        await prisma.sessionHistoryRecord.update({
+          where: { id: record.id },
+          data: { status: "COMPLETED", endedAt: record.lastActivityAt, participants: toInputJson(participants) },
+        });
+      }
+      return stale.length;
     },
 
     async listSessionsForWorkspaceIds(workspaceIds: string[]) {
